@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const tabs = [
   { label: "home", href: "/" },
-  { label: "news", href: "/news" },
+  { label: "top story", href: "/news" },
   { label: "daily food", href: "/daily-food" },
   { label: "theories", href: "/theories" },
   { label: "library", href: "/library" },
