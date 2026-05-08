@@ -9,7 +9,6 @@ type DailyFoodProps = {
 
 export default async function DailyFood({ searchParams }: DailyFoodProps) {
   const { df } = await searchParams;
-  const isActive = df?.toLowerCase() === "c4bar";
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -23,7 +22,7 @@ export default async function DailyFood({ searchParams }: DailyFoodProps) {
           daily food
         </h1>
 
-        <DfHeadlineTerminal initiallyActive={isActive} />
+        <DfHeadlineTerminal initialCode={df ?? ""} />
       </section>
     </main>
   );

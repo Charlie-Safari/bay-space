@@ -15,7 +15,7 @@ export default function NewsCodeSearch() {
       ariaLabel="Open top story code"
       id="home-news-code"
       label="TS code"
-      maxLength={5}
+      maxLength={7}
       onSubmitCode={openNewsCode}
     />
   );

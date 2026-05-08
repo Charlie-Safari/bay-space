@@ -17,6 +17,7 @@ type DosCodeBoxProps = {
   autoFocus?: boolean;
   inputMode?: "numeric" | "text";
   onSubmitCode: (code: string) => void;
+  shouldSubmitCode?: (code: string) => boolean;
 };
 
 export default function DosCodeBox({
@@ -28,6 +29,7 @@ export default function DosCodeBox({
   autoFocus = false,
   inputMode = "text",
   onSubmitCode,
+  shouldSubmitCode,
 }: DosCodeBoxProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [code, setCode] = useState("");
@@ -49,7 +51,7 @@ export default function DosCodeBox({
 
     setCode(nextCode);
 
-    if (nextCode.length === maxLength) {
+    if (nextCode.length === maxLength || shouldSubmitCode?.(nextCode)) {
       onSubmitCode(nextCode);
     }
   }

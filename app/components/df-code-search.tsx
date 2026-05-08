@@ -3,14 +3,16 @@
 import { useRouter } from "next/navigation";
 import DosCodeBox from "./dos-code-box";
 
-const dfCode = "c4bar";
+const dfCodes = ["a4rbs", "shadows"];
 
 export default function DfCodeSearch() {
   const router = useRouter();
 
   function openCode(nextCode: string) {
-    if (nextCode.toLowerCase() === dfCode) {
-      router.push("/daily-food?df=c4bar");
+    const normalizedCode = nextCode.toLowerCase();
+
+    if (dfCodes.includes(normalizedCode)) {
+      router.push(`/daily-food?df=${normalizedCode}`);
     }
   }
 
@@ -20,8 +22,9 @@ export default function DfCodeSearch() {
       autoFocus
       id="df-code"
       label="daily food code"
-      maxLength={5}
+      maxLength={7}
       onSubmitCode={openCode}
+      shouldSubmitCode={(nextCode) => dfCodes.includes(nextCode.toLowerCase())}
     />
   );
 }

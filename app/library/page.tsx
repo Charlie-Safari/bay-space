@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LibraryCodeSearch from "../components/library-code-search";
 import HomeBar from "../components/home-bar";
 
 const entries = [
@@ -30,6 +31,10 @@ export default function Library() {
           organized by context, not container. choose a door by what it knows,
           not what it is made of.
         </p>
+
+        <div className="mt-10">
+          <LibraryCodeSearch />
+        </div>
 
         <div className="mt-12 grid max-w-2xl gap-3">
           {entries.map((entry) => (
