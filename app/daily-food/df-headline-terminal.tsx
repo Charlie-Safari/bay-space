@@ -235,13 +235,12 @@ export default function DfHeadlineTerminal({
 
   return (
     <div className="w-full max-w-5xl">
-      <div
-        className="relative flex min-h-40 w-full touch-pan-y flex-col gap-6 overflow-hidden border-2 border-[#39ff14] bg-black px-5 py-8 shadow-[0_0_24px_rgba(57,255,20,0.24)] sm:min-h-48 sm:px-6 sm:py-10"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {activeHeadline ? (
-          <>
+      {activeHeadline ? (
+        <div
+          className="relative flex min-h-40 w-full touch-pan-y flex-col gap-6 overflow-hidden border-2 border-[#39ff14] bg-black px-5 py-8 shadow-[0_0_24px_rgba(57,255,20,0.24)] sm:min-h-48 sm:px-6 sm:py-10"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
             <div className="flex w-full flex-col gap-3">
               <div className="self-end text-sm font-bold uppercase tracking-[0.14em] text-[#9aa09a]/55 sm:text-base">
                 [{activeHeadline.timestamp}]
@@ -287,11 +286,10 @@ export default function DfHeadlineTerminal({
                 text={activeHeadline.text}
               />
             </div>
-          </>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="mt-8">
+      <div className={activeHeadline ? "mt-8" : ""}>
         <DosCodeBox
           ariaLabel="Activate Daily Food headline"
           autoFocus

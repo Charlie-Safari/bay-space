@@ -1,28 +1,60 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import MemberLookup from "./member-lookup";
 
 const tabs = [
-  { label: "home", href: "/" },
   { label: "top story", href: "/news" },
   { label: "daily food", href: "/daily-food" },
   { label: "theories", href: "/theories" },
   { label: "library", href: "/library" },
 ];
 
+const activeMemberKey = "bay-space-active-member-v6";
+
 export default function HomeBar() {
+  const [activeMember, setActiveMember] = useState("");
+
+  useEffect(() => {
+    function syncActiveMember() {
+      setActiveMember(window.localStorage.getItem(activeMemberKey) ?? "");
+    }
+
+    syncActiveMember();
+    window.addEventListener("storage", syncActiveMember);
+    window.addEventListener("bay-space-auth", syncActiveMember);
+
+    return () => {
+      window.removeEventListener("storage", syncActiveMember);
+      window.removeEventListener("bay-space-auth", syncActiveMember);
+    };
+  }, []);
+
+  const visibleTabs = activeMember
+    ? [
+        { label: "briefing room", href: `/briefing-room?member=${activeMember}` },
+        ...tabs,
+      ]
+    : tabs;
+
   return (
     <nav
       aria-label="Main navigation"
       className="border-b-2 border-[#39ff14] bg-black px-4 py-3 shadow-[0_0_22px_rgba(57,255,20,0.28)]"
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/"
-          className="text-xl font-black uppercase tracking-[0.24em] text-[#d7ffd0] [text-shadow:0_0_10px_#39ff14]"
-        >
-          bay-space
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/"
+            className="text-xl font-black uppercase tracking-[0.24em] text-[#d7ffd0] [text-shadow:0_0_10px_#39ff14]"
+          >
+            bay-space
+          </Link>
+          <MemberLookup />
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
