@@ -18,9 +18,6 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
         <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
           c:\bay-space\briefing-room&gt; gate
         </p>
-        <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
-          briefing room
-        </h1>
         <BriefingRoomGate member={member} />
       </section>
     </main>

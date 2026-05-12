@@ -1,36 +1,47 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import DosCodeBox from "./dos-code-box";
+import { getBayPosts, normalizeShelfLabel } from "./post-store";
 
 const libraryCodes: Record<string, string> = {
-  "000": "/library/intro-000",
-  "001": "/library/001",
-  "5626": "/library/5626",
-  "999": "/library/999",
-  safari1: "/library/admin-index",
+  "safari1": "/library/admin-index",
 };
 
 export default function LibraryCodeSearch() {
-  const router = useRouter();
-
   function openCode(nextCode: string) {
-    const href = libraryCodes[nextCode.toLowerCase()];
+    const normalizedCode = normalizeShelfLabel(nextCode);
+    const href = libraryCodes[normalizedCode];
 
     if (href) {
-      router.push(href);
+      window.location.href = href;
+      return;
+    }
+
+    const matchingPost = getBayPosts().find(
+      (post) => post.shelfCode === normalizedCode,
+    );
+
+    if (matchingPost) {
+      window.location.hash = `library-${matchingPost.id}`;
     }
   }
 
   return (
     <DosCodeBox
-      ariaLabel="Open library code"
+      ariaLabel="Open shelf label"
       autoFocus
       id="library-code"
-      label="library code"
-      maxLength={11}
+      label="shelf label"
+      maxLength={120}
       onSubmitCode={openCode}
-      shouldSubmitCode={(nextCode) => nextCode.toLowerCase() in libraryCodes}
+      shouldSubmitCode={(nextCode) => {
+        const normalizedCode = normalizeShelfLabel(nextCode);
+
+        return (
+          normalizedCode in libraryCodes ||
+          getBayPosts().some((post) => post.shelfCode === normalizedCode)
+        );
+      }}
     />
   );
 }
