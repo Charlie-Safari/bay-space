@@ -1,27 +1,9 @@
 "use client";
 
-export type BayPostCategory =
-  | "top-story"
-  | "daily-food"
-  | "theory"
-  | "library-submission";
+import type { BayPost, BayPostCategory } from "../../lib/bay-space-types";
 
-export type BayPost = {
-  id: string;
-  category: BayPostCategory;
-  title: string;
-  body: string;
-  createdAt: string;
-  dateKey: string;
-  anonymous: boolean;
-  incognito?: boolean;
-  author: string;
-  shelfLabel?: string;
-  shelfCode?: string;
-  meta?: Record<string, string | string[]>;
-};
+export type { BayPost, BayPostCategory };
 
-const postStoreKey = "bay-space-posts-v1";
 export const postStoreEvent = "bay-space-posts";
 
 export function normalizeShelfLabel(label: string) {
@@ -32,48 +14,63 @@ export function getDateKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
-export function getBayPosts() {
-  if (typeof window === "undefined") {
+export async function getBayPosts() {
+  const response = await fetch("/api/posts", { cache: "no-store" });
+
+  if (!response.ok) {
     return [];
   }
 
-  const savedPosts = window.localStorage.getItem(postStoreKey);
+  const data = (await response.json()) as { posts?: BayPost[] };
 
-  if (!savedPosts) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(savedPosts) as BayPost[];
-  } catch {
-    return [];
-  }
+  return data.posts ?? [];
 }
 
-export function getBayPostsByCategory(category: BayPostCategory) {
-  return getBayPosts().filter((post) => post.category === category);
+export async function getBayPostsByCategory(category: BayPostCategory) {
+  const response = await fetch(`/api/posts?category=${category}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const data = (await response.json()) as { posts?: BayPost[] };
+
+  return data.posts ?? [];
 }
 
-export function saveBayPost(post: Omit<BayPost, "id" | "createdAt" | "dateKey">) {
-  const createdAt = new Date();
-  const nextPost: BayPost = {
-    ...post,
-    incognito: post.incognito ?? false,
-    id: `${createdAt.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: createdAt.toISOString(),
-    dateKey: getDateKey(createdAt),
-  };
-  const nextPosts = [nextPost, ...getBayPosts()];
+export async function saveBayPost(
+  post: Omit<BayPost, "id" | "createdAt" | "dateKey">,
+) {
+  const response = await fetch("/api/posts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(post),
+  });
 
-  window.localStorage.setItem(postStoreKey, JSON.stringify(nextPosts));
+  if (!response.ok) {
+    throw new Error("Unable to save post");
+  }
+
+  const data = (await response.json()) as { post: BayPost };
+
   window.dispatchEvent(new Event(postStoreEvent));
 
-  return nextPost;
+  return data.post;
 }
 
-export function deleteBayPost(postId: string) {
-  const nextPosts = getBayPosts().filter((post) => post.id !== postId);
+export async function deleteBayPost(postId: string, author: string) {
+  const response = await fetch(
+    `/api/posts/${encodeURIComponent(postId)}?author=${encodeURIComponent(
+      author,
+    )}`,
+    { method: "DELETE" },
+  );
 
-  window.localStorage.setItem(postStoreKey, JSON.stringify(nextPosts));
+  if (!response.ok && response.status !== 404) {
+    throw new Error("Unable to delete post");
+  }
+
   window.dispatchEvent(new Event(postStoreEvent));
 }

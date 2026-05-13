@@ -3,12 +3,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const memberCounterKey = "bay-space-circle-next-member-v6";
-
-function formatMemberId(value: number) {
-  return value.toString().padStart(3, "0");
-}
-
 function normalizeUsername(value: string) {
   return value.replace(/[^a-z0-9 _-]/gi, "").slice(0, 24);
 }
@@ -17,30 +11,42 @@ export default function JoinCircleForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  function activate(event: FormEvent<HTMLFormElement>) {
+  async function activate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const cleanUsername = username.trim();
 
-    if (!cleanUsername) {
+    if (!cleanUsername || isSubmitting) {
       inputRef.current?.focus();
       return;
     }
 
-    const nextMember = Number(
-      window.localStorage.getItem(memberCounterKey) ?? "1",
-    );
-    const memberId = formatMemberId(nextMember);
+    setIsSubmitting(true);
+    const response = await fetch("/api/members", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: cleanUsername }),
+    });
+    const data = (await response.json()) as {
+      member?: { member: string; name: string };
+    };
+    setIsSubmitting(false);
+
+    if (!response.ok || !data.member) {
+      inputRef.current?.focus();
+      return;
+    }
 
     router.push(
       `/join-the-circle/member?name=${encodeURIComponent(
-        cleanUsername,
-      )}&member=${memberId}`,
+        data.member.name,
+      )}&member=${data.member.member}`,
     );
   }
 
@@ -87,9 +93,10 @@ export default function JoinCircleForm() {
       </div>
       <button
         type="submit"
+        disabled={isSubmitting}
         className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.24em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
-        activate
+        {isSubmitting ? "activating" : "activate"}
       </button>
     </form>
   );

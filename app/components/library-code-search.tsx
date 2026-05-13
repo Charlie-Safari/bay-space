@@ -1,13 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import DosCodeBox from "./dos-code-box";
-import { getBayPosts, normalizeShelfLabel } from "./post-store";
+import { BayPost, getBayPosts, normalizeShelfLabel } from "./post-store";
 
 const libraryCodes: Record<string, string> = {
   "safari1": "/library/admin-index",
 };
 
 export default function LibraryCodeSearch() {
+  const [posts, setPosts] = useState<BayPost[]>([]);
+
+  useEffect(() => {
+    getBayPosts().then(setPosts);
+  }, []);
+
   function openCode(nextCode: string) {
     const normalizedCode = normalizeShelfLabel(nextCode);
     const href = libraryCodes[normalizedCode];
@@ -17,7 +24,7 @@ export default function LibraryCodeSearch() {
       return;
     }
 
-    const matchingPost = getBayPosts().find(
+    const matchingPost = posts.find(
       (post) => post.shelfCode === normalizedCode,
     );
 
@@ -39,7 +46,7 @@ export default function LibraryCodeSearch() {
 
         return (
           normalizedCode in libraryCodes ||
-          getBayPosts().some((post) => post.shelfCode === normalizedCode)
+          posts.some((post) => post.shelfCode === normalizedCode)
         );
       }}
     />

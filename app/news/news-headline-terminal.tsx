@@ -53,9 +53,9 @@ export default function NewsHeadlineTerminal() {
 
   useEffect(() => {
     function syncPosts() {
-      setPosts(
-        getBayPostsByCategory("top-story").filter((post) => !post.incognito),
-      );
+      getBayPostsByCategory("top-story").then((savedPosts) => {
+        setPosts(savedPosts.filter((post) => !post.incognito));
+      });
     }
 
     syncPosts();

@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBayPostsByCategory } from "../../components/post-store";
+import { BayPost, getBayPostsByCategory } from "../../components/post-store";
 
 type TopStoryPostProps = {
   postId?: string;
 };
 
 export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
-  const [postsVersion, setPostsVersion] = useState(0);
-  void postsVersion;
+  const [posts, setPosts] = useState<BayPost[]>([]);
 
   useEffect(() => {
     function syncPosts() {
-      setPostsVersion((version) => version + 1);
+      getBayPostsByCategory("top-story").then(setPosts);
     }
 
+    syncPosts();
     window.addEventListener("storage", syncPosts);
     window.addEventListener("bay-space-posts", syncPosts);
 
@@ -25,7 +25,6 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
     };
   }, []);
 
-  const posts = getBayPostsByCategory("top-story");
   const post =
     posts.find((savedPost) => savedPost.id === postId) ?? posts[0] ?? null;
 

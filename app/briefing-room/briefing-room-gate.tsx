@@ -23,7 +23,6 @@ type BriefingRoomGateProps = {
 type SavedMember = {
   member: string;
   name: string;
-  pin: string;
   refName: string;
   roles: string;
   title: string;
@@ -68,6 +67,32 @@ function getSavedMember(memberId: string): SavedMember | null {
   }
 }
 
+function cacheSavedMember(member: SavedMember) {
+  window.localStorage.setItem(getMemberKey(member.member), JSON.stringify(member));
+}
+
+async function fetchSavedMember(memberId: string): Promise<SavedMember | null> {
+  const cachedMember = getSavedMember(memberId);
+
+  if (cachedMember) {
+    return cachedMember;
+  }
+
+  const response = await fetch(`/api/members/${memberId}`, { cache: "no-store" });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as { member?: SavedMember };
+
+  if (data.member) {
+    cacheSavedMember(data.member);
+  }
+
+  return data.member ?? null;
+}
+
 function expandTextarea(textarea: HTMLTextAreaElement) {
   textarea.style.height = "auto";
   textarea.style.height = `${textarea.scrollHeight}px`;
@@ -81,34 +106,15 @@ function formatDailyFoodCode(dateKey: string, order: number) {
 
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
-  const [resolvedMember, setResolvedMember] = useState(() => {
-    if (typeof window === "undefined") {
-      return member;
-    }
-
-    const activeMember = window.localStorage.getItem(activeMemberKey);
-
-    if (activeMember && getSavedMember(activeMember)) {
-      return activeMember;
-    }
-
-    window.localStorage.removeItem(activeMemberKey);
-    return member;
-  });
+  const [resolvedMember, setResolvedMember] = useState(member);
   const [password, setPassword] = useState("");
-  const [isUnlocked, setIsUnlocked] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    const activeMember = window.localStorage.getItem(activeMemberKey);
-
-    return Boolean(activeMember && getSavedMember(activeMember));
-  });
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [activePanel, setActivePanel] = useState("id-card");
+  const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isPostOpen, setIsPostOpen] = useState(false);
   const [shakingOption, setShakingOption] = useState("");
+  const [allPosts, setAllPosts] = useState<BayPost[]>([]);
   const [myPosts, setMyPosts] = useState<BayPost[]>([]);
   const [postPreview, setPostPreview] = useState<Omit<
     BayPost,
@@ -146,25 +152,30 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [isIncognitoShelfSet, setIsIncognitoShelfSet] = useState(false);
 
   useEffect(() => {
-    function syncActiveMember() {
+    async function syncActiveMember() {
       const activeMember = window.localStorage.getItem(activeMemberKey);
-      const savedMember = activeMember ? getSavedMember(activeMember) : null;
+      const activeSavedMember = activeMember
+        ? await fetchSavedMember(activeMember)
+        : null;
 
-      if (activeMember && savedMember) {
+      if (activeMember && activeSavedMember) {
         setResolvedMember(activeMember);
+        setSavedMember(activeSavedMember);
         setIsUnlocked(true);
         setErrorMessage("");
         return;
       }
 
-      if (activeMember && !savedMember) {
+      if (activeMember && !activeSavedMember) {
         window.localStorage.removeItem(activeMemberKey);
       }
 
       setResolvedMember(member);
+      setSavedMember(await fetchSavedMember(member));
       setIsUnlocked(false);
     }
 
+    syncActiveMember();
     window.addEventListener("storage", syncActiveMember);
     window.addEventListener("bay-space-auth", syncActiveMember);
 
@@ -176,11 +187,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   useEffect(() => {
     function syncMyPosts() {
-      setMyPosts(
-        getBayPosts().filter(
-          (post) => !post.anonymous && post.author === resolvedMember,
-        ),
-      );
+      getBayPosts().then((savedPosts) => {
+        setAllPosts(savedPosts);
+        setMyPosts(
+          savedPosts.filter(
+            (post) => !post.anonymous && post.author === resolvedMember,
+          ),
+        );
+      });
     }
 
     syncMyPosts();
@@ -222,17 +236,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     };
   }, [postPreview]);
 
-  function unlock(event: FormEvent<HTMLFormElement>) {
+  async function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const savedMember = getSavedMember(resolvedMember);
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ member: resolvedMember, pin: password }),
+    });
+    const data = (await response.json()) as { member?: SavedMember };
 
-    if (!savedMember) {
-      setErrorMessage("no account found");
-      return;
-    }
-
-    if (savedMember && savedMember.pin === password) {
+    if (response.ok && data.member) {
+      cacheSavedMember(data.member);
+      setSavedMember(data.member);
       window.localStorage.setItem(activeMemberKey, resolvedMember);
       window.dispatchEvent(new Event("bay-space-auth"));
       setErrorMessage("");
@@ -240,7 +256,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    setErrorMessage("try again");
+    setErrorMessage(response.status === 401 ? "try again" : "no account found");
   }
 
   function signOut() {
@@ -302,7 +318,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     if (postCategory === "daily-food") {
       const dateKey = getDateKey();
       const dailyFoodOrder =
-        getBayPosts().filter(
+        allPosts.filter(
           (post) => post.category === "daily-food" && post.dateKey === dateKey,
         ).length + 1;
 
@@ -367,9 +383,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     };
   }
 
-  function confirmPost() {
+  async function confirmPost() {
     if (postPreview) {
-      saveBayPost(postPreview);
+      await saveBayPost(postPreview);
     }
 
     resetPostDraft();
@@ -431,9 +447,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     );
   }
 
-  function changePassword() {
-    const savedMember = getSavedMember(resolvedMember);
-
+  async function changePassword() {
     if (!savedMember) {
       setPasswordChangeMessage("no account found");
       return;
@@ -449,10 +463,20 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    window.localStorage.setItem(
-      getMemberKey(resolvedMember),
-      JSON.stringify({ ...savedMember, pin: newPassword }),
-    );
+    const response = await fetch(`/api/members/${resolvedMember}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pin: newPassword }),
+    });
+    const data = (await response.json()) as { member?: SavedMember };
+
+    if (!response.ok || !data.member) {
+      setPasswordChangeMessage("password not changed");
+      return;
+    }
+
+    cacheSavedMember(data.member);
+    setSavedMember(data.member);
     setPassword(newPassword);
     setNewPassword("");
     setConfirmPassword("");
@@ -544,9 +568,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   );
 
   if (isUnlocked) {
-    const savedMember =
-      typeof window === "undefined" ? null : getSavedMember(resolvedMember);
-
     return (
       <>
         {header}
@@ -1144,8 +1165,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                deleteBayPost(post.id);
+                              onClick={async () => {
+                                await deleteBayPost(post.id, resolvedMember);
                                 setDeletePostId("");
                               }}
                               className="border border-[#ff3b3b] px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black"

@@ -13,11 +13,13 @@ export default function LibraryBoard() {
 
   useEffect(() => {
     function syncPosts() {
-      setPosts(
-        getBayPosts().filter(
+      getBayPosts().then((savedPosts) => {
+        setPosts(
+          savedPosts.filter(
           (post) => post.category === "library-submission" || post.shelfCode,
-        ),
-      );
+          ),
+        );
+      });
     }
 
     syncPosts();

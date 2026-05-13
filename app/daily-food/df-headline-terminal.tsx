@@ -51,6 +51,25 @@ type SavedMember = {
 const memberKeyPrefix = "bay-space-circle-member-v6-";
 const activeMemberKey = "bay-space-active-member-v6";
 
+function getSavedMembersFromStorage() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  return Object.keys(window.localStorage)
+    .filter((key) => key.startsWith(memberKeyPrefix))
+    .map((key) => {
+      try {
+        return JSON.parse(
+          window.localStorage.getItem(key) ?? "",
+        ) as SavedMember;
+      } catch {
+        return null;
+      }
+    })
+    .filter((member): member is SavedMember => Boolean(member));
+}
+
 function getMetaString(post: BayPost, key: string) {
   const value = post.meta?.[key];
 
@@ -70,6 +89,7 @@ export default function DfHeadlineTerminal({
   const listRef = useRef<HTMLDivElement>(null);
   const [activeDate, setActiveDate] = useState(today);
   const [posts, setPosts] = useState<BayPost[]>([]);
+  const [members, setMembers] = useState<SavedMember[]>([]);
   const [expandedPostId, setExpandedPostId] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
@@ -87,7 +107,7 @@ export default function DfHeadlineTerminal({
       ) ?? null
     : null;
   const matchedReferenceMember = normalizedReferenceQuery
-    ? getSavedMembers().find(
+    ? members.find(
         (savedMember) =>
           savedMember.refName?.toLowerCase().replace(/[^a-z0-9]/g, "") ===
           normalizedReferenceQuery,
@@ -104,15 +124,24 @@ export default function DfHeadlineTerminal({
 
   useEffect(() => {
     function syncPosts() {
-      setPosts(getBayPostsByCategory("daily-food"));
+      getBayPostsByCategory("daily-food").then(setPosts);
     }
 
     function syncLogin() {
       setIsLoggedIn(Boolean(window.localStorage.getItem(activeMemberKey)));
     }
 
+    function syncMembers() {
+      fetch("/api/members", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : { members: [] }))
+        .then((data: { members?: SavedMember[] }) => {
+          setMembers(data.members ?? getSavedMembersFromStorage());
+        });
+    }
+
     syncPosts();
     syncLogin();
+    syncMembers();
     window.addEventListener("storage", syncPosts);
     window.addEventListener(postStoreEvent, syncPosts);
     window.addEventListener("storage", syncLogin);
@@ -133,25 +162,6 @@ export default function DfHeadlineTerminal({
       return nextDate > today ? today : nextDate;
     });
     setExpandedPostId("");
-  }
-
-  function getSavedMembers() {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    return Object.keys(window.localStorage)
-      .filter((key) => key.startsWith(memberKeyPrefix))
-      .map((key) => {
-        try {
-          return JSON.parse(
-            window.localStorage.getItem(key) ?? "",
-          ) as SavedMember;
-        } catch {
-          return null;
-        }
-      })
-      .filter((member): member is SavedMember => Boolean(member));
   }
 
   function getVisiblePosts() {

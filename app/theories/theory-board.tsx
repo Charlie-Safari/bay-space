@@ -15,7 +15,9 @@ export default function TheoryBoard() {
 
   useEffect(() => {
     function syncPosts() {
-      setPosts(getBayPostsByCategory("theory").filter((post) => !post.incognito));
+      getBayPostsByCategory("theory").then((savedPosts) => {
+        setPosts(savedPosts.filter((post) => !post.incognito));
+      });
     }
 
     syncPosts();

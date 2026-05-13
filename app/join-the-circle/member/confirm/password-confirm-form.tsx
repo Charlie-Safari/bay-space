@@ -13,7 +13,6 @@ type PasswordConfirmFormProps = {
   title: string;
 };
 
-const memberCounterKey = "bay-space-circle-next-member-v6";
 const activeMemberKey = "bay-space-active-member-v6";
 
 function getMemberKey(memberId: string) {
@@ -22,7 +21,6 @@ function getMemberKey(memberId: string) {
 
 export default function PasswordConfirmForm({
   member,
-  name,
   pin,
   refName,
   roles,
@@ -31,11 +29,35 @@ export default function PasswordConfirmForm({
   const router = useRouter();
   const [confirmPin, setConfirmPin] = useState("");
   const [isWrongPassword, setIsWrongPassword] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  function saveMember(event: FormEvent<HTMLFormElement>) {
+  async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (confirmPin !== pin) {
+    if (confirmPin !== pin || isSaving) {
+      setIsWrongPassword(false);
+      window.setTimeout(() => setIsWrongPassword(true), 0);
+      return;
+    }
+
+    setIsSaving(true);
+    const response = await fetch(`/api/members/${member}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmPin, refName, roles, title }),
+    });
+    const data = (await response.json()) as {
+      member?: {
+        member: string;
+        name: string;
+        refName: string;
+        roles: string;
+        title: string;
+      };
+    };
+    setIsSaving(false);
+
+    if (!response.ok || !data.member) {
       setIsWrongPassword(false);
       window.setTimeout(() => setIsWrongPassword(true), 0);
       return;
@@ -43,17 +65,8 @@ export default function PasswordConfirmForm({
 
     window.localStorage.setItem(
       getMemberKey(member),
-      JSON.stringify({ member, name, pin, refName, roles, title }),
+      JSON.stringify(data.member),
     );
-    const nextMember = Number(
-      window.localStorage.getItem(memberCounterKey) ?? "1",
-    );
-    const currentMember = Number(member);
-
-    if (Number.isFinite(currentMember) && nextMember <= currentMember) {
-      window.localStorage.setItem(memberCounterKey, String(currentMember + 1));
-    }
-
     window.localStorage.setItem(activeMemberKey, member);
     window.dispatchEvent(new Event("bay-space-auth"));
     router.push(`/join-the-circle/member/complete?member=${member}`);
@@ -82,9 +95,10 @@ export default function PasswordConfirmForm({
       ) : null}
       <button
         type="submit"
+        disabled={isSaving}
         className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
-        save
+        {isSaving ? "saving" : "save"}
       </button>
     </form>
   );

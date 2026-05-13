@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local backend data
+/data/bay-space.json
+
 # next.js
 /.next/
 /out/
