@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   FormEvent,
   useEffect,
@@ -15,6 +16,11 @@ import {
   postStoreEvent,
   saveBayPost,
 } from "../components/post-store";
+import {
+  countFavoritePost,
+  favoriteStoreEvent,
+  getFavoritePostIds,
+} from "../components/favorite-store";
 
 type BriefingRoomGateProps = {
   member: string;
@@ -40,6 +46,8 @@ type SourceDraft = {
   connection: string;
 };
 
+type FavoriteCategory = "daily-food" | "theory" | "library-submission";
+
 function getMemberKey(memberId: string) {
   return `bay-space-circle-member-v6-${memberId}`;
 }
@@ -52,6 +60,58 @@ const postCategories: { id: PostCategory; label: string }[] = [
   { id: "theory", label: "Theory" },
   { id: "library-submission", label: "Library submission" },
 ];
+
+const creatorRoles = [
+  "creator/ influencer - news",
+  "creator/ influencer - conspiracy",
+];
+
+const ghostRoles = ["ghost author - news", "ghost author - conspiracy"];
+
+function getSelectedRoles(member: SavedMember | null) {
+  return member?.roles
+    .split(",")
+    .map((role) => role.trim().toLowerCase())
+    .filter(Boolean) ?? [];
+}
+
+function hasCreatorPostingAccess(member: SavedMember | null) {
+  const selectedRoles = getSelectedRoles(member);
+
+  return selectedRoles.some((role) => creatorRoles.includes(role));
+}
+
+function hasGhostPostingAccess(member: SavedMember | null) {
+  const selectedRoles = getSelectedRoles(member);
+
+  return selectedRoles.some((role) => ghostRoles.includes(role));
+}
+
+function getAccountMarker(member: SavedMember | null) {
+  const selectedRole = getSelectedRoles(member)[0] ?? "";
+
+  if (selectedRole === "curious reader") {
+    return "CR";
+  }
+
+  if (selectedRole === "ghost author - news") {
+    return "CA-N";
+  }
+
+  if (selectedRole === "ghost author - conspiracy") {
+    return "CA-C";
+  }
+
+  if (selectedRole === "creator/ influencer - news") {
+    return "CI-N";
+  }
+
+  if (selectedRole === "creator/ influencer - conspiracy") {
+    return "CI-C";
+  }
+
+  return "";
+}
 
 function getSavedMember(memberId: string): SavedMember | null {
   const savedMember = window.localStorage.getItem(getMemberKey(memberId));
@@ -113,15 +173,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isPostOpen, setIsPostOpen] = useState(false);
-  const [shakingOption, setShakingOption] = useState("");
   const [allPosts, setAllPosts] = useState<BayPost[]>([]);
   const [myPosts, setMyPosts] = useState<BayPost[]>([]);
+  const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
+  const [activeFavoriteCategory, setActiveFavoriteCategory] =
+    useState<FavoriteCategory | "">("");
   const [postPreview, setPostPreview] = useState<Omit<
     BayPost,
     "id" | "createdAt" | "dateKey"
   > | null>(null);
   const [previewWarning, setPreviewWarning] = useState(false);
   const [deletePostId, setDeletePostId] = useState("");
+  const [isWipeAllOpen, setIsWipeAllOpen] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -150,6 +213,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [postIncognito, setPostIncognito] = useState(false);
   const [incognitoShelfLabel, setIncognitoShelfLabel] = useState("");
   const [isIncognitoShelfSet, setIsIncognitoShelfSet] = useState(false);
+  const canCreateTopStoryPosts = hasCreatorPostingAccess(savedMember);
+  const canCreatePosts =
+    canCreateTopStoryPosts || hasGhostPostingAccess(savedMember);
+  const availablePostCategories = canCreateTopStoryPosts
+    ? postCategories
+    : postCategories.filter((category) => category.id !== "top-story");
+  const accountMarker = getAccountMarker(savedMember);
 
   useEffect(() => {
     async function syncActiveMember() {
@@ -204,6 +274,21 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     return () => {
       window.removeEventListener("storage", syncMyPosts);
       window.removeEventListener(postStoreEvent, syncMyPosts);
+    };
+  }, [resolvedMember]);
+
+  useEffect(() => {
+    function syncFavorites() {
+      setFavoritePostIds(getFavoritePostIds(resolvedMember));
+    }
+
+    syncFavorites();
+    window.addEventListener("storage", syncFavorites);
+    window.addEventListener(favoriteStoreEvent, syncFavorites);
+
+    return () => {
+      window.removeEventListener("storage", syncFavorites);
+      window.removeEventListener(favoriteStoreEvent, syncFavorites);
     };
   }, [resolvedMember]);
 
@@ -273,18 +358,26 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function openPostWindow() {
+    if (!canCreatePosts) {
+      return;
+    }
+
+    if (!canCreateTopStoryPosts && postCategory === "top-story") {
+      setPostCategory("daily-food");
+    }
+
     setIsPostOpen(true);
     setActivePanel("post");
     setDeletePostId("");
   }
 
-  function shakeOption(option: string) {
-    setShakingOption("");
-    window.requestAnimationFrame(() => setShakingOption(option));
-  }
-
   function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!canCreatePosts || (!canCreateTopStoryPosts && postCategory === "top-story")) {
+      return;
+    }
+
     setPostPreview(buildCurrentPost());
   }
 
@@ -304,6 +397,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
+          accountMarker,
           sourceNote: sources,
           sourceLinks: sourceDrafts
             .map((source) => source.link)
@@ -336,6 +430,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
+          accountMarker,
           tags: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3],
           tagSources: [
             dailyFoodSource1,
@@ -366,6 +461,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
+          accountMarker,
           source: theorySource,
         },
       };
@@ -380,15 +476,30 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       author,
       shelfLabel: libraryTitle,
       shelfCode: normalizeShelfLabel(libraryTitle),
+      meta: {
+        accountMarker,
+      },
     };
   }
 
   async function confirmPost() {
-    if (postPreview) {
+    if (
+      postPreview &&
+      canCreatePosts &&
+      (canCreateTopStoryPosts || postPreview.category !== "top-story")
+    ) {
       await saveBayPost(postPreview);
     }
 
     resetPostDraft();
+  }
+
+  async function wipeAllPosts() {
+    await Promise.all(
+      myPosts.map((post) => deleteBayPost(post.id, resolvedMember)),
+    );
+    setDeletePostId("");
+    setIsWipeAllOpen(false);
   }
 
   function editPost() {
@@ -399,7 +510,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   function resetPostDraft() {
     setIsPostOpen(false);
     setActivePanel("id-card");
-    setPostCategory("top-story");
+    setPostCategory(canCreateTopStoryPosts ? "top-story" : "daily-food");
     setTopStoryStep(1);
     setTicker("");
     setReport("");
@@ -531,13 +642,39 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       : `https://${source}`;
   }
 
+  function getFavoritePosts(category: FavoriteCategory) {
+    const favoritePosts = allPosts.filter((post) => {
+      if (!favoritePostIds.includes(post.id)) {
+        return false;
+      }
+
+      if (category === "library-submission") {
+        return post.category === "library-submission" || Boolean(post.shelfCode);
+      }
+
+      return post.category === category;
+    });
+
+    if (category === "library-submission") {
+      return favoritePosts.sort((leftPost, rightPost) =>
+        leftPost.title.localeCompare(rightPost.title),
+      );
+    }
+
+    return favoritePosts.sort(
+      (leftPost, rightPost) =>
+        new Date(rightPost.createdAt).getTime() -
+        new Date(leftPost.createdAt).getTime(),
+    );
+  }
+
   const header = (
     <div className="w-full max-w-4xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           briefing room
         </h1>
-        {isUnlocked ? (
+        {isUnlocked && canCreatePosts ? (
           <button
             type="button"
             onClick={openPostWindow}
@@ -547,7 +684,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           </button>
         ) : null}
       </div>
-      {isUnlocked ? (
+      {isUnlocked && canCreatePosts ? (
         <div className="mt-6 flex flex-wrap items-end gap-2">
           {isPostOpen ? (
             <button
@@ -592,35 +729,33 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 setActivePanel("my-posts");
                 setDeletePostId("");
               }}
-              onAnimationEnd={() => setShakingOption("")}
               className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
                 activePanel === "my-posts"
                   ? "border-[#39ff14] bg-[#39ff14] text-black"
                   : "border-[#1d7f12] text-[#39ff14]"
-              } ${
-                shakingOption === "saved-posts" ? "animate-[option-shake_180ms_linear]" : ""
               }`}
             >
               my posts
             </button>
             <button
-              onClick={() => shakeOption("favorites")}
-              onAnimationEnd={() => setShakingOption("")}
-              className={`border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                shakingOption === "favorites" ? "animate-[option-shake_180ms_linear]" : ""
+              onClick={() => {
+                setActivePanel("favorites");
+                setActiveFavoriteCategory("");
+              }}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "favorites"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
               favorites
             </button>
-            <button
-              onClick={() => shakeOption("profile")}
-              onAnimationEnd={() => setShakingOption("")}
-              className={`border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                shakingOption === "profile" ? "animate-[option-shake_180ms_linear]" : ""
-              }`}
+            <Link
+              href={`/profile/${resolvedMember}`}
+              className="border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
             >
               profile
-            </button>
+            </Link>
             <button
               onClick={signOut}
               className="border border-[#ff3b3b] px-3 py-2 text-left text-[#ff6b6b]"
@@ -646,12 +781,21 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   {postPreview.category === "daily-food" &&
                   typeof postPreview.meta?.dailyFoodOrder === "string" ? (
                     <p className="float-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      {typeof postPreview.meta.accountMarker === "string" &&
+                      postPreview.meta.accountMarker
+                        ? `${postPreview.meta.accountMarker} `
+                        : ""}
                       #{postPreview.meta.dailyFoodOrder}
                     </p>
                   ) : null}
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
                     {postPreview.category.replace("-", " ")}
                   </p>
+                  {(postPreview.anonymous || savedMember?.name) ? (
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                      {postPreview.anonymous ? "classified" : savedMember?.name}
+                    </p>
+                  ) : null}
                   {typeof postPreview.meta?.dailyFoodCode === "string" ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
                       {postPreview.meta.dailyFoodCode}
@@ -718,7 +862,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               </p>
               <fieldset className="mt-5 grid gap-3 sm:grid-cols-2">
                 <legend className="sr-only">Choose post type</legend>
-                {postCategories.map((category) => (
+                {availablePostCategories.map((category) => (
                   <label
                     key={category.id}
                     className={`relative flex items-center gap-5 overflow-visible border bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0] transition ${
@@ -1051,9 +1195,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       <input
                         type="checkbox"
                         checked={postAnonymously}
-                        onChange={(event) =>
-                          setPostAnonymously(event.target.checked)
-                        }
+                        onChange={(event) => {
+                          setPostAnonymously(event.target.checked);
+
+                          if (event.target.checked) {
+                            setPostIncognito(false);
+                          }
+                        }}
                         className="h-4 w-4 accent-[#39ff14]"
                       />
                       Anon
@@ -1065,9 +1213,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       <input
                         type="checkbox"
                         checked={postIncognito}
-                        onChange={(event) =>
-                          setPostIncognito(event.target.checked)
-                        }
+                        onChange={(event) => {
+                          setPostIncognito(event.target.checked);
+
+                          if (event.target.checked) {
+                            setPostAnonymously(false);
+                          }
+                        }}
                         className="h-4 w-4 accent-[#39ff14]"
                       />
                       Incog
@@ -1127,6 +1279,43 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 my posts
               </p>
               {myPosts.length ? (
+                <button
+                  type="button"
+                  onClick={() => setIsWipeAllOpen(true)}
+                  className="mt-4 border border-[#ff3b3b] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                >
+                  wipe all
+                </button>
+              ) : null}
+              {isWipeAllOpen ? (
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Confirm wipe all posts"
+                  className="mt-5 border-2 border-[#39ff14] bg-[#001100] p-4 shadow-[0_0_18px_rgba(57,255,20,0.22)]"
+                >
+                  <p className="dos-type-command w-fit overflow-hidden whitespace-nowrap text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                    comfirm command; wipe all?
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsWipeAllOpen(false)}
+                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={wipeAllPosts}
+                      className="border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                    >
+                      confirm
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {myPosts.length ? (
                 <div className="mt-5 grid gap-3">
                   {myPosts.map((post) => (
                     <div
@@ -1141,6 +1330,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       >
                         x
                       </button>
+                      <span className="absolute right-3 top-9 text-[0.65rem] font-black uppercase tracking-[0.14em] text-[#39ff14]">
+                        {countFavoritePost(post.id)}
+                      </span>
                       <a
                         href={getPostHref(post)}
                         className="block pr-10 transition hover:text-[#d7ffd0] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
@@ -1190,6 +1382,76 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 <p className="mt-5 border-l-2 border-[#39ff14] pl-4 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
                   no posts filed yet
                 </p>
+              )}
+            </div>
+          ) : activePanel === "favorites" ? (
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                favorites
+              </p>
+              {!activeFavoriteCategory ? (
+                <div className="mt-5 grid gap-3">
+                  {[
+                    { id: "daily-food", label: "Daily Food" },
+                    { id: "theory", label: "Theories" },
+                    { id: "library-submission", label: "Library" },
+                  ].map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() =>
+                        setActiveFavoriteCategory(
+                          category.id as FavoriteCategory,
+                        )
+                      }
+                      className="border border-[#1d7f12] px-3 py-3 text-left text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                    >
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFavoriteCategory("")}
+                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                  >
+                    back
+                  </button>
+                  {getFavoritePosts(activeFavoriteCategory).length ? (
+                    <div className="mt-5 grid gap-3">
+                      {getFavoritePosts(activeFavoriteCategory).map((post) => (
+                        <a
+                          key={post.id}
+                          href={getPostHref(post)}
+                          className="block border border-dashed border-[#1d7f12]/70 bg-black px-3 py-3 text-[#d7ffd0] transition hover:border-[#39ff14] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          <span className="block text-xs uppercase tracking-[0.14em] text-[#7f9f78]">
+                            {new Date(post.createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )}
+                          </span>
+                          <span className="mt-2 block text-sm font-bold">
+                            {post.title}
+                          </span>
+                          <span className="mt-2 block whitespace-pre-wrap text-sm leading-6">
+                            {post.body}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-5 border-l-2 border-[#39ff14] pl-4 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+                      no favorites filed yet
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           ) : activePanel === "id-card" && savedMember ? (

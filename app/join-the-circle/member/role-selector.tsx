@@ -11,6 +11,18 @@ const roles = [
   "creator/ influencer - conspiracy",
 ];
 
+function getRoleAccess(role: string) {
+  if (role === "curious reader") {
+    return "read only";
+  }
+
+  if (role.startsWith("ghost author")) {
+    return "Post: daily food, theories, library";
+  }
+
+  return "Post: top story, daily food, theories, library";
+}
+
 type RoleSelectorProps = {
   member: string;
   name: string;
@@ -18,21 +30,17 @@ type RoleSelectorProps = {
 
 export default function RoleSelector({ member, name }: RoleSelectorProps) {
   const router = useRouter();
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRole, setSelectedRole] = useState("");
 
   function toggleRole(role: string) {
-    setSelectedRoles((currentRoles) =>
-      currentRoles.includes(role)
-        ? currentRoles.filter((currentRole) => currentRole !== role)
-        : [...currentRoles, role],
-    );
+    setSelectedRole((currentRole) => (currentRole === role ? "" : role));
   }
 
   function goNext() {
     router.push(
       `/join-the-circle/member/next?name=${encodeURIComponent(
         name,
-      )}&member=${member}&roles=${encodeURIComponent(selectedRoles.join(","))}`,
+      )}&member=${member}&roles=${encodeURIComponent(selectedRole)}`,
     );
   }
 
@@ -70,20 +78,28 @@ export default function RoleSelector({ member, name }: RoleSelectorProps) {
         </div>
         <div className="grid gap-3">
           {roles.map((role) => {
-            const isSelected = selectedRoles.includes(role);
+            const isSelected = selectedRole === role;
 
             return (
               <label
                 key={role}
-                className="flex cursor-pointer items-center gap-3 border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0] transition has-checked:border-[#39ff14] has-checked:bg-[#39ff14] has-checked:text-black"
+                className="grid cursor-pointer gap-2 border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0] transition has-checked:border-[#39ff14] has-checked:bg-[#39ff14] has-checked:text-black"
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleRole(role)}
-                  className="h-4 w-4 accent-[#39ff14]"
-                />
-                <span>{role}</span>
+                <span className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="account-signal"
+                    checked={isSelected}
+                    onChange={() => toggleRole(role)}
+                    className="h-4 w-4 accent-[#39ff14]"
+                  />
+                  <span>{role}</span>
+                </span>
+                {isSelected ? (
+                  <span className="pl-7 text-xs tracking-[0.14em] text-[#7f9f78]">
+                    {getRoleAccess(role)}
+                  </span>
+                ) : null}
               </label>
             );
           })}

@@ -24,6 +24,7 @@ export async function PATCH(request: Request, context: MemberContext) {
     const { member: memberId } = await context.params;
     const body = (await request.json()) as {
       confirmPin?: string;
+      name?: string;
       pin?: string;
       refName?: string;
       roles?: string;
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, context: MemberContext) {
     const member =
       body.confirmPin !== undefined
         ? await completeMember(memberId, {
+            name: body.name ?? "",
             pin,
             refName: body.refName ?? "",
             roles: body.roles ?? "",

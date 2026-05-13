@@ -13,6 +13,7 @@ type NewMemberInput = {
 };
 
 type UpdateMemberInput = {
+  name: string;
   pin: string;
   refName: string;
   roles: string;
@@ -115,6 +116,16 @@ export async function createMember(input: NewMemberInput) {
   });
 }
 
+export async function getNextMemberId() {
+  const data = await readData();
+  const highestMember = data.members.reduce((highest, member) => {
+    const memberNumber = Number(member.member);
+    return Number.isFinite(memberNumber) ? Math.max(highest, memberNumber) : highest;
+  }, 0);
+
+  return formatMemberId(highestMember + 1);
+}
+
 export async function getMember(memberId: string) {
   const data = await readData();
   const member = data.members.find(
@@ -132,17 +143,28 @@ export async function listMembers() {
 export async function completeMember(memberId: string, input: UpdateMemberInput) {
   return updateData((data) => {
     const normalizedMember = normalizeMember(memberId);
-    const member = data.members.find(
+    let member = data.members.find(
       (savedMember) => savedMember.member === normalizedMember,
     );
 
     if (!member) {
-      return null;
+      member = {
+        member: normalizedMember,
+        name: input.name.trim().slice(0, 24) || "explorer",
+        refName: "",
+        roles: "",
+        title: "Curious Reader",
+        createdAt: new Date().toISOString(),
+        pinHash: "",
+        pinSalt: "",
+      };
+      data.members.push(member);
     }
 
     const pinSalt = randomBytes(16).toString("hex");
     member.pinSalt = pinSalt;
     member.pinHash = hashPin(input.pin, pinSalt);
+    member.name = input.name.trim().slice(0, 24) || "explorer";
     member.refName = input.refName.trim().slice(0, 40);
     member.roles = input.roles;
     member.title = input.title.trim().slice(0, 80) || "Curious Reader";
@@ -195,6 +217,22 @@ export async function listPosts(category?: string) {
       new Date(rightPost.createdAt).getTime() -
       new Date(leftPost.createdAt).getTime(),
   );
+}
+
+export async function listPostsByAuthor(memberId: string) {
+  const data = await readData();
+  const normalizedMember = normalizeMember(memberId);
+
+  return data.posts
+    .filter(
+      (post) =>
+        post.author === normalizedMember && !post.anonymous && !post.incognito,
+    )
+    .sort(
+      (leftPost, rightPost) =>
+        new Date(rightPost.createdAt).getTime() -
+        new Date(leftPost.createdAt).getTime(),
+    );
 }
 
 export async function createPost(input: NewPostInput) {

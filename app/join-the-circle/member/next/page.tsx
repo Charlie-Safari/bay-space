@@ -87,20 +87,25 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
           </p>
           {hasGhostRole ? (
             <p className="mt-3">
-              your contributions may be indentified as false or flagged for
-              removal
+              Access to posts on daily food, theories, library. Please maintain
+              accuracy, and include sources/references.
             </p>
           ) : null}
           {hasCreatorRole ? (
-            <p className="mt-3">
-              proceding with these will require a creator code - to obtaion a
-              creator code please email bayoracle@protonmail.com
-            </p>
+            <>
+              <p className="mt-3">
+                proceding with these will require a creator code - to obtaion a
+                creator code please email bayoracle@protonmail.com
+              </p>
+              <p className="mt-3">
+                Access to posts on Top Story, daily food, theories, library.
+                your contributions may be flagged for removal
+              </p>
+            </>
           ) : null}
           {!hasGhostRole && !hasCreatorRole ? (
             <p className="mt-3">
-              only curious reader selected. this account can look at and read
-              posts, save posts, and keep track of favorited posts.
+              Access to reading anything on bay-space ; no access to posting
             </p>
           ) : null}
         </div>

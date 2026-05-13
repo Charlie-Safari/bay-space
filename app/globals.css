@@ -45,13 +45,12 @@ body {
 }
 
 @keyframes headline-drift {
-  0%,
-  12% {
-    transform: translateX(0);
+  0% {
+    transform: translateX(100%);
   }
 
   100% {
-    transform: translateX(-50%);
+    transform: translateX(-100%);
   }
 }
 
@@ -67,6 +66,73 @@ body {
     color: #000000;
     box-shadow: 0 0 18px rgba(57, 255, 20, 0.7);
   }
+}
+
+@keyframes dos-type-command {
+  from {
+    max-width: 0;
+  }
+
+  to {
+    max-width: 26ch;
+  }
+}
+
+@keyframes footer-how-to-shimmer {
+  0% {
+    text-shadow: 0 0 4px rgba(57, 255, 20, 0.35);
+  }
+
+  50% {
+    text-shadow:
+      0 0 8px rgba(57, 255, 20, 0.85),
+      0 0 18px rgba(57, 255, 20, 0.5);
+  }
+
+  100% {
+    text-shadow: 0 0 4px rgba(57, 255, 20, 0.35);
+  }
+}
+
+@keyframes favorite-diamond-flash {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 5px rgba(57, 255, 20, 0.65);
+  }
+
+  50% {
+    opacity: 0.35;
+    text-shadow:
+      0 0 10px rgba(57, 255, 20, 1),
+      0 0 20px rgba(57, 255, 20, 0.65);
+  }
+}
+
+.favorite-diamond {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-diamond-active {
+  animation: favorite-diamond-flash 850ms linear infinite;
+}
+
+.footer-how-to-link {
+  display: inline-block;
+  transform-origin: center;
+}
+
+.footer-how-to-link:hover {
+  color: #39ff14;
+  animation: footer-how-to-shimmer 700ms linear infinite;
+  transform: scale(1.08);
+}
+
+.dos-type-command {
+  max-width: 0;
+  animation: dos-type-command 1700ms steps(26, end) forwards;
 }
 
 .daily-food-headline-redacted {
@@ -89,6 +155,45 @@ body {
 .daily-food-headline-redacted > span {
   position: relative;
   z-index: 1;
+}
+
+.daily-food-headline-scroll {
+  display: block;
+  position: relative;
+  width: 100%;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.daily-food-headline-static {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: right;
+}
+
+.daily-food-headline-marquee {
+  display: none;
+}
+
+.daily-food-card:hover .daily-food-headline-static {
+  display: none;
+}
+
+.daily-food-card:hover .daily-food-headline-marquee {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+}
+
+.daily-food-card:hover .daily-food-headline-track {
+  display: block;
+  width: max-content;
+  max-width: none;
+  animation: headline-drift 8s linear infinite;
+  will-change: transform;
 }
 
 .daily-food-card:hover .daily-food-headline-redacted::after,

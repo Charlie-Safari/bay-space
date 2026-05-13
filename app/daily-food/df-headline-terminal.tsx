@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CodeAccessDock from "../components/code-access-dock";
+import FavoriteButton from "../components/favorite-button";
 import DosCodeBox from "../components/dos-code-box";
 import {
   BayPost,
@@ -45,7 +47,9 @@ type DailyFoodTag = {
 
 type SavedMember = {
   member: string;
+  name?: string;
   refName: string;
+  roles?: string;
 };
 
 const memberKeyPrefix = "bay-space-circle-member-v6-";
@@ -194,13 +198,56 @@ export default function DfHeadlineTerminal({
   }
 
   function getPostMarker(post: BayPost) {
+    const marker = getPostAccountMarker(post);
+
     if (isReferenceMemberMode && post.incognito) {
-      return "?";
+      return marker ? `${marker} ?` : "?";
     }
 
     const order = getMetaString(post, "dailyFoodOrder");
 
-    return order ? `#${order}` : "";
+    if (!order) {
+      return marker;
+    }
+
+    return marker ? `${marker} #${order}` : `#${order}`;
+  }
+
+  function getPostAccountMarker(post: BayPost) {
+    const metaMarker = getMetaString(post, "accountMarker");
+
+    if (metaMarker) {
+      return metaMarker;
+    }
+
+    const authorRoles =
+      members.find((member) => member.member === post.author)?.roles ?? "";
+    const selectedRole = authorRoles
+      .split(",")
+      .map((role) => role.trim().toLowerCase())
+      .filter(Boolean)[0] ?? "";
+
+    if (selectedRole === "curious reader") {
+      return "CR";
+    }
+
+    if (selectedRole === "ghost author - news") {
+      return "CA-N";
+    }
+
+    if (selectedRole === "ghost author - conspiracy") {
+      return "CA-C";
+    }
+
+    if (selectedRole === "creator/ influencer - news") {
+      return "CI-N";
+    }
+
+    if (selectedRole === "creator/ influencer - conspiracy") {
+      return "CI-C";
+    }
+
+    return "";
   }
 
   function isPostRevealed(post: BayPost) {
@@ -251,16 +298,18 @@ export default function DfHeadlineTerminal({
       : `https://${source}`;
   }
 
+  function getAuthorName(post: BayPost) {
+    return members.find((member) => member.member === post.author)?.name?.trim() ?? "";
+  }
+
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
       <div className="min-h-40 w-full border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
-            {displayedPost.incognito || getMetaString(displayedPost, "dailyFoodOrder") ? (
+            {getPostMarker(displayedPost) ? (
               <span className="absolute right-4 top-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                {displayedPost.incognito
-                  ? "?"
-                  : `#${getMetaString(displayedPost, "dailyFoodOrder")}`}
+                {getPostMarker(displayedPost)}
               </span>
             ) : null}
             <button
@@ -275,9 +324,24 @@ export default function DfHeadlineTerminal({
             >
               back
             </button>
-            <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-              final post frame
-            </p>
+            <div className="absolute bottom-4 right-4">
+              <FavoriteButton postId={displayedPost.id} />
+            </div>
+            {!displayedPost.incognito &&
+            (displayedPost.anonymous || getAuthorName(displayedPost)) ? (
+              <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                {displayedPost.anonymous ? (
+                  "classified"
+                ) : (
+                  <Link
+                    href={`/profile/${displayedPost.author}`}
+                    className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                  >
+                    {getAuthorName(displayedPost)}
+                  </Link>
+                )}
+              </p>
+            ) : null}
             <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimestamp(displayedPost.createdAt)}
             </p>
@@ -291,9 +355,9 @@ export default function DfHeadlineTerminal({
             </h2>
             {getDailyFoodTags(displayedPost).length ? (
               <div className="mt-4 grid gap-3 text-base leading-7 text-[#d7ffd0]">
-                {getDailyFoodTags(displayedPost).map((tag) => (
+                {getDailyFoodTags(displayedPost).map((tag, index) => (
                   <div
-                    key={`${tag.text}-${tag.source}`}
+                    key={`${tag.text}-${tag.source}-${index}`}
                     className="flex items-start gap-3"
                   >
                     <span
@@ -413,8 +477,18 @@ export default function DfHeadlineTerminal({
                           : ""
                       }`}
                     >
-                      <span className="ml-auto block w-max min-w-full text-right group-hover:animate-[headline-drift_7s_linear_infinite]">
-                        {post.title}
+                      <span className="daily-food-headline-scroll">
+                        <span className="daily-food-headline-static">
+                          {post.title}
+                        </span>
+                        <span
+                          className="daily-food-headline-marquee"
+                          aria-hidden="true"
+                        >
+                          <span className="daily-food-headline-track">
+                            {post.title}
+                          </span>
+                        </span>
                       </span>
                     </span>
                     <span

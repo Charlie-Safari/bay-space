@@ -1,17 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   BayPost,
   getBayPostsByCategory,
   postStoreEvent,
 } from "../components/post-store";
+import FavoriteButton from "../components/favorite-button";
 
 type SortMode = "az" | "date";
+
+type SavedMember = {
+  member: string;
+  name: string;
+};
 
 export default function TheoryBoard() {
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [posts, setPosts] = useState<BayPost[]>([]);
+  const [members, setMembers] = useState<SavedMember[]>([]);
+  const [openPostId, setOpenPostId] = useState("");
 
   useEffect(() => {
     function syncPosts() {
@@ -21,6 +30,11 @@ export default function TheoryBoard() {
     }
 
     syncPosts();
+    fetch("/api/members", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { members: [] }))
+      .then((data: { members?: SavedMember[] }) => {
+        setMembers(data.members ?? []);
+      });
     window.addEventListener("storage", syncPosts);
     window.addEventListener(postStoreEvent, syncPosts);
 
@@ -29,6 +43,10 @@ export default function TheoryBoard() {
       window.removeEventListener(postStoreEvent, syncPosts);
     };
   }, []);
+
+  function getAuthorName(post: BayPost) {
+    return members.find((member) => member.member === post.author)?.name.trim() ?? "";
+  }
 
   const sortedPosts = useMemo(() => {
     return [...posts].sort((leftPost, rightPost) => {
@@ -66,12 +84,43 @@ export default function TheoryBoard() {
               key={post.id}
               className="border-2 border-[#1d7f12] bg-black px-4 py-4"
             >
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenPostId((currentId) =>
+                    currentId === post.id ? "" : post.id,
+                  )
+                }
+                className="block w-full text-left focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
               <h2 className="text-lg font-black uppercase tracking-[0.12em] text-[#39ff14]">
                 {post.title}
               </h2>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
-                {post.body}
-              </p>
+              </button>
+              {openPostId === post.id ? (
+                <>
+                  <div className="mt-3">
+                    <FavoriteButton postId={post.id} />
+                  </div>
+                  {!post.anonymous && getAuthorName(post) ? (
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                      <Link
+                        href={`/profile/${post.author}`}
+                        className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                      >
+                        {getAuthorName(post)}
+                      </Link>
+                    </p>
+                  ) : post.anonymous ? (
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                      classified
+                    </p>
+                  ) : null}
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
+                    {post.body}
+                  </p>
+                </>
+              ) : null}
             </article>
           ))}
         </div>

@@ -1,7 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BayPost, getBayPostsByCategory } from "../../components/post-store";
+
+type SavedMember = {
+  member: string;
+  name: string;
+};
 
 type TopStoryPostProps = {
   postId?: string;
@@ -9,6 +15,7 @@ type TopStoryPostProps = {
 
 export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   const [posts, setPosts] = useState<BayPost[]>([]);
+  const [members, setMembers] = useState<SavedMember[]>([]);
 
   useEffect(() => {
     function syncPosts() {
@@ -16,6 +23,11 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
     }
 
     syncPosts();
+    fetch("/api/members", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { members: [] }))
+      .then((data: { members?: SavedMember[] }) => {
+        setMembers(data.members ?? []);
+      });
     window.addEventListener("storage", syncPosts);
     window.addEventListener("bay-space-posts", syncPosts);
 
@@ -27,6 +39,8 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
 
   const post =
     posts.find((savedPost) => savedPost.id === postId) ?? posts[0] ?? null;
+  const authorName =
+    members.find((member) => member.member === post?.author)?.name.trim() ?? "";
 
   if (!post) {
     return (
@@ -45,6 +59,20 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
           year: "numeric",
         })}
       </p>
+      {!post.anonymous && authorName ? (
+        <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+          <Link
+            href={`/profile/${post.author}`}
+            className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+          >
+            {authorName}
+          </Link>
+        </p>
+      ) : post.anonymous ? (
+        <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+          classified
+        </p>
+      ) : null}
       <h2 className="mt-4 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
         {post.title}
       </h2>

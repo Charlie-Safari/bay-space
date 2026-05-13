@@ -16,11 +16,11 @@ export default function MemberLookup() {
   const [isBlocked, setIsBlocked] = useState(false);
 
   function openBriefingRoom() {
-    const memberId = member.padStart(3, "0");
-
-    if (!memberId || memberId === "000") {
+    if (!member) {
       return;
     }
+
+    const memberId = member.padStart(3, "0");
 
     const activeMember = window.localStorage.getItem(activeMemberKey);
 
@@ -49,8 +49,7 @@ export default function MemberLookup() {
         onAnimationEnd={() => setIsBlocked(false)}
       >
         <button
-          type="button"
-          onClick={openBriefingRoom}
+          type="submit"
           className="text-lg leading-none transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
           aria-label="Open briefing room"
         >

@@ -28,13 +28,11 @@ export default function JoinCircleForm() {
     }
 
     setIsSubmitting(true);
-    const response = await fetch("/api/members", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: cleanUsername }),
+    const response = await fetch("/api/members?next=true", {
+      cache: "no-store",
     });
     const data = (await response.json()) as {
-      member?: { member: string; name: string };
+      member?: string;
     };
     setIsSubmitting(false);
 
@@ -45,8 +43,8 @@ export default function JoinCircleForm() {
 
     router.push(
       `/join-the-circle/member?name=${encodeURIComponent(
-        data.member.name,
-      )}&member=${data.member.member}`,
+        cleanUsername,
+      )}&member=${data.member}`,
     );
   }
 
@@ -98,6 +96,10 @@ export default function JoinCircleForm() {
       >
         {isSubmitting ? "activating" : "activate"}
       </button>
+      <p className="mt-3 border-l border-[#39ff14] pl-3 text-[0.68rem] font-bold uppercase leading-5 tracking-[0.14em] text-[#7f9f78]">
+        member number is assigned at final save. start over or exit before
+        final submission and the number stays available.
+      </p>
     </form>
   );
 }

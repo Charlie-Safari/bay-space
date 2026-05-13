@@ -21,6 +21,7 @@ function getMemberKey(memberId: string) {
 
 export default function PasswordConfirmForm({
   member,
+  name,
   pin,
   refName,
   roles,
@@ -44,7 +45,7 @@ export default function PasswordConfirmForm({
     const response = await fetch(`/api/members/${member}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ confirmPin, refName, roles, title }),
+      body: JSON.stringify({ confirmPin, name, refName, roles, title }),
     });
     const data = (await response.json()) as {
       member?: {
