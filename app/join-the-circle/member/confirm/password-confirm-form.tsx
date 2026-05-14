@@ -41,36 +41,42 @@ export default function PasswordConfirmForm({
       return;
     }
 
-    setIsSaving(true);
-    const response = await fetch(`/api/members/${member}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ confirmPin, name, refName, roles, title }),
-    });
-    const data = (await response.json()) as {
-      member?: {
-        member: string;
-        name: string;
-        refName: string;
-        roles: string;
-        title: string;
+    try {
+      setIsSaving(true);
+      const response = await fetch(`/api/members/${member}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirmPin, name, refName, roles, title }),
+      });
+      const data = (await response.json()) as {
+        member?: {
+          member: string;
+          name: string;
+          refName: string;
+          roles: string;
+          title: string;
+        };
       };
-    };
-    setIsSaving(false);
+      setIsSaving(false);
 
-    if (!response.ok || !data.member) {
+      if (!response.ok || !data.member) {
+        setIsWrongPassword(false);
+        window.setTimeout(() => setIsWrongPassword(true), 0);
+        return;
+      }
+
+      window.localStorage.setItem(
+        getMemberKey(member),
+        JSON.stringify(data.member),
+      );
+      window.localStorage.setItem(activeMemberKey, member);
+      window.dispatchEvent(new Event("bay-space-auth"));
+      router.push(`/join-the-circle/member/complete?member=${member}`);
+    } catch {
+      setIsSaving(false);
       setIsWrongPassword(false);
       window.setTimeout(() => setIsWrongPassword(true), 0);
-      return;
     }
-
-    window.localStorage.setItem(
-      getMemberKey(member),
-      JSON.stringify(data.member),
-    );
-    window.localStorage.setItem(activeMemberKey, member);
-    window.dispatchEvent(new Event("bay-space-auth"));
-    router.push(`/join-the-circle/member/complete?member=${member}`);
   }
 
   return (
