@@ -15,7 +15,7 @@ type ConfirmPageProps = {
 
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const params = await searchParams;
-  const member = params.member ?? "001";
+  const member = params.member ?? "33334";
   const name = params.name ?? "explorer";
   const pin = params.pin ?? "";
   const ref = params.ref ?? "";

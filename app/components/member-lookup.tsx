@@ -7,7 +7,7 @@ import styles from "./member-lookup.module.css";
 const activeMemberKey = "bay-space-active-member-v6";
 
 function normalizeMember(value: string) {
-  return value.replace(/\D/g, "").slice(0, 3);
+  return value.replace(/\D/g, "").slice(0, 5);
 }
 
 export default function MemberLookup() {
@@ -20,7 +20,7 @@ export default function MemberLookup() {
       return;
     }
 
-    const memberId = member.padStart(3, "0");
+    const memberId = member.padStart(5, "0");
 
     const activeMember = window.localStorage.getItem(activeMemberKey);
 
@@ -57,14 +57,14 @@ export default function MemberLookup() {
         </button>
         <input
           inputMode="numeric"
-          maxLength={3}
+          maxLength={5}
           value={member}
           onChange={(event) => {
             setMember(normalizeMember(event.target.value));
             setIsBlocked(false);
           }}
-          placeholder="###"
-          className="w-14 bg-[#001100] px-2 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] outline-none placeholder:text-[#1d7f12] focus:ring-1 focus:ring-[#39ff14]"
+          placeholder="#####"
+          className="w-20 bg-[#001100] px-2 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] outline-none placeholder:text-[#1d7f12] focus:ring-1 focus:ring-[#39ff14]"
           aria-label="Member number"
         />
       </form>

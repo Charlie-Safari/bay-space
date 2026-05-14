@@ -18,7 +18,7 @@ function maskPassword(pin: string) {
 
 export default async function ReportPage({ searchParams }: ReportPageProps) {
   const {
-    member = "001",
+    member = "33334",
     name = "explorer",
     pin = "",
     ref = "",

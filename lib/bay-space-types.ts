@@ -26,9 +26,23 @@ export type BayMember = {
   roles: string;
   title: string;
   createdAt: string;
+  email?: string;
+  birthdayMonth?: string;
+  birthdayYear?: string;
+  links?: {
+    x?: PublicLink;
+    linkedin?: PublicLink;
+    github?: PublicLink;
+    youtube?: PublicLink;
+  };
 };
 
 export type BayMemberRecord = BayMember & {
   pinHash: string;
   pinSalt: string;
+};
+
+export type PublicLink = {
+  url: string;
+  display: boolean;
 };

@@ -28,7 +28,7 @@ function getAccountTitle(selectedRoles: string[]) {
 }
 
 export default async function CircleNext({ searchParams }: CircleNextProps) {
-  const { member = "001", name = "explorer", roles = "" } = await searchParams;
+  const { member = "33334", name = "explorer", roles = "" } = await searchParams;
   const selectedRoles = roles.split(",").filter(Boolean);
   const accountTitle = getAccountTitle(selectedRoles);
   const encodedNext = `/join-the-circle/member/pin?name=${encodeURIComponent(

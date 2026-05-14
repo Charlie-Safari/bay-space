@@ -8,7 +8,7 @@ type CompletePageProps = {
 };
 
 export default async function CompletePage({ searchParams }: CompletePageProps) {
-  const { member = "001" } = await searchParams;
+  const { member = "33334" } = await searchParams;
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">

@@ -25,6 +25,14 @@ function getPostHref(post: BayPost) {
   return `/library#library-${post.id}`;
 }
 
+function getExternalHref(url: string) {
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  return `https://${url}`;
+}
+
 function PostList({ posts }: { posts: BayPost[] }) {
   if (!posts.length) {
     return (
@@ -67,6 +75,15 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const libraryPosts = posts
     .filter((post) => post.category === "library-submission" || post.shelfCode)
     .sort((leftPost, rightPost) => leftPost.title.localeCompare(rightPost.title));
+  const publicLinks = [
+    { label: "X", link: member?.links?.x },
+    { label: "linkd in", link: member?.links?.linkedin },
+    { label: "github", link: member?.links?.github },
+    { label: "youtube", link: member?.links?.youtube },
+  ].filter(
+    (item): item is { label: string; link: { url: string; display: boolean } } =>
+      Boolean(item.link?.display && item.link.url),
+  );
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -92,6 +109,21 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 <p>NAME: {member.name}</p>
                 <p>(REFERENCE NAME): {member.refName || "-----"}</p>
               </div>
+              {publicLinks.length ? (
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {publicLinks.map((item) => (
+                    <a
+                      key={item.label}
+                      href={getExternalHref(item.link.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              ) : null}
             </details>
 
             <div className="mt-8 grid gap-4 lg:grid-cols-4">

@@ -9,7 +9,7 @@ type CircleMemberProps = {
 };
 
 export default async function CircleMember({ searchParams }: CircleMemberProps) {
-  const { member = "001", name = "explorer" } = await searchParams;
+  const { member = "33334", name = "explorer" } = await searchParams;
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">

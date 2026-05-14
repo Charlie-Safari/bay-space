@@ -32,6 +32,22 @@ type SavedMember = {
   refName: string;
   roles: string;
   title: string;
+  email?: string;
+  birthdayMonth?: string;
+  birthdayYear?: string;
+  links?: SettingsLinks;
+};
+
+type SettingsLinks = {
+  x?: PublicProfileLink;
+  linkedin?: PublicProfileLink;
+  github?: PublicProfileLink;
+  youtube?: PublicProfileLink;
+};
+
+type PublicProfileLink = {
+  url: string;
+  display: boolean;
 };
 
 type PostCategory =
@@ -131,6 +147,15 @@ function cacheSavedMember(member: SavedMember) {
   window.localStorage.setItem(getMemberKey(member.member), JSON.stringify(member));
 }
 
+function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
+  return {
+    x: member?.links?.x ?? { url: "", display: false },
+    linkedin: member?.links?.linkedin ?? { url: "", display: false },
+    github: member?.links?.github ?? { url: "", display: false },
+    youtube: member?.links?.youtube ?? { url: "", display: false },
+  };
+}
+
 async function fetchSavedMember(memberId: string): Promise<SavedMember | null> {
   const cachedMember = getSavedMember(memberId);
 
@@ -189,6 +214,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordChangeMessage, setPasswordChangeMessage] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [birthdayMonth, setBirthdayMonth] = useState("");
+  const [birthdayYear, setBirthdayYear] = useState("");
+  const [settingsLinks, setSettingsLinks] = useState<Required<SettingsLinks>>({
+    x: { url: "", display: false },
+    linkedin: { url: "", display: false },
+    github: { url: "", display: false },
+    youtube: { url: "", display: false },
+  });
+  const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
+  const [wipeAccountConfirm, setWipeAccountConfirm] = useState(false);
   const [postCategory, setPostCategory] = useState<PostCategory>("top-story");
   const [topStoryStep, setTopStoryStep] = useState(1);
   const [ticker, setTicker] = useState("");
@@ -221,6 +258,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     : postCategories.filter((category) => category.id !== "top-story");
   const accountMarker = getAccountMarker(savedMember);
 
+  function applySettingsFields(memberRecord: SavedMember | null) {
+    setEmail(memberRecord?.email ?? "");
+    setBirthdayMonth(memberRecord?.birthdayMonth ?? "");
+    setBirthdayYear(memberRecord?.birthdayYear ?? "");
+    setSettingsLinks(getSettingsLinks(memberRecord));
+  }
+
   useEffect(() => {
     async function syncActiveMember() {
       const activeMember = window.localStorage.getItem(activeMemberKey);
@@ -231,6 +275,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       if (activeMember && activeSavedMember) {
         setResolvedMember(activeMember);
         setSavedMember(activeSavedMember);
+        applySettingsFields(activeSavedMember);
         setIsUnlocked(true);
         setErrorMessage("");
         return;
@@ -241,7 +286,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       }
 
       setResolvedMember(member);
-      setSavedMember(await fetchSavedMember(member));
+      const fallbackMember = await fetchSavedMember(member);
+      setSavedMember(fallbackMember);
+      applySettingsFields(fallbackMember);
       setIsUnlocked(false);
     }
 
@@ -602,6 +649,86 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setPasswordChangeMessage("");
   }
 
+  function updateSettingsLink(
+    key: keyof Required<SettingsLinks>,
+    field: keyof PublicProfileLink,
+    value: string | boolean,
+  ) {
+    setSettingsLinks((currentLinks) => ({
+      ...currentLinks,
+      [key]: {
+        ...currentLinks[key],
+        [field]: value,
+      },
+    }));
+    setSettingsMessage("");
+  }
+
+  async function saveSettings() {
+    const response = await fetch(`/api/members/${resolvedMember}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "settings",
+        settings: {
+          email,
+          birthdayMonth,
+          birthdayYear,
+          links: settingsLinks,
+        },
+      }),
+    });
+    const data = (await response.json()) as { member?: SavedMember };
+
+    if (!response.ok || !data.member) {
+      setSettingsMessage("settings not saved");
+      return;
+    }
+
+    cacheSavedMember(data.member);
+    setSavedMember(data.member);
+    setSettingsMessage("settings saved");
+  }
+
+  async function wipeAccount() {
+    const response = await fetch(`/api/members/${resolvedMember}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "wipe-account" }),
+    });
+
+    if (!response.ok) {
+      setSettingsMessage("wipe failed");
+      return;
+    }
+
+    window.dispatchEvent(new Event(postStoreEvent));
+    setMyPosts([]);
+    setAllPosts((posts) =>
+      posts.filter((post) => post.author !== resolvedMember),
+    );
+    setWipeAccountConfirm(false);
+    setDeleteAccountConfirm(false);
+    setSettingsMessage("account wiped");
+  }
+
+  async function deleteAccount() {
+    const response = await fetch(`/api/members/${resolvedMember}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      setSettingsMessage("delete failed");
+      return;
+    }
+
+    window.localStorage.removeItem(activeMemberKey);
+    window.localStorage.removeItem(getMemberKey(resolvedMember));
+    window.dispatchEvent(new Event("bay-space-auth"));
+    window.dispatchEvent(new Event(postStoreEvent));
+    window.location.href = "/";
+  }
+
   function getPostHref(post: BayPost) {
     if (post.category === "top-story") {
       return `/news/post?id=${post.id}`;
@@ -756,6 +883,21 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               profile
             </Link>
+            <button
+              onClick={() => {
+                setActivePanel("settings");
+                setSettingsMessage("");
+                setDeleteAccountConfirm(false);
+                setWipeAccountConfirm(false);
+              }}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "settings"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              settings
+            </button>
             <button
               onClick={signOut}
               className="border border-[#ff3b3b] px-3 py-2 text-left text-[#ff6b6b]"
@@ -1453,6 +1595,215 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   )}
                 </div>
               )}
+            </div>
+          ) : activePanel === "settings" ? (
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                settings
+              </p>
+              <div className="mt-5 grid gap-5">
+                <button
+                  type="button"
+                  className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]"
+                >
+                  Privacy options button (coming soon)
+                </button>
+
+                <label className="grid gap-2">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    Email (optional)
+                  </span>
+                  <input
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value.slice(0, 120));
+                      setSettingsMessage("");
+                    }}
+                    className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  />
+                </label>
+
+                <div className="grid gap-2">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    Birthday
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <input
+                      inputMode="numeric"
+                      placeholder="month"
+                      value={birthdayMonth}
+                      onChange={(event) => {
+                        setBirthdayMonth(
+                          event.target.value.replace(/\D/g, "").slice(0, 2),
+                        );
+                        setSettingsMessage("");
+                      }}
+                      className="w-28 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                    <input
+                      inputMode="numeric"
+                      placeholder="year"
+                      value={birthdayYear}
+                      onChange={(event) => {
+                        setBirthdayYear(
+                          event.target.value.replace(/\D/g, "").slice(0, 4),
+                        );
+                        setSettingsMessage("");
+                      }}
+                      className="w-28 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    Personal Links
+                  </p>
+                  <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#7f9f78]">
+                    option to display on public profile page
+                  </p>
+                  {[
+                    { id: "x", label: "X" },
+                    { id: "linkedin", label: "linkd in" },
+                    { id: "github", label: "github" },
+                    { id: "youtube", label: "youtube" },
+                  ].map((link) => {
+                    const linkId = link.id as keyof Required<SettingsLinks>;
+
+                    return (
+                      <div
+                        key={link.id}
+                        className="grid gap-2 border border-[#1d7f12] px-3 py-3 sm:grid-cols-[120px_1fr]"
+                      >
+                        <label className="grid gap-2">
+                          <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                            {link.label}
+                          </span>
+                          <input
+                            value={settingsLinks[linkId].url}
+                            onChange={(event) =>
+                              updateSettingsLink(
+                                linkId,
+                                "url",
+                                event.target.value,
+                              )
+                            }
+                            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                          />
+                        </label>
+                        <label className="flex items-end gap-3 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+                          <input
+                            type="checkbox"
+                            checked={settingsLinks[linkId].display}
+                            onChange={(event) =>
+                              updateSettingsLink(
+                                linkId,
+                                "display",
+                                event.target.checked,
+                              )
+                            }
+                            className="h-4 w-4 accent-[#39ff14]"
+                          />
+                          display on public profile
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={saveSettings}
+                  className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  save settings
+                </button>
+
+                <div className="border-t border-[#1d7f12] pt-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    Delete Account buttons
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteAccountConfirm(true);
+                        setWipeAccountConfirm(false);
+                        setSettingsMessage("");
+                      }}
+                      className="border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black"
+                    >
+                      delete account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWipeAccountConfirm(true);
+                        setDeleteAccountConfirm(false);
+                        setSettingsMessage("");
+                      }}
+                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black"
+                    >
+                      wipe account
+                    </button>
+                  </div>
+
+                  {deleteAccountConfirm ? (
+                    <div className="mt-4 border border-[#ff3b3b] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                        you wont be able ot undo this, your account number will
+                        be retired. Continue?
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={deleteAccount}
+                          className="border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black"
+                        >
+                          Full Erase
+                        </button>
+                        <button
+                          type="button"
+                          onClick={wipeAccount}
+                          className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black"
+                        >
+                          Wipe instead
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {wipeAccountConfirm ? (
+                    <div className="mt-4 border border-[#1d7f12] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                        all post across all categorys will be erased. Continue?
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={wipeAccount}
+                          className="border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black"
+                        >
+                          Wipe
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setWipeAccountConfirm(false)}
+                          className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {settingsMessage ? (
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                    {settingsMessage}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : activePanel === "id-card" && savedMember ? (
             <div>

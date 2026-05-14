@@ -283,6 +283,30 @@ export default function LibraryBoard() {
                   coming soon
                 </p>
               </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  Delete Account
+                </summary>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    className="border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b]"
+                  >
+                    Delete account
+                  </button>
+                  <button
+                    type="button"
+                    className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]"
+                  >
+                    Wipe Account
+                  </button>
+                </div>
+                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Delete account erases the account and all information. Full delete. Account number is retired permanently.</li>
+                  <li>Wipe Account clears all posts. ID card stays the same.</li>
+                </ul>
+              </details>
             </div>
           </section>
         ) : null}

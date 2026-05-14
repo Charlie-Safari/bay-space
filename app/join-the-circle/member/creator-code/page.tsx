@@ -18,7 +18,7 @@ export default async function CreatorCodePage({
 }: CreatorCodePageProps) {
   const params = await searchParams;
   const query = new URLSearchParams({
-    member: params.member ?? "001",
+    member: params.member ?? "33334",
     name: params.name ?? "explorer",
     pin: params.pin ?? "",
     ref: params.ref ?? "",
