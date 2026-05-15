@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type PinSetupFormProps = {
-  initialPin: string;
   initialRef: string;
   member: string;
   name: string;
@@ -12,13 +11,7 @@ type PinSetupFormProps = {
   title: string;
 };
 
-const creatorRoles = [
-  "creator/ influencer - news",
-  "creator/ influencer - conspiracy",
-];
-
 export default function PinSetupForm({
-  initialPin,
   initialRef,
   member,
   name,
@@ -26,31 +19,40 @@ export default function PinSetupForm({
   title,
 }: PinSetupFormProps) {
   const router = useRouter();
-  const [pin, setPin] = useState(initialPin);
+  const [pin, setPin] = useState("");
   const [shortRef, setShortRef] = useState(initialRef);
-  const selectedRoles = roles.split(",").filter(Boolean);
-  const needsCreatorCode = selectedRoles.some((role) =>
-    creatorRoles.includes(role),
-  );
+  const [errorMessage, setErrorMessage] = useState("");
 
-  function saveIntel() {
+  async function saveIntel() {
     if (!pin.trim()) {
       return;
     }
 
-    const nextPath = needsCreatorCode
-      ? "/join-the-circle/member/creator-code"
-      : "/join-the-circle/member/report";
-    const query = new URLSearchParams({
-      member,
-      name,
-      pin,
-      ref: shortRef,
-      roles,
-      title,
+    setErrorMessage("");
+    const response = await fetch("/api/signup-draft", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        member,
+        name,
+        pin,
+        refName: shortRef,
+        roles,
+        title,
+      }),
     });
+    const data = (await response.json()) as {
+      message?: string;
+      nextPath?: string;
+    };
 
-    router.push(`${nextPath}?${query.toString()}`);
+    if (!response.ok || !data.nextPath) {
+      setErrorMessage(data.message ?? "save failed");
+      return;
+    }
+
+    setPin("");
+    router.push(data.nextPath);
   }
 
   return (
@@ -82,6 +84,11 @@ export default function PinSetupForm({
       >
         save
       </button>
+      {errorMessage ? (
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
+          {errorMessage}
+        </p>
+      ) : null}
     </form>
   );
 }

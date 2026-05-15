@@ -6,7 +6,6 @@ type CreatorCodePageProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
-    pin?: string;
     ref?: string;
     roles?: string;
     title?: string;
@@ -20,7 +19,6 @@ export default async function CreatorCodePage({
   const query = new URLSearchParams({
     member: params.member ?? "33334",
     name: params.name ?? "explorer",
-    pin: params.pin ?? "",
     ref: params.ref ?? "",
     roles: params.roles ?? "",
     title: params.title ?? "Creator / Influencer",

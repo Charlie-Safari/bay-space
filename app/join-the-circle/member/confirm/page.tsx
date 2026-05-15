@@ -6,7 +6,6 @@ type ConfirmPageProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
-    pin?: string;
     ref?: string;
     roles?: string;
     title?: string;
@@ -17,14 +16,12 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const params = await searchParams;
   const member = params.member ?? "33334";
   const name = params.name ?? "explorer";
-  const pin = params.pin ?? "";
   const ref = params.ref ?? "";
   const roles = params.roles ?? "";
   const title = params.title ?? "Curious Reader";
   const backHref = `/join-the-circle/member/report?${new URLSearchParams({
     member,
     name,
-    pin,
     ref,
     roles,
     title,
@@ -46,7 +43,6 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
         <PasswordConfirmForm
           member={member}
           name={name}
-          pin={pin}
           refName={ref}
           roles={roles}
           title={title}

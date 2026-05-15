@@ -2,78 +2,71 @@
 
 export const favoriteStoreEvent = "bay-space-favorites";
 
-const activeMemberKey = "bay-space-active-member-v6";
+export async function getActiveMemberId() {
+  const response = await fetch("/api/me", { cache: "no-store" });
 
-function getFavoritesKey(memberId: string) {
-  return `bay-space-favorites-v1-${memberId}`;
-}
-
-export function getActiveMemberId() {
-  if (typeof window === "undefined") {
+  if (!response.ok) {
     return "";
   }
 
-  return window.localStorage.getItem(activeMemberKey) ?? "";
+  const data = (await response.json()) as {
+    member?: { member: string } | null;
+  };
+
+  return data.member?.member ?? "";
 }
 
-export function getFavoritePostIds(memberId = getActiveMemberId()) {
-  if (typeof window === "undefined" || !memberId) {
+export async function getFavoritePostIds() {
+  const response = await fetch("/api/saved-posts", { cache: "no-store" });
+
+  if (!response.ok) {
     return [];
   }
 
-  try {
-    const savedFavorites = window.localStorage.getItem(
-      getFavoritesKey(memberId),
-    );
+  const data = (await response.json()) as { postIds?: string[] };
 
-    return savedFavorites ? (JSON.parse(savedFavorites) as string[]) : [];
-  } catch {
-    return [];
-  }
+  return data.postIds ?? [];
 }
 
-export function isFavoritePost(postId: string, memberId = getActiveMemberId()) {
-  return getFavoritePostIds(memberId).includes(postId);
+export async function isFavoritePost(postId: string) {
+  return (await getFavoritePostIds()).includes(postId);
 }
 
-export function countFavoritePost(postId: string) {
-  if (typeof window === "undefined") {
-    return 0;
+export async function countFavoritePosts(postIds: string[]) {
+  if (!postIds.length) {
+    return {};
   }
 
-  return Object.keys(window.localStorage)
-    .filter((key) => key.startsWith("bay-space-favorites-v1-"))
-    .reduce((count, key) => {
-      try {
-        const favoriteIds = JSON.parse(
-          window.localStorage.getItem(key) ?? "[]",
-        ) as string[];
+  const response = await fetch(
+    `/api/saved-posts?counts=true&ids=${encodeURIComponent(postIds.join(","))}`,
+    { cache: "no-store" },
+  );
 
-        return favoriteIds.includes(postId) ? count + 1 : count;
-      } catch {
-        return count;
-      }
-    }, 0);
+  if (!response.ok) {
+    return {};
+  }
+
+  const data = (await response.json()) as {
+    counts?: Record<string, number>;
+  };
+
+  return data.counts ?? {};
 }
 
-export function toggleFavoritePost(postId: string) {
-  const memberId = getActiveMemberId();
+export async function toggleFavoritePost(postId: string) {
+  const response = await fetch("/api/saved-posts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ postId }),
+  });
 
-  if (!memberId) {
+  if (!response.ok) {
     return false;
   }
 
-  const favoriteIds = getFavoritePostIds(memberId);
-  const isFavorite = favoriteIds.includes(postId);
-  const nextFavoriteIds = isFavorite
-    ? favoriteIds.filter((favoriteId) => favoriteId !== postId)
-    : [postId, ...favoriteIds];
+  const data = (await response.json()) as { saved?: boolean };
 
-  window.localStorage.setItem(
-    getFavoritesKey(memberId),
-    JSON.stringify(nextFavoriteIds),
-  );
   window.dispatchEvent(new Event(favoriteStoreEvent));
 
-  return !isFavorite;
+  return Boolean(data.saved);
 }

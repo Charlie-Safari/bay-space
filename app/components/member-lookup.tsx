@@ -4,8 +4,6 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./member-lookup.module.css";
 
-const activeMemberKey = "bay-space-active-member-v6";
-
 function normalizeMember(value: string) {
   return value.replace(/\D/g, "").slice(0, 5);
 }
@@ -15,14 +13,17 @@ export default function MemberLookup() {
   const [member, setMember] = useState("");
   const [isBlocked, setIsBlocked] = useState(false);
 
-  function openBriefingRoom() {
+  async function openBriefingRoom() {
     if (!member) {
       return;
     }
 
     const memberId = member.padStart(5, "0");
-
-    const activeMember = window.localStorage.getItem(activeMemberKey);
+    const response = await fetch("/api/me", { cache: "no-store" });
+    const data = response.ok
+      ? ((await response.json()) as { member?: { member: string } | null })
+      : { member: null };
+    const activeMember = data.member?.member ?? "";
 
     if (activeMember && activeMember !== memberId) {
       setIsBlocked(false);
@@ -35,7 +36,7 @@ export default function MemberLookup() {
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    openBriefingRoom();
+    void openBriefingRoom();
   }
 
   return (

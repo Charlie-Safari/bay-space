@@ -6,7 +6,6 @@ type PinPageProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
-    pin?: string;
     ref?: string;
     roles?: string;
     title?: string;
@@ -17,7 +16,6 @@ export default async function PinPage({ searchParams }: PinPageProps) {
   const {
     member = "33334",
     name = "explorer",
-    pin = "",
     ref = "",
     roles = "",
     title = "Curious Reader",
@@ -51,7 +49,6 @@ export default async function PinPage({ searchParams }: PinPageProps) {
             Name: {name}
           </p>
           <PinSetupForm
-            initialPin={pin}
             initialRef={ref}
             member={member}
             name={name}

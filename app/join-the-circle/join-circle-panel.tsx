@@ -3,14 +3,21 @@
 import { useEffect, useState } from "react";
 import JoinCircleForm from "./join-circle-form";
 
-const activeMemberKey = "bay-space-active-member-v6";
-
 export default function JoinCirclePanel() {
   const [activeMember, setActiveMember] = useState("");
 
   useEffect(() => {
-    function syncActiveMember() {
-      setActiveMember(window.localStorage.getItem(activeMemberKey) ?? "");
+    let isMounted = true;
+
+    async function syncActiveMember() {
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const data = response.ok
+        ? ((await response.json()) as { member?: { member: string } | null })
+        : { member: null };
+
+      if (isMounted) {
+        setActiveMember(data.member?.member ?? "");
+      }
     }
 
     syncActiveMember();
@@ -18,6 +25,7 @@ export default function JoinCirclePanel() {
     window.addEventListener("bay-space-auth", syncActiveMember);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("storage", syncActiveMember);
       window.removeEventListener("bay-space-auth", syncActiveMember);
     };

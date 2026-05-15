@@ -12,6 +12,7 @@ export default function JoinCircleForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -27,16 +28,19 @@ export default function JoinCircleForm() {
       return;
     }
 
+    setErrorMessage("");
     setIsSubmitting(true);
     const response = await fetch("/api/members?next=true", {
       cache: "no-store",
     });
     const data = (await response.json()) as {
       member?: string;
+      message?: string;
     };
     setIsSubmitting(false);
 
     if (!response.ok || !data.member) {
+      setErrorMessage(data.message ?? "activation unavailable");
       inputRef.current?.focus();
       return;
     }
@@ -100,6 +104,11 @@ export default function JoinCircleForm() {
         member number is assigned at final save. start over or exit before
         final submission and the number stays available.
       </p>
+      {errorMessage ? (
+        <p className="mt-3 text-[0.68rem] font-black uppercase leading-5 tracking-[0.14em] text-[#39ff14]">
+          {errorMessage}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -17,11 +17,18 @@ export default function FavoriteButton({ postId }: FavoriteButtonProps) {
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
-    function syncFavorite() {
-      const activeMemberId = getActiveMemberId();
+    let isMounted = true;
+
+    async function syncFavorite() {
+      const activeMemberId = await getActiveMemberId();
+      const favorite = activeMemberId ? await isFavoritePost(postId) : false;
+
+      if (!isMounted) {
+        return;
+      }
 
       setIsLoggedIn(Boolean(activeMemberId));
-      setIsFavorite(isFavoritePost(postId, activeMemberId));
+      setIsFavorite(favorite);
     }
 
     syncFavorite();
@@ -30,6 +37,7 @@ export default function FavoriteButton({ postId }: FavoriteButtonProps) {
     window.addEventListener(favoriteStoreEvent, syncFavorite);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("storage", syncFavorite);
       window.removeEventListener("bay-space-auth", syncFavorite);
       window.removeEventListener(favoriteStoreEvent, syncFavorite);
@@ -43,7 +51,7 @@ export default function FavoriteButton({ postId }: FavoriteButtonProps) {
   return (
     <button
       type="button"
-      onClick={() => setIsFavorite(toggleFavoritePost(postId))}
+      onClick={async () => setIsFavorite(await toggleFavoritePost(postId))}
       className={`favorite-diamond text-xl leading-none text-[#39ff14] transition hover:scale-125 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
         isFavorite ? "favorite-diamond-active" : "opacity-55"
       }`}

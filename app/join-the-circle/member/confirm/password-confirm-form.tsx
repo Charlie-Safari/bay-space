@@ -7,22 +7,14 @@ import styles from "./password-confirm-form.module.css";
 type PasswordConfirmFormProps = {
   member: string;
   name: string;
-  pin: string;
   refName: string;
   roles: string;
   title: string;
 };
 
-const activeMemberKey = "bay-space-active-member-v6";
-
-function getMemberKey(memberId: string) {
-  return `bay-space-circle-member-v6-${memberId}`;
-}
-
 export default function PasswordConfirmForm({
   member,
   name,
-  pin,
   refName,
   roles,
   title,
@@ -31,13 +23,22 @@ export default function PasswordConfirmForm({
   const [confirmPin, setConfirmPin] = useState("");
   const [isWrongPassword, setIsWrongPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function flashError(message: string) {
+    setErrorMessage("");
+    setIsWrongPassword(false);
+    window.setTimeout(() => {
+      setErrorMessage(message);
+      setIsWrongPassword(true);
+    }, 0);
+  }
 
   async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (confirmPin !== pin || isSaving) {
-      setIsWrongPassword(false);
-      window.setTimeout(() => setIsWrongPassword(true), 0);
+    if (!confirmPin || isSaving) {
+      flashError("try again");
       return;
     }
 
@@ -56,26 +57,21 @@ export default function PasswordConfirmForm({
           roles: string;
           title: string;
         };
+        message?: string;
       };
       setIsSaving(false);
 
       if (!response.ok || !data.member) {
-        setIsWrongPassword(false);
-        window.setTimeout(() => setIsWrongPassword(true), 0);
+        flashError(data.message ?? "save failed");
         return;
       }
 
-      window.localStorage.setItem(
-        getMemberKey(member),
-        JSON.stringify(data.member),
-      );
-      window.localStorage.setItem(activeMemberKey, member);
+      const savedMemberId = data.member.member;
       window.dispatchEvent(new Event("bay-space-auth"));
-      router.push(`/join-the-circle/member/complete?member=${member}`);
+      router.push(`/join-the-circle/member/complete?member=${savedMemberId}`);
     } catch {
       setIsSaving(false);
-      setIsWrongPassword(false);
-      window.setTimeout(() => setIsWrongPassword(true), 0);
+      flashError("save failed");
     }
   }
 
@@ -97,7 +93,7 @@ export default function PasswordConfirmForm({
       </div>
       {isWrongPassword ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
-          try again
+          {errorMessage}
         </p>
       ) : null}
       <button

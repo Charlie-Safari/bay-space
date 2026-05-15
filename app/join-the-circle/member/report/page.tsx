@@ -5,22 +5,16 @@ type ReportPageProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
-    pin?: string;
     ref?: string;
     roles?: string;
     title?: string;
   }>;
 };
 
-function maskPassword(pin: string) {
-  return `${"*".repeat(Math.max(pin.length, 1))} [classified]`;
-}
-
 export default async function ReportPage({ searchParams }: ReportPageProps) {
   const {
     member = "33334",
     name = "explorer",
-    pin = "",
     ref = "",
     roles = "",
     title = "Curious Reader",
@@ -28,7 +22,6 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
   const confirmHref = `/join-the-circle/member/confirm?${new URLSearchParams({
     member,
     name,
-    pin,
     ref,
     roles,
     title,
@@ -36,7 +29,6 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
   const backHref = `/join-the-circle/member/pin?${new URLSearchParams({
     member,
     name,
-    pin,
     ref,
     roles,
     title,
@@ -61,7 +53,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
             NAME: {name}
           </p>
           <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-            PASSWORD: {maskPassword(pin).toUpperCase()}
+            PASSWORD: ******** [CLASSIFIED]
           </p>
           <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
             REFERENCE NAME: {ref || "-----"}

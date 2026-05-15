@@ -17,7 +17,7 @@ import {
   saveBayPost,
 } from "../components/post-store";
 import {
-  countFavoritePost,
+  countFavoritePosts,
   favoriteStoreEvent,
   getFavoritePostIds,
 } from "../components/favorite-store";
@@ -63,12 +63,6 @@ type SourceDraft = {
 };
 
 type FavoriteCategory = "daily-food" | "theory" | "library-submission";
-
-function getMemberKey(memberId: string) {
-  return `bay-space-circle-member-v6-${memberId}`;
-}
-
-const activeMemberKey = "bay-space-active-member-v6";
 
 const postCategories: { id: PostCategory; label: string }[] = [
   { id: "top-story", label: "Top Story" },
@@ -129,24 +123,6 @@ function getAccountMarker(member: SavedMember | null) {
   return "";
 }
 
-function getSavedMember(memberId: string): SavedMember | null {
-  const savedMember = window.localStorage.getItem(getMemberKey(memberId));
-
-  if (!savedMember) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(savedMember) as SavedMember;
-  } catch {
-    return null;
-  }
-}
-
-function cacheSavedMember(member: SavedMember) {
-  window.localStorage.setItem(getMemberKey(member.member), JSON.stringify(member));
-}
-
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
     x: member?.links?.x ?? { url: "", display: false },
@@ -157,12 +133,6 @@ function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
 }
 
 async function fetchSavedMember(memberId: string): Promise<SavedMember | null> {
-  const cachedMember = getSavedMember(memberId);
-
-  if (cachedMember) {
-    return cachedMember;
-  }
-
   const response = await fetch(`/api/members/${memberId}`, { cache: "no-store" });
 
   if (!response.ok) {
@@ -170,10 +140,6 @@ async function fetchSavedMember(memberId: string): Promise<SavedMember | null> {
   }
 
   const data = (await response.json()) as { member?: SavedMember };
-
-  if (data.member) {
-    cacheSavedMember(data.member);
-  }
 
   return data.member ?? null;
 }
@@ -201,6 +167,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [allPosts, setAllPosts] = useState<BayPost[]>([]);
   const [myPosts, setMyPosts] = useState<BayPost[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
+  const [favoritePostCounts, setFavoritePostCounts] = useState<
+    Record<string, number>
+  >({});
   const [activeFavoriteCategory, setActiveFavoriteCategory] =
     useState<FavoriteCategory | "">("");
   const [postPreview, setPostPreview] = useState<Omit<
@@ -267,10 +236,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   useEffect(() => {
     async function syncActiveMember() {
-      const activeMember = window.localStorage.getItem(activeMemberKey);
-      const activeSavedMember = activeMember
-        ? await fetchSavedMember(activeMember)
-        : null;
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const data = response.ok
+        ? ((await response.json()) as { member?: SavedMember | null })
+        : { member: null };
+      const activeSavedMember = data.member ?? null;
+      const activeMember = activeSavedMember?.member ?? "";
 
       if (activeMember && activeSavedMember) {
         setResolvedMember(activeMember);
@@ -279,10 +250,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         setIsUnlocked(true);
         setErrorMessage("");
         return;
-      }
-
-      if (activeMember && !activeSavedMember) {
-        window.localStorage.removeItem(activeMemberKey);
       }
 
       setResolvedMember(member);
@@ -325,8 +292,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }, [resolvedMember]);
 
   useEffect(() => {
-    function syncFavorites() {
-      setFavoritePostIds(getFavoritePostIds(resolvedMember));
+    async function syncFavorites() {
+      const postIds = myPosts.map((post) => post.id);
+      setFavoritePostIds(await getFavoritePostIds());
+      setFavoritePostCounts(await countFavoritePosts(postIds));
     }
 
     syncFavorites();
@@ -337,7 +306,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       window.removeEventListener("storage", syncFavorites);
       window.removeEventListener(favoriteStoreEvent, syncFavorites);
     };
-  }, [resolvedMember]);
+  }, [myPosts]);
 
   useEffect(() => {
     if (!postPreview) {
@@ -379,9 +348,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     const data = (await response.json()) as { member?: SavedMember };
 
     if (response.ok && data.member) {
-      cacheSavedMember(data.member);
       setSavedMember(data.member);
-      window.localStorage.setItem(activeMemberKey, resolvedMember);
       window.dispatchEvent(new Event("bay-space-auth"));
       setErrorMessage("");
       setIsUnlocked(true);
@@ -391,8 +358,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setErrorMessage(response.status === 401 ? "try again" : "no account found");
   }
 
-  function signOut() {
-    window.localStorage.removeItem(activeMemberKey);
+  async function signOut() {
+    await fetch("/api/logout", { method: "POST" });
     window.dispatchEvent(new Event("bay-space-auth"));
     setIsUnlocked(false);
     setPassword("");
@@ -633,7 +600,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    cacheSavedMember(data.member);
     setSavedMember(data.member);
     setPassword(newPassword);
     setNewPassword("");
@@ -685,7 +651,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    cacheSavedMember(data.member);
     setSavedMember(data.member);
     setSettingsMessage("settings saved");
   }
@@ -722,8 +687,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    window.localStorage.removeItem(activeMemberKey);
-    window.localStorage.removeItem(getMemberKey(resolvedMember));
+    await fetch("/api/logout", { method: "POST" });
     window.dispatchEvent(new Event("bay-space-auth"));
     window.dispatchEvent(new Event(postStoreEvent));
     window.location.href = "/";
@@ -1473,7 +1437,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                         x
                       </button>
                       <span className="absolute right-3 top-9 text-[0.65rem] font-black uppercase tracking-[0.14em] text-[#39ff14]">
-                        {countFavoritePost(post.id)}
+                        {favoritePostCounts[post.id] ?? 0}
                       </span>
                       <a
                         href={getPostHref(post)}

@@ -52,28 +52,6 @@ type SavedMember = {
   roles?: string;
 };
 
-const memberKeyPrefix = "bay-space-circle-member-v6-";
-const activeMemberKey = "bay-space-active-member-v6";
-
-function getSavedMembersFromStorage() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  return Object.keys(window.localStorage)
-    .filter((key) => key.startsWith(memberKeyPrefix))
-    .map((key) => {
-      try {
-        return JSON.parse(
-          window.localStorage.getItem(key) ?? "",
-        ) as SavedMember;
-      } catch {
-        return null;
-      }
-    })
-    .filter((member): member is SavedMember => Boolean(member));
-}
-
 function getMetaString(post: BayPost, key: string) {
   const value = post.meta?.[key];
 
@@ -131,15 +109,16 @@ export default function DfHeadlineTerminal({
       getBayPostsByCategory("daily-food").then(setPosts);
     }
 
-    function syncLogin() {
-      setIsLoggedIn(Boolean(window.localStorage.getItem(activeMemberKey)));
+    async function syncLogin() {
+      const response = await fetch("/api/me", { cache: "no-store" });
+      setIsLoggedIn(response.ok);
     }
 
     function syncMembers() {
       fetch("/api/members", { cache: "no-store" })
         .then((response) => (response.ok ? response.json() : { members: [] }))
         .then((data: { members?: SavedMember[] }) => {
-          setMembers(data.members ?? getSavedMembersFromStorage());
+          setMembers(data.members ?? []);
         });
     }
 

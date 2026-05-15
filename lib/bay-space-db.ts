@@ -1,13 +1,19 @@
-import { promises as fs } from "fs";
-import path from "path";
-import { createHash, randomBytes, randomUUID } from "crypto";
-import { BayMember, BayMemberRecord, BayPost, PublicLink } from "./bay-space-types";
+import { createHash, randomBytes } from "crypto";
+import {
+  SupabaseServerError,
+  supabaseRequest,
+} from "./supabase/server";
+import {
+  BayMember,
+  BayPost,
+  PublicLink,
+} from "./bay-space-types";
 
-type BaySpaceData = {
-  members: BayMemberRecord[];
-  posts: BayPost[];
-  retiredMembers: string[];
-};
+type BayPostCategory =
+  | "top-story"
+  | "daily-food"
+  | "theory"
+  | "library-submission";
 
 type NewMemberInput = {
   name: string;
@@ -35,263 +41,173 @@ type MemberSettingsInput = {
   };
 };
 
-const dataFile = path.join(process.cwd(), "data", "bay-space.json");
+type MemberRow = {
+  birthday_month: string;
+  birthday_year: string;
+  created_at: string;
+  deleted_at: string | null;
+  email: string;
+  id: string;
+  links: Partial<NonNullable<BayMember["links"]>>;
+  member_number: number;
+  name: string;
+  ref_name: string;
+  title: string;
+  updated_at: string;
+};
+
+type AuthCredentialRow = {
+  member_id: string;
+  pin_hash: string;
+  pin_salt: string;
+};
+
+type MemberRoleRow = {
+  member_id: string;
+  role: string;
+};
+
+type MemberSessionRow = {
+  expires_at: string;
+  id: string;
+  member_id: string;
+  revoked_at: string | null;
+  token_hash: string;
+};
+
+type PostRow = {
+  anonymous: boolean;
+  author_member_id: string | null;
+  author_member_number: number | null;
+  body: string;
+  category: BayPostCategory;
+  created_at: string;
+  date_key: string;
+  deleted_at: string | null;
+  id: string;
+  incognito: boolean;
+  meta: Record<string, string | string[]>;
+  moderation_reason: string | null;
+  moderation_status: string;
+  shelf_code: string | null;
+  shelf_label: string | null;
+  title: string;
+  updated_at: string;
+};
+
+type SavedPostRow = {
+  member_id: string;
+  post_id: string;
+};
+
+export class BaySpaceStorageError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BaySpaceStorageError";
+  }
+}
+
+export function getStorageErrorMessage(error: unknown) {
+  if (error instanceof BaySpaceStorageError) {
+    return error.message;
+  }
+
+  if (error instanceof SupabaseServerError) {
+    return error.message;
+  }
+
+  return null;
+}
+
 const firstMemberNumber = 33333;
 const memberIdWidth = 5;
 const adminMemberId = "33333";
-const adminPinSalt = "bay-space-admin-33333";
+const sessionCookieName = "bay-space-session";
+const sessionDays = 30;
 
-let writeQueue = Promise.resolve();
-
-function publicMember(member: BayMemberRecord): BayMember {
-  const { pinHash, pinSalt, ...safeMember } = member;
-  void pinHash;
-  void pinSalt;
-  return safeMember;
-}
+export const baySpaceSessionCookieName = sessionCookieName;
 
 function formatMemberId(value: number) {
   return value.toString().padStart(memberIdWidth, "0");
 }
 
 function normalizeMember(value: string) {
-  return value.replace(/\D/g, "").slice(0, memberIdWidth).padStart(memberIdWidth, "0");
+  return value
+    .replace(/\D/g, "")
+    .slice(0, memberIdWidth)
+    .padStart(memberIdWidth, "0");
+}
+
+function getMemberNumber(value: string) {
+  const memberNumber = Number(normalizeMember(value));
+
+  return Number.isFinite(memberNumber) ? memberNumber : firstMemberNumber;
+}
+
+function normalizeName(name: string) {
+  return name.trim().slice(0, 24) || "explorer";
+}
+
+function normalizeRefName(refName: string) {
+  return refName.trim().slice(0, 40);
+}
+
+function normalizeTitle(title: string) {
+  return title.trim().slice(0, 80) || "Curious Reader";
 }
 
 function hashPin(pin: string, salt: string) {
   return createHash("sha256").update(`${salt}:${pin}`).digest("hex");
 }
 
-function getDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const day = date.getDate().toString().padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
-function getAdminMember(): BayMemberRecord {
+function getSessionExpiry() {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + sessionDays);
+
+  return expiresAt.toISOString();
+}
+
+function publicMember(member: MemberRow, roles: string[] = []): BayMember {
   return {
-    member: adminMemberId,
-    name: "bay-oracle",
-    refName: "bayo",
-    roles: "creator/ influencer - conspiracy",
-    title: "Influencer Creator Conspiracy",
-    createdAt: "2026-05-14T00:00:00.000Z",
-    pinHash: hashPin("lolol", adminPinSalt),
-    pinSalt: adminPinSalt,
+    member: formatMemberId(member.member_number),
+    name: member.name,
+    refName: member.ref_name,
+    roles: roles.join(","),
+    title: member.title,
+    createdAt: member.created_at,
+    email: member.email,
+    birthdayMonth: member.birthday_month,
+    birthdayYear: member.birthday_year,
+    links: {
+      x: normalizePublicLink(member.links?.x),
+      linkedin: normalizePublicLink(member.links?.linkedin),
+      github: normalizePublicLink(member.links?.github),
+      youtube: normalizePublicLink(member.links?.youtube),
+    },
   };
 }
 
-function ensureAdminMember(data: BaySpaceData) {
-  const adminMember = getAdminMember();
-  const savedAdmin = data.members.find((member) => member.member === adminMemberId);
-
-  if (savedAdmin) {
-    savedAdmin.member = adminMember.member;
-    savedAdmin.name = adminMember.name;
-    savedAdmin.refName = adminMember.refName;
-    savedAdmin.roles = adminMember.roles;
-    savedAdmin.title = adminMember.title;
-    savedAdmin.createdAt = savedAdmin.createdAt || adminMember.createdAt;
-    savedAdmin.pinHash = savedAdmin.pinHash || adminMember.pinHash;
-    savedAdmin.pinSalt = savedAdmin.pinSalt || adminMember.pinSalt;
-  } else {
-    data.members.unshift(adminMember);
-  }
-
-  data.retiredMembers = data.retiredMembers.filter(
-    (member) => member !== adminMemberId,
-  );
-
-  return data;
-}
-
-async function readData(): Promise<BaySpaceData> {
-  try {
-    const rawData = await fs.readFile(dataFile, "utf8");
-    const parsedData = JSON.parse(rawData) as Partial<BaySpaceData>;
-
-    return ensureAdminMember({
-      members: Array.isArray(parsedData.members) ? parsedData.members : [],
-      posts: Array.isArray(parsedData.posts) ? parsedData.posts : [],
-      retiredMembers: Array.isArray(parsedData.retiredMembers)
-        ? parsedData.retiredMembers
-        : [],
-    });
-  } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "ENOENT"
-    ) {
-      return ensureAdminMember({ members: [], posts: [], retiredMembers: [] });
-    }
-
-    throw error;
-  }
-}
-
-async function writeData(data: BaySpaceData) {
-  await fs.mkdir(path.dirname(dataFile), { recursive: true });
-  await fs.writeFile(dataFile, JSON.stringify(ensureAdminMember(data), null, 2));
-}
-
-async function updateData<T>(updater: (data: BaySpaceData) => T | Promise<T>) {
-  const nextWrite = writeQueue.then(async () => {
-    const data = await readData();
-    const result = await updater(data);
-    await writeData(data);
-    return result;
-  });
-
-  writeQueue = nextWrite.then(
-    () => undefined,
-    () => undefined,
-  );
-
-  return nextWrite;
-}
-
-export async function createMember(input: NewMemberInput) {
-  return updateData((data) => {
-    const usedMembers = new Set([
-      ...data.members.map((member) => member.member),
-      ...data.retiredMembers,
-    ]);
-    let nextMember = firstMemberNumber;
-
-    while (usedMembers.has(formatMemberId(nextMember))) {
-      nextMember += 1;
-    }
-
-    const member: BayMemberRecord = {
-      member: formatMemberId(nextMember),
-      name: input.name.trim().slice(0, 24) || "explorer",
-      refName: "",
-      roles: "",
-      title: "Curious Reader",
-      createdAt: new Date().toISOString(),
-      pinHash: "",
-      pinSalt: "",
-    };
-
-    data.members.push(member);
-
-    return publicMember(member);
-  });
-}
-
-export async function getNextMemberId() {
-  const data = await readData();
-  const usedMembers = new Set([
-    ...data.members.map((member) => member.member),
-    ...data.retiredMembers,
-  ]);
-  let nextMember = firstMemberNumber;
-
-  while (usedMembers.has(formatMemberId(nextMember))) {
-    nextMember += 1;
-  }
-
-  return formatMemberId(nextMember);
-}
-
-export async function getMember(memberId: string) {
-  const data = await readData();
-  const member = data.members.find(
-    (savedMember) => savedMember.member === normalizeMember(memberId),
-  );
-
-  return member ? publicMember(member) : null;
-}
-
-export async function listMembers() {
-  const data = await readData();
-  return data.members.map(publicMember);
-}
-
-export async function completeMember(memberId: string, input: UpdateMemberInput) {
-  return updateData((data) => {
-    const normalizedMember = normalizeMember(memberId);
-    let member = data.members.find(
-      (savedMember) => savedMember.member === normalizedMember,
-    );
-
-    if (normalizedMember === adminMemberId) {
-      return publicMember(member ?? getAdminMember());
-    }
-
-    if (!member) {
-      member = {
-        member: normalizedMember,
-        name: input.name.trim().slice(0, 24) || "explorer",
-        refName: "",
-        roles: "",
-        title: "Curious Reader",
-        createdAt: new Date().toISOString(),
-        pinHash: "",
-        pinSalt: "",
-      };
-      data.members.push(member);
-    }
-
-    const pinSalt = randomBytes(16).toString("hex");
-    member.pinSalt = pinSalt;
-    member.pinHash = hashPin(input.pin, pinSalt);
-    member.name = input.name.trim().slice(0, 24) || "explorer";
-    member.refName = input.refName.trim().slice(0, 40);
-    member.roles = input.roles;
-    member.title = input.title.trim().slice(0, 80) || "Curious Reader";
-
-    return publicMember(member);
-  });
-}
-
-export async function changeMemberPin(memberId: string, pin: string) {
-  return updateData((data) => {
-    const member = data.members.find(
-      (savedMember) => savedMember.member === normalizeMember(memberId),
-    );
-
-    if (!member) {
-      return null;
-    }
-
-    const pinSalt = randomBytes(16).toString("hex");
-    member.pinSalt = pinSalt;
-    member.pinHash = hashPin(pin, pinSalt);
-
-    return publicMember(member);
-  });
-}
-
-export async function updateMemberSettings(
-  memberId: string,
-  input: MemberSettingsInput,
-) {
-  return updateData((data) => {
-    const member = data.members.find(
-      (savedMember) => savedMember.member === normalizeMember(memberId),
-    );
-
-    if (!member) {
-      return null;
-    }
-
-    member.email = input.email?.trim().slice(0, 120) ?? "";
-    member.birthdayMonth = input.birthdayMonth?.trim().slice(0, 2) ?? "";
-    member.birthdayYear = input.birthdayYear?.trim().slice(0, 4) ?? "";
-    member.links = {
-      x: normalizePublicLink(input.links?.x),
-      linkedin: normalizePublicLink(input.links?.linkedin),
-      github: normalizePublicLink(input.links?.github),
-      youtube: normalizePublicLink(input.links?.youtube),
-    };
-
-    return publicMember(member);
-  });
+function publicPost(post: PostRow): BayPost {
+  return {
+    id: post.id,
+    category: post.category,
+    title: post.title,
+    body: post.body,
+    createdAt: post.created_at,
+    dateKey: post.date_key,
+    anonymous: post.anonymous,
+    incognito: post.incognito,
+    author: post.author_member_number
+      ? formatMemberId(post.author_member_number)
+      : "unknown",
+    shelfLabel: post.shelf_label ?? undefined,
+    shelfCode: post.shelf_code ?? undefined,
+    meta: post.meta ?? {},
+  };
 }
 
 function normalizePublicLink(link?: PublicLink) {
@@ -301,109 +217,518 @@ function normalizePublicLink(link?: PublicLink) {
   };
 }
 
-export async function wipeMemberAccount(memberId: string) {
-  return updateData((data) => {
-    const normalizedMember = normalizeMember(memberId);
-    const originalLength = data.posts.length;
-    data.posts = data.posts.filter((post) => post.author !== normalizedMember);
+function splitRoles(roles: string) {
+  return roles
+    .split(",")
+    .map((role) => role.trim())
+    .filter(Boolean);
+}
 
-    return data.posts.length !== originalLength;
+function isAdminMember(member: BayMember | null) {
+  return member?.member === adminMemberId;
+}
+
+async function getMemberRoles(memberId: string) {
+  const rows = await supabaseRequest<MemberRoleRow[]>("member_roles", {
+    query: {
+      member_id: `eq.${memberId}`,
+      order: "created_at.asc",
+      select: "role",
+    },
+  });
+
+  return rows.map((row) => row.role);
+}
+
+async function setMemberRoles(memberId: string, roles: string) {
+  await supabaseRequest<null>("member_roles", {
+    method: "DELETE",
+    query: { member_id: `eq.${memberId}` },
+  });
+
+  const nextRoles = splitRoles(roles);
+
+  if (!nextRoles.length) {
+    return;
+  }
+
+  await supabaseRequest<MemberRoleRow[]>("member_roles", {
+    body: nextRoles.map((role) => ({ member_id: memberId, role })),
+    method: "POST",
+    prefer: "return=minimal",
   });
 }
 
-export async function deleteMemberAccount(memberId: string) {
-  return updateData((data) => {
-    const normalizedMember = normalizeMember(memberId);
-
-    if (normalizedMember === adminMemberId) {
-      return false;
-    }
-
-    const memberExists = data.members.some(
-      (member) => member.member === normalizedMember,
-    );
-
-    data.members = data.members.filter(
-      (member) => member.member !== normalizedMember,
-    );
-    data.posts = data.posts.filter((post) => post.author !== normalizedMember);
-
-    if (!data.retiredMembers.includes(normalizedMember)) {
-      data.retiredMembers.push(normalizedMember);
-    }
-
-    return memberExists;
+async function getMemberRowByNumber(memberId: string) {
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      member_number: `eq.${getMemberNumber(memberId)}`,
+      select: "*",
+    },
   });
+
+  return rows[0] ?? null;
 }
 
-export async function verifyMemberPin(memberId: string, pin: string) {
-  const data = await readData();
-  const member = data.members.find(
-    (savedMember) => savedMember.member === normalizeMember(memberId),
-  );
+async function getMemberRowById(memberId: string) {
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${memberId}`,
+      select: "*",
+    },
+  });
 
-  if (!member || !member.pinHash || !member.pinSalt) {
+  return rows[0] ?? null;
+}
+
+async function getCredential(memberId: string) {
+  const rows = await supabaseRequest<AuthCredentialRow[]>("auth_credentials", {
+    query: {
+      member_id: `eq.${memberId}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ?? null;
+}
+
+async function getPublicMemberFromRow(member: MemberRow) {
+  return publicMember(member, await getMemberRoles(member.id));
+}
+
+async function getMemberRowBySessionToken(token: string) {
+  if (!token) {
     return null;
   }
 
-  return hashPin(pin, member.pinSalt) === member.pinHash
-    ? publicMember(member)
+  const sessions = await supabaseRequest<MemberSessionRow[]>("member_sessions", {
+    query: {
+      expires_at: `gt.${new Date().toISOString()}`,
+      revoked_at: "is.null",
+      select: "*",
+      token_hash: `eq.${hashToken(token)}`,
+    },
+  });
+  const session = sessions[0];
+
+  if (!session) {
+    return null;
+  }
+
+  return getMemberRowById(session.member_id);
+}
+
+export async function createMember(input: NewMemberInput) {
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: { name: normalizeName(input.name) },
+    method: "POST",
+    prefer: "return=representation",
+    query: { select: "*" },
+  });
+
+  return getPublicMemberFromRow(rows[0]);
+}
+
+export async function getNextMemberId() {
+  const rows = await supabaseRequest<Array<{ member_number: number }>>(
+    "members",
+    {
+      query: {
+        deleted_at: "is.null",
+        limit: 1,
+        order: "member_number.desc",
+        select: "member_number",
+      },
+    },
+  );
+  const highestMember = rows[0]?.member_number ?? firstMemberNumber;
+
+  return formatMemberId(Math.max(highestMember + 1, firstMemberNumber + 1));
+}
+
+export async function getMember(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getPublicMemberFromRow(member) : null;
+}
+
+export async function listMembers() {
+  const members = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      order: "member_number.asc",
+      select: "*",
+    },
+  });
+
+  return Promise.all(members.map(getPublicMemberFromRow));
+}
+
+export async function completeMember(
+  memberId: string,
+  input: UpdateMemberInput,
+) {
+  if (normalizeMember(memberId) === adminMemberId) {
+    return getMember(adminMemberId);
+  }
+
+  const pinSalt = randomBytes(16).toString("hex");
+  const members = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      name: normalizeName(input.name),
+      ref_name: normalizeRefName(input.refName),
+      title: normalizeTitle(input.title),
+    },
+    method: "POST",
+    prefer: "return=representation",
+    query: { select: "*" },
+  });
+  const member = members[0];
+
+  await supabaseRequest<AuthCredentialRow[]>("auth_credentials", {
+    body: {
+      member_id: member.id,
+      pin_hash: hashPin(input.pin, pinSalt),
+      pin_salt: pinSalt,
+    },
+    method: "POST",
+    prefer: "return=minimal",
+  });
+  await setMemberRoles(member.id, input.roles);
+
+  return getPublicMemberFromRow(member);
+}
+
+export async function changeMemberPin(memberId: string, pin: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const pinSalt = randomBytes(16).toString("hex");
+  const rows = await supabaseRequest<AuthCredentialRow[]>("auth_credentials", {
+    body: {
+      pin_hash: hashPin(pin, pinSalt),
+      pin_salt: pinSalt,
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_id: `eq.${member.id}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(member) : null;
+}
+
+export async function updateMemberSettings(
+  memberId: string,
+  input: MemberSettingsInput,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      birthday_month: input.birthdayMonth?.trim().slice(0, 2) ?? "",
+      birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? "",
+      email: input.email?.trim().slice(0, 120) ?? "",
+      links: {
+        x: normalizePublicLink(input.links?.x),
+        linkedin: normalizePublicLink(input.links?.linkedin),
+        github: normalizePublicLink(input.links?.github),
+        youtube: normalizePublicLink(input.links?.youtube),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function wipeMemberAccount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return false;
+  }
+
+  await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=minimal",
+    query: { author_member_id: `eq.${member.id}` },
+  });
+
+  return true;
+}
+
+export async function deleteMemberAccount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member || formatMemberId(member.member_number) === adminMemberId) {
+    return false;
+  }
+
+  await wipeMemberAccount(memberId);
+  await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=minimal",
+    query: { id: `eq.${member.id}` },
+  });
+
+  return true;
+}
+
+export async function verifyMemberPin(memberId: string, pin: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const credential = await getCredential(member.id);
+
+  if (!credential) {
+    return null;
+  }
+
+  return hashPin(pin, credential.pin_salt) === credential.pin_hash
+    ? getPublicMemberFromRow(member)
     : null;
 }
 
-export async function listPosts(category?: string) {
-  const data = await readData();
-  const posts = category
-    ? data.posts.filter((post) => post.category === category)
-    : data.posts;
+export async function createMemberSession(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
 
-  return [...posts].sort(
-    (leftPost, rightPost) =>
-      new Date(rightPost.createdAt).getTime() -
-      new Date(leftPost.createdAt).getTime(),
-  );
+  if (!member) {
+    return null;
+  }
+
+  const token = randomBytes(32).toString("hex");
+  await supabaseRequest<MemberSessionRow[]>("member_sessions", {
+    body: {
+      expires_at: getSessionExpiry(),
+      member_id: member.id,
+      token_hash: hashToken(token),
+    },
+    method: "POST",
+    prefer: "return=minimal",
+  });
+
+  return token;
+}
+
+export async function getMemberFromSessionToken(token: string) {
+  const member = await getMemberRowBySessionToken(token);
+
+  return member ? getPublicMemberFromRow(member) : null;
+}
+
+export async function revokeMemberSession(token: string) {
+  if (!token) {
+    return;
+  }
+
+  await supabaseRequest<MemberSessionRow[]>("member_sessions", {
+    body: {
+      revoked_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=minimal",
+    query: { token_hash: `eq.${hashToken(token)}` },
+  });
+}
+
+export async function listPosts(category?: string) {
+  const query: Record<string, string | number | boolean | undefined> = {
+    deleted_at: "is.null",
+    moderation_status: "eq.active",
+    order: "created_at.desc",
+    select: "*",
+  };
+
+  if (category) {
+    query.category = `eq.${category}`;
+  }
+
+  const posts = await supabaseRequest<PostRow[]>("posts", { query });
+
+  return posts.map(publicPost);
 }
 
 export async function listPostsByAuthor(memberId: string) {
-  const data = await readData();
-  const normalizedMember = normalizeMember(memberId);
+  const memberNumber = getMemberNumber(memberId);
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      anonymous: "eq.false",
+      author_member_number: `eq.${memberNumber}`,
+      deleted_at: "is.null",
+      incognito: "eq.false",
+      moderation_status: "eq.active",
+      order: "created_at.desc",
+      select: "*",
+    },
+  });
 
-  return data.posts
-    .filter(
-      (post) =>
-        post.author === normalizedMember && !post.anonymous && !post.incognito,
-    )
-    .sort(
-      (leftPost, rightPost) =>
-        new Date(rightPost.createdAt).getTime() -
-        new Date(leftPost.createdAt).getTime(),
-    );
+  return posts.map(publicPost);
 }
 
-export async function createPost(input: NewPostInput) {
-  return updateData((data) => {
-    const createdAt = new Date();
-    const post: BayPost = {
-      ...input,
-      id: randomUUID(),
-      incognito: input.incognito ?? false,
-      createdAt: createdAt.toISOString(),
-      dateKey: getDateKey(createdAt),
-    };
+export async function createPost(input: NewPostInput, authorMember: BayMember) {
+  const author = await getMemberRowByNumber(authorMember.member);
 
-    data.posts.unshift(post);
+  if (!author) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
 
-    return post;
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      anonymous: Boolean(input.anonymous),
+      author_member_id: author.id,
+      author_member_number: author.member_number,
+      body: String(input.body ?? ""),
+      category: input.category,
+      incognito: Boolean(input.incognito),
+      meta: input.meta ?? {},
+      shelf_code: input.shelfCode ?? null,
+      shelf_label: input.shelfLabel ?? null,
+      title: String(input.title ?? "").slice(0, 140),
+    },
+    method: "POST",
+    prefer: "return=representation",
+    query: { select: "*" },
   });
+
+  return publicPost(posts[0]);
 }
 
-export async function deletePost(postId: string, author: string) {
-  return updateData((data) => {
-    const originalLength = data.posts.length;
-    data.posts = data.posts.filter(
-      (post) => post.id !== postId || post.author !== author,
-    );
-
-    return data.posts.length !== originalLength;
+export async function deletePost(postId: string, actorMember: BayMember) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      select: "*",
+    },
   });
+  const post = posts[0];
+
+  if (!post) {
+    return false;
+  }
+
+  const actorMemberNumber = getMemberNumber(actorMember.member);
+  const canDelete =
+    isAdminMember(actorMember) || post.author_member_number === actorMemberNumber;
+
+  if (!canDelete) {
+    return false;
+  }
+
+  await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=minimal",
+    query: { id: `eq.${post.id}` },
+  });
+
+  return true;
+}
+
+export async function listSavedPostIds(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return [];
+  }
+
+  const rows = await supabaseRequest<SavedPostRow[]>("saved_posts", {
+    query: {
+      member_id: `eq.${member.id}`,
+      order: "created_at.desc",
+      select: "post_id",
+    },
+  });
+
+  return rows.map((row) => row.post_id);
+}
+
+export async function toggleSavedPost(memberId: string, postId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  const existing = await supabaseRequest<SavedPostRow[]>("saved_posts", {
+    query: {
+      member_id: `eq.${member.id}`,
+      post_id: `eq.${postId}`,
+      select: "member_id,post_id",
+    },
+  });
+
+  if (existing.length) {
+    await supabaseRequest<null>("saved_posts", {
+      method: "DELETE",
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${postId}`,
+      },
+    });
+
+    return false;
+  }
+
+  await supabaseRequest<SavedPostRow[]>("saved_posts", {
+    body: {
+      member_id: member.id,
+      post_id: postId,
+    },
+    method: "POST",
+    prefer: "return=minimal",
+  });
+
+  return true;
+}
+
+export async function countSavedPosts(postIds: string[]) {
+  if (!postIds.length) {
+    return {};
+  }
+
+  const rows = await supabaseRequest<SavedPostRow[]>("saved_posts", {
+    query: {
+      post_id: `in.(${postIds.join(",")})`,
+      select: "post_id",
+    },
+  });
+
+  return rows.reduce<Record<string, number>>((counts, row) => {
+    counts[row.post_id] = (counts[row.post_id] ?? 0) + 1;
+    return counts;
+  }, {});
 }

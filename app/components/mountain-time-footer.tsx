@@ -22,6 +22,7 @@ function getMountainStandardTime() {
 
 export default function MountainTimeFooter() {
   const [time, setTime] = useState(getMountainStandardTime);
+  const [showVersion, setShowVersion] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -49,6 +50,21 @@ export default function MountainTimeFooter() {
           >
             ▶ how to ◀
           </Link>
+          <span className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowVersion((current) => !current)}
+              className="border border-[#39ff14] px-2 py-1 text-left text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-expanded={showVersion}
+            >
+              version
+            </button>
+            {showVersion ? (
+              <span className="text-[#d7ffd0]" aria-live="polite">
+                v1.01
+              </span>
+            ) : null}
+          </span>
         </div>
         <div className="flex flex-col items-end gap-1 text-right">
           <time suppressHydrationWarning>{time}</time>
