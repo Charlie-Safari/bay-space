@@ -81,3 +81,5 @@ npm run launch:check
 
 This validates required environment values, then runs lint and a production
 build.
+
+Production redeploy after Supabase service_role grants.

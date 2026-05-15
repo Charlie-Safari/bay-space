@@ -129,6 +129,20 @@ from anon, authenticated;
 
 revoke all on sequence bay_member_number_seq from anon, authenticated;
 
+grant usage on schema public to service_role;
+
+grant select, insert, update, delete on table
+  members,
+  auth_credentials,
+  member_roles,
+  member_sessions,
+  posts,
+  saved_posts,
+  reports
+to service_role;
+
+grant usage, select, update on sequence bay_member_number_seq to service_role;
+
 comment on table members is
   'RLS enabled. Bay Space uses server-side API routes with the service role key; direct anon/authenticated Supabase table access is denied by default.';
 comment on table auth_credentials is
