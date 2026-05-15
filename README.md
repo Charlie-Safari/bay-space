@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bay Space
+
+Bay Space is a Next.js app backed by Supabase Postgres through server-only API
+routes. The browser never receives the elevated Supabase key.
 
 ## Getting Started
 
-First, run the development server:
+Create a Supabase project, then run the SQL in
+`supabase/migrations/202605140001_bay_space_core.sql` from the Supabase SQL
+Editor. That migration creates the member, credential, session, post, saved
+post, and report tables used by the app.
+
+Copy the env template:
+
+```bash
+cp .env.example .env.local
+```
+
+Set these values in `.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_your_server_only_key
+```
+
+For older Supabase projects, `SUPABASE_SERVICE_ROLE_KEY` can be used instead of
+`SUPABASE_SECRET_KEY`.
+
+Then run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the
+result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase Setup Notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Find the project URL in Supabase Dashboard > Project Settings > Data API.
+- Find server keys in Supabase Dashboard > Project Settings > API Keys.
+- Keep `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` out of client code,
+  commits, screenshots, and chat.
+- After changing `.env.local`, restart `npm run dev` so Next.js reloads the
+  environment.
 
-## Learn More
+The app uses Supabase REST at `/rest/v1` with an elevated server key from route
+handlers. Row Level Security is enabled, and direct anon/authenticated table
+access is revoked by default in the migration.
 
-To learn more about Next.js, take a look at the following resources:
+## Bootstrap Admin
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The migration seeds member `33333` as `bay-oracle` with the bootstrap credential
+hash from the previous local backend. Rotate that PIN with a manual SQL update
+after the first successful deployment.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Verification
 
-## Deploy on Vercel
+After the env file and migration are in place, this route should return the next
+available member number:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+curl http://localhost:3000/api/members?next=true
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Expected shape:
+
+```json
+{"member":"33334"}
+```
