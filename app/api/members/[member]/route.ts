@@ -32,8 +32,7 @@ function canManageMember(
 ) {
   return (
     Boolean(actor) &&
-    (actor?.member === normalizeMemberId(targetMemberId) ||
-      actor?.member === "33333")
+    actor?.member === normalizeMemberId(targetMemberId)
   );
 }
 

@@ -52,12 +52,6 @@ The app uses Supabase REST at `/rest/v1` with an elevated server key from route
 handlers. Row Level Security is enabled, and direct anon/authenticated table
 access is revoked by default in the migration.
 
-## Bootstrap Admin
-
-The migration seeds member `33333` as `bay-oracle` with the bootstrap credential
-hash from the previous local backend. Rotate that PIN with a manual SQL update
-after the first successful deployment.
-
 ## Verification
 
 After the env file and migration are in place, this route should return the next
@@ -70,7 +64,7 @@ curl http://localhost:3000/api/members?next=true
 Expected shape:
 
 ```json
-{"member":"33334"}
+{"member":"33332"}
 ```
 
 Before launch, run the full local gate:

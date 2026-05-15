@@ -119,9 +119,8 @@ export function getStorageErrorMessage(error: unknown) {
   return null;
 }
 
-const firstMemberNumber = 33333;
+const firstMemberNumber = 33332;
 const memberIdWidth = 5;
-const adminMemberId = "33333";
 const sessionCookieName = "bay-space-session";
 const sessionDays = 30;
 
@@ -222,10 +221,6 @@ function splitRoles(roles: string) {
     .split(",")
     .map((role) => role.trim())
     .filter(Boolean);
-}
-
-function isAdminMember(member: BayMember | null) {
-  return member?.member === adminMemberId;
 }
 
 async function getMemberRoles(memberId: string) {
@@ -343,9 +338,13 @@ export async function getNextMemberId() {
       },
     },
   );
-  const highestMember = rows[0]?.member_number ?? firstMemberNumber;
+  const highestMember = rows[0]?.member_number;
 
-  return formatMemberId(Math.max(highestMember + 1, firstMemberNumber + 1));
+  return formatMemberId(
+    highestMember === undefined
+      ? firstMemberNumber
+      : Math.max(highestMember + 1, firstMemberNumber),
+  );
 }
 
 export async function getMember(memberId: string) {
@@ -370,10 +369,6 @@ export async function completeMember(
   memberId: string,
   input: UpdateMemberInput,
 ) {
-  if (normalizeMember(memberId) === adminMemberId) {
-    return getMember(adminMemberId);
-  }
-
   const pinSalt = randomBytes(16).toString("hex");
   const members = await supabaseRequest<MemberRow[]>("members", {
     body: {
@@ -483,7 +478,7 @@ export async function wipeMemberAccount(memberId: string) {
 export async function deleteMemberAccount(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
-  if (!member || formatMemberId(member.member_number) === adminMemberId) {
+  if (!member) {
     return false;
   }
 
@@ -638,10 +633,7 @@ export async function deletePost(postId: string, actorMember: BayMember) {
   }
 
   const actorMemberNumber = getMemberNumber(actorMember.member);
-  const canDelete =
-    isAdminMember(actorMember) || post.author_member_number === actorMemberNumber;
-
-  if (!canDelete) {
+  if (post.author_member_number !== actorMemberNumber) {
     return false;
   }
 

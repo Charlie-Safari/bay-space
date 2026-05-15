@@ -21,7 +21,7 @@ begin
   end if;
 end $$;
 
-create sequence if not exists bay_member_number_seq start with 33334;
+create sequence if not exists bay_member_number_seq start with 33332;
 
 create table if not exists members (
   id uuid primary key default gen_random_uuid(),
@@ -157,59 +157,3 @@ comment on table saved_posts is
   'RLS enabled. Saved posts are managed through Bay Space API routes using the HttpOnly session cookie.';
 comment on table reports is
   'RLS enabled. Moderation reports are server-only unless future policies are explicitly added.';
-
-insert into members (
-  id,
-  member_number,
-  name,
-  ref_name,
-  title,
-  created_at
-)
-values (
-  '00000000-0000-0000-0000-000000033333',
-  33333,
-  'bay-oracle',
-  'bayo',
-  'Influencer Creator Conspiracy',
-  '2026-05-14T00:00:00.000Z'
-)
-on conflict (member_number) do update
-set
-  name = excluded.name,
-  ref_name = excluded.ref_name,
-  title = excluded.title,
-  deleted_at = null,
-  updated_at = now();
-
-insert into auth_credentials (
-  member_id,
-  pin_hash,
-  pin_salt
-)
-values (
-  '00000000-0000-0000-0000-000000033333',
-  '385072a2430e3af280c121329956d4118bb658a3dd10c462e13f6dfbb4def9a6',
-  'bay-space-admin-33333'
-)
-on conflict (member_id) do nothing;
-
-comment on column auth_credentials.pin_hash is
-  'Initial bay-oracle credential is seeded for bootstrap only. Rotate with a manual SQL update after migration.';
-comment on column auth_credentials.pin_salt is
-  'Initial bay-oracle credential is seeded for bootstrap only. Rotate with a manual SQL update after migration.';
-
-insert into member_roles (member_id, role)
-values (
-  '00000000-0000-0000-0000-000000033333',
-  'creator/ influencer - conspiracy'
-)
-on conflict do nothing;
-
-select setval(
-  'bay_member_number_seq',
-  greatest(
-    33333,
-    coalesce((select max(member_number) from members), 33333)
-  )
-);
