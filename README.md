@@ -21,10 +21,14 @@ Set these values in `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_your_server_only_key
+NEXT_PUBLIC_SITE_URL=https://your-production-domain.example
 ```
 
 For older Supabase projects, `SUPABASE_SERVICE_ROLE_KEY` can be used instead of
 `SUPABASE_SECRET_KEY`.
+
+`NEXT_PUBLIC_SITE_URL` is used for metadata, `robots.txt`, and `sitemap.xml`.
+On Vercel, the app falls back to `VERCEL_URL` if this value is not set.
 
 Then run the development server:
 
@@ -68,3 +72,12 @@ Expected shape:
 ```json
 {"member":"33334"}
 ```
+
+Before launch, run the full local gate:
+
+```bash
+npm run launch:check
+```
+
+This validates required environment values, then runs lint and a production
+build.

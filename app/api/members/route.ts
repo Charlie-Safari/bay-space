@@ -29,7 +29,10 @@ function membersErrorResponse(error: unknown) {
 
   if (storageMessage) {
     console.error(storageMessage);
-    return Response.json({ message: storageMessage }, { status: 503 });
+    return Response.json(
+      { message: "member activation is temporarily offline" },
+      { status: 503 },
+    );
   }
 
   console.error(error);

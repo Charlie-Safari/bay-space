@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import MountainTimeFooter from "./components/mountain-time-footer";
+import { getSiteUrl } from "../lib/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: "bay-space",
   description: "A DOS-inspired bay-space website.",
+  openGraph: {
+    title: "bay-space",
+    description: "A DOS-inspired bay-space website.",
+    url: "/",
+    siteName: "bay-space",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

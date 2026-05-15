@@ -30,16 +30,27 @@ export default function JoinCircleForm() {
 
     setErrorMessage("");
     setIsSubmitting(true);
-    const response = await fetch("/api/members?next=true", {
-      cache: "no-store",
-    });
-    const data = (await response.json()) as {
-      member?: string;
-      message?: string;
-    };
-    setIsSubmitting(false);
 
-    if (!response.ok || !data.member) {
+    let data: { member?: string; message?: string } = {};
+    let isAvailable = false;
+
+    try {
+      const response = await fetch("/api/members?next=true", {
+        cache: "no-store",
+      });
+
+      data = (await response.json()) as {
+        member?: string;
+        message?: string;
+      };
+      isAvailable = response.ok && Boolean(data.member);
+    } catch {
+      data = { message: "activation network unavailable" };
+    } finally {
+      setIsSubmitting(false);
+    }
+
+    if (!isAvailable || !data.member) {
       setErrorMessage(data.message ?? "activation unavailable");
       inputRef.current?.focus();
       return;
