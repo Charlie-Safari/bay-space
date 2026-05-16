@@ -20,8 +20,8 @@ export default function PinSetupForm({
 }: PinSetupFormProps) {
   const router = useRouter();
   const [pin, setPin] = useState("");
-  const [shortRef, setShortRef] = useState(initialRef);
   const [errorMessage, setErrorMessage] = useState("");
+  const refName = initialRef || name;
 
   async function saveIntel() {
     if (!pin.trim()) {
@@ -36,7 +36,7 @@ export default function PinSetupForm({
         member,
         name,
         pin,
-        refName: shortRef,
+        refName,
         roles,
         title,
       }),
@@ -67,14 +67,11 @@ export default function PinSetupForm({
         />
       </label>
       <label className="grid gap-2 text-xs font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-        Optional (5 digit short reference name):
+        Reference name:
         <input
-          value={shortRef}
-          onChange={(event) =>
-            setShortRef(event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 5))
-          }
-          placeholder="_ _ _ _ _"
-          className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black uppercase tracking-[0.34em] text-[#39ff14] outline-none placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
+          value={refName}
+          readOnly
+          className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
         />
       </label>
       <button

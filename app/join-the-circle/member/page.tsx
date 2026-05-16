@@ -5,11 +5,12 @@ type CircleMemberProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
+    ref?: string;
   }>;
 };
 
 export default async function CircleMember({ searchParams }: CircleMemberProps) {
-  const { member = "33334", name = "explorer" } = await searchParams;
+  const { member = "33332", name = "explorer", ref = name } = await searchParams;
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -26,7 +27,7 @@ export default async function CircleMember({ searchParams }: CircleMemberProps) 
           Welcome, explorer.
         </p>
 
-        <RoleSelector member={member} name={name} />
+        <RoleSelector member={member} name={name} refName={ref} />
       </section>
     </main>
   );

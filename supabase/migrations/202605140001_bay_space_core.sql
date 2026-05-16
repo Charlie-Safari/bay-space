@@ -33,6 +33,8 @@ create table if not exists members (
   birthday_month text not null default '',
   birthday_year text not null default '',
   links jsonb not null default '{}',
+  agreement_version text not null default '',
+  agreement_accepted_at timestamptz,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -101,6 +103,9 @@ create table if not exists reports (
 );
 
 create index if not exists members_member_number_idx on members (member_number);
+create unique index if not exists members_ref_name_unique_idx
+  on members (lower(ref_name))
+  where deleted_at is null;
 create index if not exists member_sessions_token_hash_idx on member_sessions (token_hash);
 create index if not exists member_sessions_member_idx on member_sessions (member_id);
 create index if not exists posts_category_created_at_idx on posts (category, created_at desc);

@@ -1,8 +1,13 @@
 import {
   getNextMemberId,
   getStorageErrorMessage,
+  isRefNameAvailable,
   listMembers,
 } from "../../../lib/bay-space-db";
+import {
+  isValidUsername,
+  normalizeUsername,
+} from "../../../lib/bay-space-username";
 
 type ApiMember = Awaited<ReturnType<typeof listMembers>>[number];
 
@@ -42,6 +47,23 @@ function membersErrorResponse(error: unknown) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const username = searchParams.get("username") ?? searchParams.get("refName");
+
+    if (username !== null) {
+      const candidateUsername = username.trim();
+      const valid = isValidUsername(candidateUsername);
+      const normalizedUsername = normalizeUsername(candidateUsername);
+
+      return Response.json(
+        {
+          available: valid
+            ? await isRefNameAvailable(normalizedUsername)
+            : false,
+          valid,
+        },
+        { status: valid ? 200 : 400 },
+      );
+    }
 
     if (searchParams.get("next") === "true") {
       return Response.json({ member: await getNextMemberId() });

@@ -5,6 +5,7 @@ type CircleNextProps = {
   searchParams: Promise<{
     member?: string;
     name?: string;
+    ref?: string;
     roles?: string;
   }>;
 };
@@ -28,17 +29,22 @@ function getAccountTitle(selectedRoles: string[]) {
 }
 
 export default async function CircleNext({ searchParams }: CircleNextProps) {
-  const { member = "33334", name = "explorer", roles = "" } = await searchParams;
+  const {
+    member = "33332",
+    name = "explorer",
+    ref = name,
+    roles = "",
+  } = await searchParams;
   const selectedRoles = roles.split(",").filter(Boolean);
   const accountTitle = getAccountTitle(selectedRoles);
   const encodedNext = `/join-the-circle/member/pin?name=${encodeURIComponent(
     name,
   )}&member=${member}&roles=${encodeURIComponent(
     selectedRoles.join(","),
-  )}&title=${encodeURIComponent(accountTitle)}`;
+  )}&ref=${encodeURIComponent(ref)}&title=${encodeURIComponent(accountTitle)}`;
   const encodedBack = `/join-the-circle/member?name=${encodeURIComponent(
     name,
-  )}&member=${member}`;
+  )}&member=${member}&ref=${encodeURIComponent(ref)}`;
   const hasGhostRole = selectedRoles.some((role) => ghostRoles.includes(role));
   const hasCreatorRole = selectedRoles.some((role) =>
     creatorRoles.includes(role),

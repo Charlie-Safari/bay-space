@@ -5,8 +5,10 @@ import {
   deleteMemberAccount,
   getMember,
   getStorageErrorMessage,
+  baySpaceAgreementVersion,
   updateMemberSettings,
   wipeMemberAccount,
+  UsernameUnavailableError,
 } from "../../../../lib/bay-space-db";
 import {
   clearSignupDraftCookie,
@@ -88,6 +90,7 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
     const { member: memberId } = await context.params;
     void memberId;
     const body = (await request.json()) as {
+      agreementAccepted?: boolean;
       confirmPin?: string;
     };
     const pin = body.confirmPin ?? "";
@@ -95,6 +98,10 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
 
     if (!pin) {
       return Response.json({ message: "PIN required" }, { status: 400 });
+    }
+
+    if (body.agreementAccepted !== true) {
+      return Response.json({ message: "agreement required" }, { status: 400 });
     }
 
     if (!draft || !verifySignupDraftPin(draft, pin)) {
@@ -107,6 +114,8 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
       refName: draft.refName,
       roles: draft.roles,
       title: draft.title,
+      agreementAcceptedAt: new Date().toISOString(),
+      agreementVersion: baySpaceAgreementVersion,
     });
 
     if (!member) {
@@ -124,6 +133,13 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
 
     return Response.json({ member });
   } catch (error) {
+    if (error instanceof UsernameUnavailableError) {
+      return Response.json(
+        { message: "username unavailable" },
+        { status: 409 },
+      );
+    }
+
     return memberErrorResponse(error, "Unable to update member");
   }
 }

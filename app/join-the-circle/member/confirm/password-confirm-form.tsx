@@ -12,6 +12,8 @@ type PasswordConfirmFormProps = {
   title: string;
 };
 
+const agreementHref = "/BaySpace-Privacy-Notice-and-user-agreement.pdf";
+
 export default function PasswordConfirmForm({
   member,
   name,
@@ -24,6 +26,8 @@ export default function PasswordConfirmForm({
   const [isWrongPassword, setIsWrongPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [hasOpenedAgreement, setHasOpenedAgreement] = useState(false);
+  const [hasAcceptedAgreement, setHasAcceptedAgreement] = useState(false);
 
   function flashError(message: string) {
     setErrorMessage("");
@@ -37,6 +41,16 @@ export default function PasswordConfirmForm({
   async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!hasOpenedAgreement) {
+      flashError("open the agreement first");
+      return;
+    }
+
+    if (!hasAcceptedAgreement) {
+      flashError("agreement required");
+      return;
+    }
+
     if (!confirmPin || isSaving) {
       flashError("try again");
       return;
@@ -47,7 +61,14 @@ export default function PasswordConfirmForm({
       const response = await fetch(`/api/members/${member}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ confirmPin, name, refName, roles, title }),
+        body: JSON.stringify({
+          agreementAccepted: true,
+          confirmPin,
+          name,
+          refName,
+          roles,
+          title,
+        }),
       });
       const data = (await response.json()) as {
         member?: {
@@ -91,6 +112,34 @@ export default function PasswordConfirmForm({
           autoFocus
         />
       </div>
+      <a
+        href={agreementHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => {
+          setHasOpenedAgreement(true);
+        }}
+        className="mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+      >
+        VIEW USER AGREEMENT
+      </a>
+      <label className="mt-4 flex items-start gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+        <input
+          type="checkbox"
+          checked={hasAcceptedAgreement}
+          onChange={(event) => {
+            if (event.target.checked && !hasOpenedAgreement) {
+              flashError("open the agreement first");
+              setHasAcceptedAgreement(false);
+              return;
+            }
+
+            setHasAcceptedAgreement(event.target.checked);
+          }}
+          className="mt-0.5 h-4 w-4 accent-[#39ff14]"
+        />
+        <span>I agree to the BaySpace Privacy Notice and User Agreement.</span>
+      </label>
       {isWrongPassword ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
           {errorMessage}

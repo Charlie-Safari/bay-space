@@ -26,9 +26,10 @@ function getRoleAccess(role: string) {
 type RoleSelectorProps = {
   member: string;
   name: string;
+  refName: string;
 };
 
-export default function RoleSelector({ member, name }: RoleSelectorProps) {
+export default function RoleSelector({ member, name, refName }: RoleSelectorProps) {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState("");
 
@@ -40,7 +41,9 @@ export default function RoleSelector({ member, name }: RoleSelectorProps) {
     router.push(
       `/join-the-circle/member/next?name=${encodeURIComponent(
         name,
-      )}&member=${member}&roles=${encodeURIComponent(selectedRole)}`,
+      )}&member=${member}&ref=${encodeURIComponent(
+        refName,
+      )}&roles=${encodeURIComponent(selectedRole)}`,
     );
   }
 

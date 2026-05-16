@@ -13,9 +13,9 @@ type ReportPageProps = {
 
 export default async function ReportPage({ searchParams }: ReportPageProps) {
   const {
-    member = "33334",
+    member = "33332",
     name = "explorer",
-    ref = "",
+    ref = name,
     roles = "",
     title = "Curious Reader",
   } = await searchParams;

@@ -14,15 +14,16 @@ type PinPageProps = {
 
 export default async function PinPage({ searchParams }: PinPageProps) {
   const {
-    member = "33334",
+    member = "33332",
     name = "explorer",
-    ref = "",
+    ref = name,
     roles = "",
     title = "Curious Reader",
   } = await searchParams;
   const backHref = `/join-the-circle/member/next?${new URLSearchParams({
     member,
     name,
+    ref,
     roles,
   }).toString()}`;
 

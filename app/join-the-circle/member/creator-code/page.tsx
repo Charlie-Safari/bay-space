@@ -16,10 +16,11 @@ export default async function CreatorCodePage({
   searchParams,
 }: CreatorCodePageProps) {
   const params = await searchParams;
+  const name = params.name ?? "explorer";
   const query = new URLSearchParams({
-    member: params.member ?? "33334",
-    name: params.name ?? "explorer",
-    ref: params.ref ?? "",
+    member: params.member ?? "33332",
+    name,
+    ref: params.ref ?? name,
     roles: params.roles ?? "",
     title: params.title ?? "Creator / Influencer",
   });

@@ -8,6 +8,10 @@ import {
   BayPost,
   PublicLink,
 } from "./bay-space-types";
+import {
+  isValidUsername,
+  normalizeUsername,
+} from "./bay-space-username";
 
 type BayPostCategory =
   | "top-story"
@@ -20,6 +24,8 @@ type NewMemberInput = {
 };
 
 type UpdateMemberInput = {
+  agreementAcceptedAt: string;
+  agreementVersion: string;
   name: string;
   pin: string;
   refName: string;
@@ -42,6 +48,8 @@ type MemberSettingsInput = {
 };
 
 type MemberRow = {
+  agreement_accepted_at: string | null;
+  agreement_version: string;
   birthday_month: string;
   birthday_year: string;
   created_at: string;
@@ -107,6 +115,16 @@ export class BaySpaceStorageError extends Error {
   }
 }
 
+export class UsernameUnavailableError extends Error {
+  constructor() {
+    super("username unavailable");
+    this.name = "UsernameUnavailableError";
+  }
+}
+
+export const baySpaceAgreementVersion =
+  "BaySpace Privacy Notice and User Agreement v1.0";
+
 export function getStorageErrorMessage(error: unknown) {
   if (error instanceof BaySpaceStorageError) {
     return error.message;
@@ -148,7 +166,7 @@ function normalizeName(name: string) {
 }
 
 function normalizeRefName(refName: string) {
-  return refName.trim().slice(0, 40);
+  return normalizeUsername(refName);
 }
 
 function normalizeTitle(title: string) {
@@ -278,6 +296,36 @@ async function getMemberRowById(memberId: string) {
   return rows[0] ?? null;
 }
 
+function isUniqueViolation(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    /duplicate key value|unique constraint|members_ref_name_unique_idx/i.test(
+      error.message,
+    )
+  );
+}
+
+export async function isRefNameAvailable(refName: string) {
+  const candidateRefName = refName.trim();
+
+  if (!isValidUsername(candidateRefName)) {
+    return false;
+  }
+
+  const normalizedRefName = normalizeRefName(candidateRefName);
+
+  const rows = await supabaseRequest<Array<{ id: string }>>("members", {
+    query: {
+      deleted_at: "is.null",
+      limit: 1,
+      ref_name: `ilike.${normalizedRefName}`,
+      select: "id",
+    },
+  });
+
+  return rows.length === 0;
+}
+
 async function getCredential(memberId: string) {
   const rows = await supabaseRequest<AuthCredentialRow[]>("auth_credentials", {
     query: {
@@ -369,17 +417,40 @@ export async function completeMember(
   memberId: string,
   input: UpdateMemberInput,
 ) {
+  const candidateRefName = input.refName.trim();
+
+  if (
+    !isValidUsername(candidateRefName) ||
+    !(await isRefNameAvailable(candidateRefName))
+  ) {
+    throw new UsernameUnavailableError();
+  }
+
+  const refName = normalizeRefName(candidateRefName);
+
   const pinSalt = randomBytes(16).toString("hex");
-  const members = await supabaseRequest<MemberRow[]>("members", {
-    body: {
-      name: normalizeName(input.name),
-      ref_name: normalizeRefName(input.refName),
-      title: normalizeTitle(input.title),
-    },
-    method: "POST",
-    prefer: "return=representation",
-    query: { select: "*" },
-  });
+  let members: MemberRow[];
+
+  try {
+    members = await supabaseRequest<MemberRow[]>("members", {
+      body: {
+        agreement_accepted_at: input.agreementAcceptedAt,
+        agreement_version: input.agreementVersion,
+        name: normalizeName(input.name),
+        ref_name: refName,
+        title: normalizeTitle(input.title),
+      },
+      method: "POST",
+      prefer: "return=representation",
+      query: { select: "*" },
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new UsernameUnavailableError();
+    }
+
+    throw error;
+  }
   const member = members[0];
 
   await supabaseRequest<AuthCredentialRow[]>("auth_credentials", {

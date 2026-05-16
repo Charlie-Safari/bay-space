@@ -14,9 +14,9 @@ type ConfirmPageProps = {
 
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const params = await searchParams;
-  const member = params.member ?? "33334";
+  const member = params.member ?? "33332";
   const name = params.name ?? "explorer";
-  const ref = params.ref ?? "";
+  const ref = params.ref ?? name;
   const roles = params.roles ?? "";
   const title = params.title ?? "Curious Reader";
   const backHref = `/join-the-circle/member/report?${new URLSearchParams({
