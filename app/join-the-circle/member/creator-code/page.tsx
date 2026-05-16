@@ -22,7 +22,7 @@ export default async function CreatorCodePage({
     name,
     ref: params.ref ?? name,
     roles: params.roles ?? "",
-    title: params.title ?? "Creator / Influencer",
+    title: params.title ?? "Creator/ Influencer - News",
   });
   const backHref = `/join-the-circle/member/pin?${query.toString()}`;
 

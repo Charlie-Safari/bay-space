@@ -11,6 +11,11 @@ import {
   getDateKey,
   postStoreEvent,
 } from "../components/post-store";
+import {
+  favoriteStoreEvent,
+  getFavoritePostIds,
+} from "../components/favorite-store";
+import { isGhostRole } from "../../lib/bay-space-roles";
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -72,6 +77,7 @@ export default function DfHeadlineTerminal({
   const [activeDate, setActiveDate] = useState(today);
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
+  const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
   const [expandedPostId, setExpandedPostId] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
@@ -122,19 +128,30 @@ export default function DfHeadlineTerminal({
         });
     }
 
+    async function syncFavorites() {
+      setFavoritePostIds(await getFavoritePostIds());
+    }
+
     syncPosts();
     syncLogin();
     syncMembers();
+    syncFavorites();
     window.addEventListener("storage", syncPosts);
     window.addEventListener(postStoreEvent, syncPosts);
     window.addEventListener("storage", syncLogin);
     window.addEventListener("bay-space-auth", syncLogin);
+    window.addEventListener("storage", syncFavorites);
+    window.addEventListener("bay-space-auth", syncFavorites);
+    window.addEventListener(favoriteStoreEvent, syncFavorites);
 
     return () => {
       window.removeEventListener("storage", syncPosts);
       window.removeEventListener(postStoreEvent, syncPosts);
       window.removeEventListener("storage", syncLogin);
       window.removeEventListener("bay-space-auth", syncLogin);
+      window.removeEventListener("storage", syncFavorites);
+      window.removeEventListener("bay-space-auth", syncFavorites);
+      window.removeEventListener(favoriteStoreEvent, syncFavorites);
     };
   }, []);
 
@@ -177,56 +194,13 @@ export default function DfHeadlineTerminal({
   }
 
   function getPostMarker(post: BayPost) {
-    const marker = getPostAccountMarker(post);
-
     if (isReferenceMemberMode && post.incognito) {
-      return marker ? `${marker} ?` : "?";
+      return "?";
     }
 
     const order = getMetaString(post, "dailyFoodOrder");
 
-    if (!order) {
-      return marker;
-    }
-
-    return marker ? `${marker} #${order}` : `#${order}`;
-  }
-
-  function getPostAccountMarker(post: BayPost) {
-    const metaMarker = getMetaString(post, "accountMarker");
-
-    if (metaMarker) {
-      return metaMarker;
-    }
-
-    const authorRoles =
-      members.find((member) => member.member === post.author)?.roles ?? "";
-    const selectedRole = authorRoles
-      .split(",")
-      .map((role) => role.trim().toLowerCase())
-      .filter(Boolean)[0] ?? "";
-
-    if (selectedRole === "curious reader") {
-      return "CR";
-    }
-
-    if (selectedRole === "ghost author - news") {
-      return "CA-N";
-    }
-
-    if (selectedRole === "ghost author - conspiracy") {
-      return "CA-C";
-    }
-
-    if (selectedRole === "creator/ influencer - news") {
-      return "CI-N";
-    }
-
-    if (selectedRole === "creator/ influencer - conspiracy") {
-      return "CI-C";
-    }
-
-    return "";
+    return order ? `#${order}` : "";
   }
 
   function isPostRevealed(post: BayPost) {
@@ -281,6 +255,21 @@ export default function DfHeadlineTerminal({
     return members.find((member) => member.member === post.author)?.name?.trim() ?? "";
   }
 
+  function getAuthorRoles(post: BayPost) {
+    return members.find((member) => member.member === post.author)?.roles ?? "";
+  }
+
+  function shouldClassifyAuthor(post: BayPost) {
+    return (
+      post.anonymous ||
+      (isGhostRole(getAuthorRoles(post)) && !favoritePostIds.includes(post.id))
+    );
+  }
+
+  function canShowAuthor(post: BayPost) {
+    return !post.incognito && !shouldClassifyAuthor(post) && getAuthorName(post);
+  }
+
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
       <div className="min-h-40 w-full border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
@@ -307,17 +296,18 @@ export default function DfHeadlineTerminal({
               <FavoriteButton postId={displayedPost.id} />
             </div>
             {!displayedPost.incognito &&
-            (displayedPost.anonymous || getAuthorName(displayedPost)) ? (
+            (shouldClassifyAuthor(displayedPost) ||
+              getAuthorName(displayedPost)) ? (
               <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-                {displayedPost.anonymous ? (
-                  "classified"
-                ) : (
+                {canShowAuthor(displayedPost) ? (
                   <Link
                     href={`/profile/${displayedPost.author}`}
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                   >
                     {getAuthorName(displayedPost)}
                   </Link>
+                ) : (
+                  "classified"
                 )}
               </p>
             ) : null}

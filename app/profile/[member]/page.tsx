@@ -2,6 +2,7 @@ import Link from "next/link";
 import HomeBar from "../../components/home-bar";
 import { getMember, listPostsByAuthor } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
+import { getRoleAcronym } from "../../../lib/bay-space-roles";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -68,6 +69,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const { member: memberId } = await params;
   const member = await getMember(memberId);
   const posts = await listPostsByAuthor(memberId);
+  const accountMarker = getRoleAcronym(member?.roles ?? "");
 
   const topStoryPosts = posts.filter((post) => post.category === "top-story");
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
@@ -106,6 +108,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
               <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 <p>EXPLORER NUMBER - #{member.member}</p>
                 <p>TITLE: {member.title}</p>
+                {accountMarker ? <p>ID CARD: ({accountMarker})</p> : null}
                 <p>NAME: {member.name}</p>
                 <p>(REFERENCE NAME): {member.refName || "-----"}</p>
               </div>

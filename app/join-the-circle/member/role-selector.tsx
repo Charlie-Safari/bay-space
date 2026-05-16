@@ -2,26 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-const roles = [
-  "curious reader",
-  "ghost author - news",
-  "ghost author - conspiracy",
-  "creator/ influencer - news",
-  "creator/ influencer - conspiracy",
-];
-
-function getRoleAccess(role: string) {
-  if (role === "curious reader") {
-    return "read only";
-  }
-
-  if (role.startsWith("ghost author")) {
-    return "Post: daily food, theories, library";
-  }
-
-  return "Post: top story, daily food, theories, library";
-}
+import {
+  baySpaceRoles,
+  getRoleDescription,
+} from "../../../lib/bay-space-roles";
 
 type RoleSelectorProps = {
   member: string;
@@ -38,12 +22,14 @@ export default function RoleSelector({ member, name, refName }: RoleSelectorProp
   }
 
   function goNext() {
+    const nextRole = selectedRole || "curious reader";
+
     router.push(
       `/join-the-circle/member/next?name=${encodeURIComponent(
         name,
       )}&member=${member}&ref=${encodeURIComponent(
         refName,
-      )}&roles=${encodeURIComponent(selectedRole)}`,
+      )}&roles=${encodeURIComponent(nextRole)}`,
     );
   }
 
@@ -80,12 +66,12 @@ export default function RoleSelector({ member, name, refName }: RoleSelectorProp
           </div>
         </div>
         <div className="grid gap-3">
-          {roles.map((role) => {
-            const isSelected = selectedRole === role;
+          {baySpaceRoles.map((role) => {
+            const isSelected = selectedRole === role.id;
 
             return (
               <label
-                key={role}
+                key={role.id}
                 className="grid cursor-pointer gap-2 border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0] transition has-checked:border-[#39ff14] has-checked:bg-[#39ff14] has-checked:text-black"
               >
                 <span className="flex items-center gap-3">
@@ -93,14 +79,14 @@ export default function RoleSelector({ member, name, refName }: RoleSelectorProp
                     type="radio"
                     name="account-signal"
                     checked={isSelected}
-                    onChange={() => toggleRole(role)}
+                    onChange={() => toggleRole(role.id)}
                     className="h-4 w-4 accent-[#39ff14]"
                   />
-                  <span>{role}</span>
+                  <span>{role.label}</span>
                 </span>
                 {isSelected ? (
                   <span className="pl-7 text-xs tracking-[0.14em] text-[#7f9f78]">
-                    {getRoleAccess(role)}
+                    {getRoleDescription(role.id)}
                   </span>
                 ) : null}
               </label>

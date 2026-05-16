@@ -1,5 +1,11 @@
 import Link from "next/link";
 import HomeBar from "../../../components/home-bar";
+import {
+  getAccountTitle,
+  getRoleDescription,
+  getRoleLabel,
+  hasCreatorAccess,
+} from "../../../../lib/bay-space-roles";
 
 type CircleNextProps = {
   searchParams: Promise<{
@@ -10,24 +16,6 @@ type CircleNextProps = {
   }>;
 };
 
-const ghostRoles = ["ghost author - news", "ghost author - conspiracy"];
-const creatorRoles = [
-  "creator/ influencer - news",
-  "creator/ influencer - conspiracy",
-];
-
-function getAccountTitle(selectedRoles: string[]) {
-  if (selectedRoles.some((role) => creatorRoles.includes(role))) {
-    return "Creator / Influencer";
-  }
-
-  if (selectedRoles.some((role) => ghostRoles.includes(role))) {
-    return "Ghost Author";
-  }
-
-  return "Curious Reader";
-}
-
 export default async function CircleNext({ searchParams }: CircleNextProps) {
   const {
     member = "33332",
@@ -35,8 +23,8 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
     ref = name,
     roles = "",
   } = await searchParams;
-  const selectedRoles = roles.split(",").filter(Boolean);
-  const accountTitle = getAccountTitle(selectedRoles);
+  const selectedRoles = (roles || "curious reader").split(",").filter(Boolean);
+  const accountTitle = getAccountTitle(selectedRoles.join(","));
   const encodedNext = `/join-the-circle/member/pin?name=${encodeURIComponent(
     name,
   )}&member=${member}&roles=${encodeURIComponent(
@@ -45,10 +33,9 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
   const encodedBack = `/join-the-circle/member?name=${encodeURIComponent(
     name,
   )}&member=${member}&ref=${encodeURIComponent(ref)}`;
-  const hasGhostRole = selectedRoles.some((role) => ghostRoles.includes(role));
-  const hasCreatorRole = selectedRoles.some((role) =>
-    creatorRoles.includes(role),
-  );
+  const selectedRole = selectedRoles[0] ?? "";
+  const selectedDescription = getRoleDescription(selectedRole);
+  const hasCreatorRole = hasCreatorAccess(selectedRoles.join(","));
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -76,7 +63,7 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
                   key={role}
                   className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0]"
                 >
-                  {role}
+                  {getRoleLabel(role)}
                 </p>
               ))
             ) : (
@@ -91,12 +78,7 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#39ff14]">
             prescreen
           </p>
-          {hasGhostRole ? (
-            <p className="mt-3">
-              Access to posts on daily food, theories, library. Please maintain
-              accuracy, and include sources/references.
-            </p>
-          ) : null}
+          {selectedDescription ? <p className="mt-3">{selectedDescription}</p> : null}
           {hasCreatorRole ? (
             <>
               <p className="mt-3">
@@ -104,15 +86,9 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
                 creator code please email bayoracle@protonmail.com
               </p>
               <p className="mt-3">
-                Access to posts on Top Story, daily food, theories, library.
                 your contributions may be flagged for removal
               </p>
             </>
-          ) : null}
-          {!hasGhostRole && !hasCreatorRole ? (
-            <p className="mt-3">
-              Access to reading anything on bay-space ; no access to posting
-            </p>
           ) : null}
         </div>
 

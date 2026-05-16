@@ -219,6 +219,7 @@ export default function LibraryBoard() {
                   favorite diamond
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>clicking this reveals ghost accounts profile info.</li>
                   <li>Open a post and press the green diamond to save it.</li>
                   <li>Diamond posts are automatically added to your favorites folder.</li>
                   <li>Open the briefing room and press favorites to view saved posts.</li>
@@ -245,11 +246,11 @@ export default function LibraryBoard() {
                   types of accounts
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Curious Reader: read tabs, reveal Daily Food posts, no posting access.</li>
-                  <li>Ghost Author - News: post Daily Food, Theory, and Library, but not Top Story.</li>
-                  <li>Ghost Author - Conspiracy: post Daily Food, Theory, and Library, but not Top Story.</li>
-                  <li>Creator / Influencer - News: full posting access, including Top Story.</li>
-                  <li>Creator / Influencer - Conspiracy: full posting access, including Top Story.</li>
+                  <li>Curious Reader (CR): read/reveal any tab or code channel, post in Library.</li>
+                  <li>Ghost Author - News (GA-N): post in Daily Food and Library. Daily Food name stays classified until favorited.</li>
+                  <li>Ghost Author - Theories (GA-T): post in Theories and Library.</li>
+                  <li>Creator/ Influencer - News (CI-N): post in Top Story, Daily Food, and Library.</li>
+                  <li>Creator/ Influencer - Theories (CI-T): post in Top Story, Theories, and Library.</li>
                 </ul>
               </details>
 
@@ -258,11 +259,11 @@ export default function LibraryBoard() {
                   which account is right for you?
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Pick Curious Reader if you only want to read, reveal, save, and follow posts.</li>
-                  <li>Pick Ghost Author if you want to contribute without appearing as a public-facing creator.</li>
-                  <li>Pick Creator / Influencer if you want full publishing access and are comfortable being associated with posts.</li>
-                  <li>Pick the News lane for current events, briefings, and reported signals.</li>
-                  <li>Pick the Conspiracy lane for theories, pattern work, and speculative threads.</li>
+                  <li>Pick Curious Reader (CR) if you want to read, reveal, save, follow, and file Library posts.</li>
+                  <li>Pick Ghost Author - News (GA-N) if you want Daily Food posting with your Daily Food name classified until favorited.</li>
+                  <li>Pick Ghost Author - Theories (GA-T) if you want to write theories without appearing as a public-facing creator.</li>
+                  <li>Pick Creator/ Influencer - News (CI-N) if you want Top Story, Daily Food, and Library access.</li>
+                  <li>Pick Creator/ Influencer - Theories (CI-T) if you want Top Story, Theories, and Library access.</li>
                 </ul>
               </details>
 
@@ -303,6 +304,11 @@ export default function LibraryBoard() {
                   </button>
                 </div>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Open Daily Briefing Room from your member number.</li>
+                  <li>Log in with your member number and password.</li>
+                  <li>Press settings.</li>
+                  <li>Scroll to Delete Account buttons at the bottom.</li>
+                  <li>Press Delete account for full erase, or Wipe Account to clear posts while keeping the ID card.</li>
                   <li>Delete account erases the account and all information. Full delete. Account number is retired permanently.</li>
                   <li>Wipe Account clears all posts. ID card stays the same.</li>
                 </ul>

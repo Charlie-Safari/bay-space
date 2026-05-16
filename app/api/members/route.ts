@@ -16,6 +16,7 @@ function publicMember(member: ApiMember) {
     member: member.member,
     name: member.name,
     refName: member.refName,
+    roles: member.roles,
     title: member.title,
     createdAt: member.createdAt,
     links: {

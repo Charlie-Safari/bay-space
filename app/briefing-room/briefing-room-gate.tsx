@@ -21,6 +21,10 @@ import {
   favoriteStoreEvent,
   getFavoritePostIds,
 } from "../components/favorite-store";
+import {
+  getAllowedPostCategories,
+  getRoleAcronym,
+} from "../../lib/bay-space-roles";
 
 type BriefingRoomGateProps = {
   member: string;
@@ -70,58 +74,6 @@ const postCategories: { id: PostCategory; label: string }[] = [
   { id: "theory", label: "Theory" },
   { id: "library-submission", label: "Library submission" },
 ];
-
-const creatorRoles = [
-  "creator/ influencer - news",
-  "creator/ influencer - conspiracy",
-];
-
-const ghostRoles = ["ghost author - news", "ghost author - conspiracy"];
-
-function getSelectedRoles(member: SavedMember | null) {
-  return member?.roles
-    .split(",")
-    .map((role) => role.trim().toLowerCase())
-    .filter(Boolean) ?? [];
-}
-
-function hasCreatorPostingAccess(member: SavedMember | null) {
-  const selectedRoles = getSelectedRoles(member);
-
-  return selectedRoles.some((role) => creatorRoles.includes(role));
-}
-
-function hasGhostPostingAccess(member: SavedMember | null) {
-  const selectedRoles = getSelectedRoles(member);
-
-  return selectedRoles.some((role) => ghostRoles.includes(role));
-}
-
-function getAccountMarker(member: SavedMember | null) {
-  const selectedRole = getSelectedRoles(member)[0] ?? "";
-
-  if (selectedRole === "curious reader") {
-    return "CR";
-  }
-
-  if (selectedRole === "ghost author - news") {
-    return "CA-N";
-  }
-
-  if (selectedRole === "ghost author - conspiracy") {
-    return "CA-C";
-  }
-
-  if (selectedRole === "creator/ influencer - news") {
-    return "CI-N";
-  }
-
-  if (selectedRole === "creator/ influencer - conspiracy") {
-    return "CI-C";
-  }
-
-  return "";
-}
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -219,13 +171,15 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [postIncognito, setPostIncognito] = useState(false);
   const [incognitoShelfLabel, setIncognitoShelfLabel] = useState("");
   const [isIncognitoShelfSet, setIsIncognitoShelfSet] = useState(false);
-  const canCreateTopStoryPosts = hasCreatorPostingAccess(savedMember);
-  const canCreatePosts =
-    canCreateTopStoryPosts || hasGhostPostingAccess(savedMember);
-  const availablePostCategories = canCreateTopStoryPosts
-    ? postCategories
-    : postCategories.filter((category) => category.id !== "top-story");
-  const accountMarker = getAccountMarker(savedMember);
+  const allowedPostCategories = getAllowedPostCategories(savedMember?.roles ?? "");
+  const canCreatePosts = allowedPostCategories.length > 0;
+  const availablePostCategories = postCategories.filter((category) =>
+    allowedPostCategories.includes(category.id),
+  );
+  const activePostCategory = allowedPostCategories.includes(postCategory)
+    ? postCategory
+    : availablePostCategories[0]?.id ?? "library-submission";
+  const accountMarker = getRoleAcronym(savedMember?.roles ?? "");
 
   function applySettingsFields(memberRecord: SavedMember | null) {
     setEmail(memberRecord?.email ?? "");
@@ -376,8 +330,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    if (!canCreateTopStoryPosts && postCategory === "top-story") {
-      setPostCategory("daily-food");
+    if (postCategory !== activePostCategory) {
+      setPostCategory(activePostCategory);
     }
 
     setIsPostOpen(true);
@@ -388,7 +342,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   function submitPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!canCreatePosts || (!canCreateTopStoryPosts && postCategory === "top-story")) {
+    if (!canCreatePosts || !allowedPostCategories.includes(activePostCategory)) {
       return;
     }
 
@@ -398,9 +352,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   function buildCurrentPost(): Omit<BayPost, "id" | "createdAt" | "dateKey"> {
     const author = postAnonymously ? "anon" : resolvedMember || "unknown";
 
-    if (postCategory === "top-story") {
+    if (activePostCategory === "top-story") {
       return {
-        category: "top-story",
+        category: activePostCategory,
         title: ticker || "untitled top story",
         body: report,
         anonymous: postAnonymously,
@@ -411,7 +365,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
-          accountMarker,
           sourceNote: sources,
           sourceLinks: sourceDrafts
             .map((source) => source.link)
@@ -423,7 +376,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       };
     }
 
-    if (postCategory === "daily-food") {
+    if (activePostCategory === "daily-food") {
       const dateKey = getDateKey();
       const dailyFoodOrder =
         allPosts.filter(
@@ -431,7 +384,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         ).length + 1;
 
       return {
-        category: "daily-food",
+        category: activePostCategory,
         title: dailyFoodHeadline || "untitled daily food",
         body: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3]
           .filter(Boolean)
@@ -444,7 +397,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
-          accountMarker,
           tags: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3],
           tagSources: [
             dailyFoodSource1,
@@ -462,9 +414,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       };
     }
 
-    if (postCategory === "theory") {
+    if (activePostCategory === "theory") {
       return {
-        category: "theory",
+        category: activePostCategory,
         title: theoryPost.slice(0, 80) || "untitled theory",
         body: theoryPost,
         anonymous: postAnonymously,
@@ -475,7 +427,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
-          accountMarker,
           source: theorySource,
         },
       };
@@ -490,9 +441,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       author,
       shelfLabel: libraryTitle,
       shelfCode: normalizeShelfLabel(libraryTitle),
-      meta: {
-        accountMarker,
-      },
+      meta: {},
     };
   }
 
@@ -500,7 +449,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     if (
       postPreview &&
       canCreatePosts &&
-      (canCreateTopStoryPosts || postPreview.category !== "top-story")
+      allowedPostCategories.includes(postPreview.category)
     ) {
       await saveBayPost(postPreview);
     }
@@ -524,7 +473,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   function resetPostDraft() {
     setIsPostOpen(false);
     setActivePanel("id-card");
-    setPostCategory(canCreateTopStoryPosts ? "top-story" : "daily-food");
+    setPostCategory(availablePostCategories[0]?.id ?? "library-submission");
     setTopStoryStep(1);
     setTicker("");
     setReport("");
@@ -887,10 +836,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   {postPreview.category === "daily-food" &&
                   typeof postPreview.meta?.dailyFoodOrder === "string" ? (
                     <p className="float-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                      {typeof postPreview.meta.accountMarker === "string" &&
-                      postPreview.meta.accountMarker
-                        ? `${postPreview.meta.accountMarker} `
-                        : ""}
                       #{postPreview.meta.dailyFoodOrder}
                     </p>
                   ) : null}
@@ -972,7 +917,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   <label
                     key={category.id}
                     className={`relative flex items-center gap-5 overflow-visible border bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0] transition ${
-                      postCategory === category.id
+                      activePostCategory === category.id
                         ? "border-[#39ff14] shadow-[0_0_18px_rgba(57,255,20,0.42)]"
                         : "border-[#1d7f12]"
                     }`}
@@ -980,7 +925,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     <input
                       type="radio"
                       name="post-category"
-                      checked={postCategory === category.id}
+                      checked={activePostCategory === category.id}
                       onChange={() => {
                         setPostCategory(category.id);
                         setTopStoryStep(1);
@@ -996,7 +941,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 ))}
               </fieldset>
 
-              {postCategory === "top-story" ? (
+              {activePostCategory === "top-story" ? (
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
@@ -1124,7 +1069,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               ) : null}
 
-              {postCategory === "daily-food" ? (
+              {activePostCategory === "daily-food" ? (
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
@@ -1218,7 +1163,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               ) : null}
 
-              {postCategory === "theory" ? (
+              {activePostCategory === "theory" ? (
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
@@ -1254,7 +1199,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               ) : null}
 
-              {postCategory === "library-submission" ? (
+              {activePostCategory === "library-submission" ? (
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
@@ -1760,6 +1705,36 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       </div>
                     </div>
                   ) : null}
+
+                  <div className="mt-5 border border-[#1d7f12] bg-[#001100] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                      Privacy + agreement
+                    </p>
+                    <p className="mt-3 text-xs font-bold uppercase leading-5 tracking-[0.14em] text-[#d7ffd0]">
+                      BaySpace stores account, session, post, saved-post,
+                      profile, and moderation data needed to run the room.
+                      Public posts can be seen publicly. Anonymous and
+                      incognito settings change public display only; they do
+                      not hide records from BaySpace systems.
+                    </p>
+                    <Link
+                      href="/BaySpace-Privacy-Notice-and-user-agreement.pdf"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      privacy + user agreement
+                    </Link>
+                    <label className="mt-4 flex items-center gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      <input
+                        type="checkbox"
+                        checked
+                        readOnly
+                        className="h-4 w-4 accent-[#39ff14]"
+                      />
+                      user agreement completed at sign up
+                    </label>
+                  </div>
                 </div>
 
                 {settingsMessage ? (
@@ -1777,6 +1752,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 TITLE: {savedMember.title}
               </p>
+              {accountMarker ? (
+                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                  ID CARD: ({accountMarker})
+                </p>
+              ) : null}
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 NAME: {savedMember.name}
               </p>

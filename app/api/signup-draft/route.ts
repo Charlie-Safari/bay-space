@@ -7,11 +7,7 @@ import {
   isValidUsername,
   normalizeUsername,
 } from "../../../lib/bay-space-username";
-
-const creatorRoles = [
-  "creator/ influencer - news",
-  "creator/ influencer - conspiracy",
-];
+import { hasCreatorAccess } from "../../../lib/bay-space-roles";
 
 function normalizeMember(value: string) {
   return value.replace(/\D/g, "").slice(0, 5).padStart(5, "0");
@@ -48,7 +44,7 @@ export async function POST(request: Request) {
 
     const refName = normalizeUsername(candidateRefName);
     const name = refName;
-    const roles = body.roles ?? "";
+    const roles = (body.roles ?? "").trim() || "curious reader";
     const title = (body.title ?? "Curious Reader").trim().slice(0, 80);
 
     await setSignupDraftCookie({
@@ -67,10 +63,7 @@ export async function POST(request: Request) {
       roles,
       title,
     });
-    const selectedRoles = roles.split(",").filter(Boolean);
-    const needsCreatorCode = selectedRoles.some((role) =>
-      creatorRoles.includes(role),
-    );
+    const needsCreatorCode = hasCreatorAccess(roles);
 
     return Response.json({
       nextPath: `/join-the-circle/member/${

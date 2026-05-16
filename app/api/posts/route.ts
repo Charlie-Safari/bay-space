@@ -5,6 +5,7 @@ import {
 } from "../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../lib/bay-space-session";
 import { BayPostCategory } from "../../../lib/bay-space-types";
+import { canPostCategory } from "../../../lib/bay-space-roles";
 
 const categories: BayPostCategory[] = [
   "top-story",
@@ -58,6 +59,19 @@ export async function POST(request: Request) {
       return Response.json({ message: "Invalid category" }, { status: 400 });
     }
 
+    if (!canPostCategory(member.roles, body.category)) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const meta =
+      body.meta && typeof body.meta === "object" && !Array.isArray(body.meta)
+        ? { ...body.meta }
+        : undefined;
+
+    if (meta) {
+      delete meta.accountMarker;
+    }
+
     const post = await createPost(
       {
         category: body.category,
@@ -68,10 +82,7 @@ export async function POST(request: Request) {
         author: member.member,
         shelfLabel: body.shelfLabel ? String(body.shelfLabel) : undefined,
         shelfCode: body.shelfCode ? String(body.shelfCode) : undefined,
-        meta:
-          body.meta && typeof body.meta === "object" && !Array.isArray(body.meta)
-            ? body.meta
-            : undefined,
+        meta,
       },
       member,
     );
