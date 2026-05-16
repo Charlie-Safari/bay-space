@@ -510,7 +510,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   async function wipeAllPosts() {
     await Promise.all(
-      myPosts.map((post) => deleteBayPost(post.id, resolvedMember)),
+      myPosts.map((post) => deleteBayPost(post.id)),
     );
     setDeletePostId("");
     setIsWipeAllOpen(false);
@@ -1464,7 +1464,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                             <button
                               type="button"
                               onClick={async () => {
-                                await deleteBayPost(post.id, resolvedMember);
+                                await deleteBayPost(post.id);
                                 setDeletePostId("");
                               }}
                               className="border border-[#ff3b3b] px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black"

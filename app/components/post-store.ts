@@ -6,6 +6,16 @@ export type { BayPost, BayPostCategory };
 
 export const postStoreEvent = "bay-space-posts";
 
+function notifyPostStoreChange() {
+  window.dispatchEvent(new Event(postStoreEvent));
+
+  try {
+    window.localStorage.setItem(postStoreEvent, Date.now().toString());
+  } catch {
+    // Storage may be unavailable in private contexts; same-page listeners still run.
+  }
+}
+
 export function normalizeShelfLabel(label: string) {
   return label.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -59,22 +69,19 @@ export async function saveBayPost(
 
   const data = (await response.json()) as { post: BayPost };
 
-  window.dispatchEvent(new Event(postStoreEvent));
+  notifyPostStoreChange();
 
   return data.post;
 }
 
-export async function deleteBayPost(postId: string, author: string) {
-  const response = await fetch(
-    `/api/posts/${encodeURIComponent(postId)}?author=${encodeURIComponent(
-      author,
-    )}`,
-    { method: "DELETE" },
-  );
+export async function deleteBayPost(postId: string) {
+  const response = await fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+    method: "DELETE",
+  });
 
   if (!response.ok && response.status !== 404) {
     throw new Error("Unable to delete post");
   }
 
-  window.dispatchEvent(new Event(postStoreEvent));
+  notifyPostStoreChange();
 }

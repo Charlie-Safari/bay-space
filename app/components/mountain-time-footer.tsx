@@ -61,7 +61,7 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                v1.01
+                v1.02
               </span>
             ) : null}
           </span>
