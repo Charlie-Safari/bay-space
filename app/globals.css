@@ -54,6 +54,16 @@ body {
   }
 }
 
+@keyframes top-story-banner-roll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 @keyframes preview-confirm-flash {
   0%,
   100% {
@@ -117,6 +127,24 @@ body {
 
 .favorite-diamond-active {
   animation: favorite-diamond-flash 850ms linear infinite;
+}
+
+.top-story-banner-track {
+  display: flex;
+  width: max-content;
+  min-width: 200%;
+  animation: top-story-banner-roll 16s linear infinite;
+  will-change: transform;
+}
+
+.top-story-banner-line {
+  display: inline-flex;
+  min-width: 50%;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2rem;
+  padding-right: 2rem;
+  white-space: nowrap;
 }
 
 .footer-how-to-link {

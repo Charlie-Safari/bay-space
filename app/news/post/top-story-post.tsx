@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BayPost, getBayPostsByCategory } from "../../components/post-store";
+import CopyPostLinkButton from "../../components/copy-post-link-button";
 
 type SavedMember = {
   member: string;
@@ -79,6 +80,9 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
       <p className="mt-6 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
         {post.body || "no report filed"}
       </p>
+      <div className="mt-5">
+        <CopyPostLinkButton path={`/news/post?id=${post.id}`} />
+      </div>
     </article>
   );
 }

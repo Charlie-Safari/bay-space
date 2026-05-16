@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CodeAccessDock from "../components/code-access-dock";
+import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import DosCodeBox from "../components/dos-code-box";
 import {
@@ -68,6 +69,16 @@ type DfHeadlineTerminalProps = {
   unlockedReference: string;
 };
 
+function getPostHashId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const postId = window.location.hash.replace(/^#post-/, "");
+
+  return postId === window.location.hash ? "" : postId;
+}
+
 export default function DfHeadlineTerminal({
   onClearReference,
   unlockedReference,
@@ -79,6 +90,7 @@ export default function DfHeadlineTerminal({
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
   const [expandedPostId, setExpandedPostId] = useState("");
+  const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
   const canMoveForward = activeDate < today;
@@ -106,7 +118,9 @@ export default function DfHeadlineTerminal({
   const activePosts = getVisiblePosts();
   const expandedPost =
     activePosts.find((post) => post.id === expandedPostId) ?? null;
-  const displayedPost = matchedReferencePost ?? expandedPost;
+  const hashPost =
+    posts.find((post) => post.id === hashPostId && !post.incognito) ?? null;
+  const displayedPost = matchedReferencePost ?? hashPost ?? expandedPost;
   const nextTimelineDate = addDays(activeDate, 1);
   const previousTimelineDate = addDays(activeDate, -1);
 
@@ -152,6 +166,18 @@ export default function DfHeadlineTerminal({
       window.removeEventListener("storage", syncFavorites);
       window.removeEventListener("bay-space-auth", syncFavorites);
       window.removeEventListener(favoriteStoreEvent, syncFavorites);
+    };
+  }, []);
+
+  useEffect(() => {
+    function syncPostHash() {
+      setHashPostId(getPostHashId());
+    }
+
+    window.addEventListener("hashchange", syncPostHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncPostHash);
     };
   }, []);
 
@@ -270,6 +296,10 @@ export default function DfHeadlineTerminal({
     return !post.incognito && !shouldClassifyAuthor(post) && getAuthorName(post);
   }
 
+  function getPostLinkPath(post: BayPost) {
+    return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
+  }
+
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
       <div className="min-h-40 w-full border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
@@ -284,6 +314,14 @@ export default function DfHeadlineTerminal({
               type="button"
               onClick={() => {
                 setExpandedPostId("");
+                if (hashPost) {
+                  setHashPostId("");
+                  window.history.replaceState(
+                    null,
+                    "",
+                    `${window.location.pathname}${window.location.search}`,
+                  );
+                }
                 if (matchedReferencePost) {
                   onClearReference();
                 }
@@ -375,6 +413,9 @@ export default function DfHeadlineTerminal({
                 </ol>
               </section>
             ) : null}
+            <div className="mt-5">
+              <CopyPostLinkButton path={getPostLinkPath(displayedPost)} />
+            </div>
           </article>
         ) : activePosts.length ? (
           <div className="grid gap-3">

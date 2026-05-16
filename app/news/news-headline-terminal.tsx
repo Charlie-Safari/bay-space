@@ -80,14 +80,23 @@ export default function NewsHeadlineTerminal() {
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-center">
       <Link
         href={activePost ? `/news/post?id=${activePost.id}` : "/news/post"}
-        className="group flex min-h-32 w-full items-center overflow-hidden border-2 border-[#39ff14] bg-black px-5 py-8 shadow-[0_0_24px_rgba(57,255,20,0.24)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        className="group flex min-h-32 w-full items-center overflow-hidden border-2 border-[#39ff14] bg-black px-5 py-8 shadow-[0_0_24px_rgba(57,255,20,0.24)] transition hover:bg-[#031403] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
         <div className="w-full">
-          <span className="block text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0] group-hover:text-black">
+          <span className="block text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
             {formatDateLine(activeDate)}
           </span>
-          <span className="mt-4 block text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14] group-hover:text-black group-hover:[text-shadow:none] sm:text-4xl">
-            {activePost?.title || "top story banner"}
+          <span className="mt-4 block overflow-hidden text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14] sm:text-4xl">
+            <span className="top-story-banner-track">
+              {[0, 1].map((repeat) => (
+                <span key={repeat} className="top-story-banner-line">
+                  <span>{activePost?.title || "top story banner"}</span>
+                  <span aria-hidden="true">---</span>
+                  <span>{activePost?.title || "top story banner"}</span>
+                  <span aria-hidden="true">---</span>
+                </span>
+              ))}
+            </span>
           </span>
         </div>
       </Link>

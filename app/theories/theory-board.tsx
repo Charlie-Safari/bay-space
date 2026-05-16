@@ -7,6 +7,7 @@ import {
   getBayPostsByCategory,
   postStoreEvent,
 } from "../components/post-store";
+import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 
 type SortMode = "az" | "date";
@@ -16,11 +17,21 @@ type SavedMember = {
   name: string;
 };
 
+function getPostHashId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const postId = window.location.hash.replace(/^#post-/, "");
+
+  return postId === window.location.hash ? "" : postId;
+}
+
 export default function TheoryBoard() {
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
-  const [openPostId, setOpenPostId] = useState("");
+  const [openPostId, setOpenPostId] = useState(getPostHashId);
 
   useEffect(() => {
     function syncPosts() {
@@ -43,6 +54,35 @@ export default function TheoryBoard() {
       window.removeEventListener(postStoreEvent, syncPosts);
     };
   }, []);
+
+  useEffect(() => {
+    function syncPostHash() {
+      const postId = getPostHashId();
+
+      if (postId) {
+        setOpenPostId(postId);
+      }
+    }
+
+    window.addEventListener("hashchange", syncPostHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncPostHash);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!openPostId) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(`post-${openPostId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [openPostId, posts]);
 
   function getAuthorName(post: BayPost) {
     return members.find((member) => member.member === post.author)?.name.trim() ?? "";
@@ -82,6 +122,7 @@ export default function TheoryBoard() {
           {sortedPosts.map((post) => (
             <article
               key={post.id}
+              id={`post-${post.id}`}
               className="border-2 border-[#1d7f12] bg-black px-4 py-4"
             >
               <button
@@ -101,6 +142,9 @@ export default function TheoryBoard() {
                 <>
                   <div className="mt-3">
                     <FavoriteButton postId={post.id} />
+                  </div>
+                  <div className="mt-3">
+                    <CopyPostLinkButton path={`/theories#post-${post.id}`} />
                   </div>
                   {!post.anonymous && getAuthorName(post) ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">

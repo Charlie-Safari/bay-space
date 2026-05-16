@@ -7,6 +7,7 @@ import {
   getBayPosts,
   postStoreEvent,
 } from "../components/post-store";
+import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 
 type SavedMember = {
@@ -14,12 +15,22 @@ type SavedMember = {
   name: string;
 };
 
+function getLibraryHashId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const postId = window.location.hash.replace(/^#library-/, "");
+
+  return postId === window.location.hash ? "" : postId;
+}
+
 export default function LibraryBoard() {
   const [query, setQuery] = useState("");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [isHowToOpen, setIsHowToOpen] = useState(false);
-  const [openPostId, setOpenPostId] = useState("");
+  const [openPostId, setOpenPostId] = useState(getLibraryHashId);
 
   useEffect(() => {
     function syncPosts() {
@@ -52,7 +63,7 @@ export default function LibraryBoard() {
   }
 
   useEffect(() => {
-    function openHowToFromHash() {
+    function openFromHash() {
       if (window.location.hash === "#how-to") {
         setIsHowToOpen(true);
         window.requestAnimationFrame(() => {
@@ -61,16 +72,38 @@ export default function LibraryBoard() {
             block: "start",
           });
         });
+        return;
       }
+
+      const postId = getLibraryHashId();
+
+      if (!postId) {
+        return;
+      }
+
+      setOpenPostId(postId);
     }
 
-    openHowToFromHash();
-    window.addEventListener("hashchange", openHowToFromHash);
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
 
     return () => {
-      window.removeEventListener("hashchange", openHowToFromHash);
+      window.removeEventListener("hashchange", openFromHash);
     };
   }, []);
+
+  useEffect(() => {
+    if (!openPostId) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(`library-${openPostId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [openPostId, posts]);
 
   const visiblePosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -144,6 +177,9 @@ export default function LibraryBoard() {
                 <>
                   <div className="mt-3">
                     <FavoriteButton postId={post.id} />
+                  </div>
+                  <div className="mt-3">
+                    <CopyPostLinkButton path={`/library#library-${post.id}`} />
                   </div>
                   {!post.anonymous && getAuthorName(post) ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
