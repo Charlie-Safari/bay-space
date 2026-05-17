@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HomeBar from "../../components/home-bar";
+import FavoriteAuthorButton from "../../components/favorite-author-button";
 import { getMember, listPostsByAuthor } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
 import { getRoleAcronym } from "../../../lib/bay-space-roles";
@@ -127,6 +128,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                   ))}
                 </div>
               ) : null}
+              <FavoriteAuthorButton authorId={member.member} />
             </details>
 
             <div className="mt-8 grid gap-4 lg:grid-cols-4">

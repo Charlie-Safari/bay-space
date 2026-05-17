@@ -11,6 +11,8 @@ const tabs = [
   { label: "library", href: "/library" },
 ];
 
+const activeMemberStorageKey = "bay-space-active-member";
+
 export default function HomeBar() {
   const [activeMember, setActiveMember] = useState("");
 
@@ -18,13 +20,37 @@ export default function HomeBar() {
     let isMounted = true;
 
     async function syncActiveMember() {
-      const response = await fetch("/api/me", { cache: "no-store" });
-      const data = response.ok
-        ? ((await response.json()) as { member?: { member: string } | null })
-        : { member: null };
+      const cachedMember = window.localStorage.getItem(activeMemberStorageKey) ?? "";
 
-      if (isMounted) {
-        setActiveMember(data.member?.member ?? "");
+      if (cachedMember && isMounted) {
+        setActiveMember(cachedMember);
+      }
+
+      const response = await fetch("/api/me", { cache: "no-store" });
+
+      if (response.ok) {
+        const data = (await response.json()) as {
+          member?: { member: string } | null;
+        };
+        const memberId = data.member?.member ?? "";
+
+        if (memberId) {
+          window.localStorage.setItem(activeMemberStorageKey, memberId);
+        }
+
+        if (isMounted) {
+          setActiveMember(memberId);
+        }
+
+        return;
+      }
+
+      if (response.status === 401) {
+        window.localStorage.removeItem(activeMemberStorageKey);
+
+        if (isMounted) {
+          setActiveMember("");
+        }
       }
     }
 
@@ -54,7 +80,9 @@ export default function HomeBar() {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/"
+            href={
+              activeMember ? `/briefing-room?member=${activeMember}` : "/"
+            }
             className="text-xl font-black uppercase tracking-[0.24em] text-[#d7ffd0] [text-shadow:0_0_10px_#39ff14]"
           >
             bay-space

@@ -226,6 +226,18 @@ export default function LibraryBoard() {
             <div className="mt-5 grid gap-3">
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  about
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>BaySpace is a new approach to social media.</li>
+                  <li>It is built as a place to share news, theories, conspiracies, sources, and strange signals.</li>
+                  <li>It is not built for hyping yourself, performing popularity, or showing off.</li>
+                  <li>Here you will not find commenting, messaging, follower counts, or public like counts.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                   how to log in
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">

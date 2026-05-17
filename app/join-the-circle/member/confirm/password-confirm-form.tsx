@@ -88,6 +88,7 @@ export default function PasswordConfirmForm({
       }
 
       const savedMemberId = data.member.member;
+      window.localStorage.setItem("bay-space-active-member", savedMemberId);
       window.dispatchEvent(new Event("bay-space-auth"));
       router.push(`/join-the-circle/member/complete?member=${savedMemberId}`);
     } catch {

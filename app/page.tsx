@@ -1,7 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import HomeBar from "./components/home-bar";
+import { getCurrentMember } from "../lib/bay-space-session";
 
-export default function Home() {
+export default async function Home() {
+  const member = await getCurrentMember();
+
+  if (member) {
+    redirect(`/briefing-room?member=${member.member}`);
+  }
+
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
       <HomeBar />

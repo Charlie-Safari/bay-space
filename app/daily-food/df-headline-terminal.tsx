@@ -14,9 +14,12 @@ import {
 } from "../components/post-store";
 import {
   favoriteStoreEvent,
+  getFavoriteAuthorIds,
   getFavoritePostIds,
 } from "../components/favorite-store";
-import { isGhostRole } from "../../lib/bay-space-roles";
+import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
+
+type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -89,6 +92,8 @@ export default function DfHeadlineTerminal({
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
+  const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
+  const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -144,6 +149,7 @@ export default function DfHeadlineTerminal({
 
     async function syncFavorites() {
       setFavoritePostIds(await getFavoritePostIds());
+      setFavoriteAuthorIds(await getFavoriteAuthorIds());
     }
 
     syncPosts();
@@ -196,20 +202,20 @@ export default function DfHeadlineTerminal({
       new Date(leftPost.createdAt).getTime();
 
     if (!isReferenceMode) {
-      return posts
+      return filterPostsByAuthorMode(posts)
         .filter((post) => post.dateKey === activeDateKey && !post.incognito)
         .sort(sortNewestFirst);
     }
 
     if (matchedReferencePost) {
-      return [matchedReferencePost];
+      return filterPostsByAuthorMode([matchedReferencePost]);
     }
 
     if (!matchedReferenceMember) {
       return [];
     }
 
-    return posts
+    return filterPostsByAuthorMode(posts)
       .filter(
         (post) =>
           post.incognito &&
@@ -217,6 +223,30 @@ export default function DfHeadlineTerminal({
           post.dateKey === activeDateKey,
       )
       .sort(sortNewestFirst);
+  }
+
+  function filterPostsByAuthorMode(filteredPosts: BayPost[]) {
+    if (authorFilter === "all") {
+      return filteredPosts;
+    }
+
+    return filteredPosts.filter((post) => {
+      const authorRoles = getAuthorRoles(post);
+
+      if (authorFilter === "favorite-authors") {
+        return !post.anonymous && favoriteAuthorIds.includes(post.author);
+      }
+
+      if (authorFilter === "ghosts") {
+        return isGhostRole(authorRoles);
+      }
+
+      if (authorFilter === "creators") {
+        return hasCreatorAccess(authorRoles);
+      }
+
+      return post.anonymous;
+    });
   }
 
   function getPostMarker(post: BayPost) {
@@ -302,6 +332,22 @@ export default function DfHeadlineTerminal({
 
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
+      <label className="grid w-fit justify-self-end gap-2 lg:col-span-2">
+        <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+          sort posts by
+        </span>
+        <select
+          value={authorFilter}
+          onChange={(event) => setAuthorFilter(event.target.value as AuthorFilter)}
+          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+        >
+          <option value="all">All</option>
+          <option value="favorite-authors">Favorite authors</option>
+          <option value="ghosts">Ghosts</option>
+          <option value="creators">Creator/Influencer</option>
+          <option value="anon">Anon</option>
+        </select>
+      </label>
       <div className="min-h-40 w-full border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">

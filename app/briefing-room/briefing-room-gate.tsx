@@ -75,6 +75,8 @@ const postCategories: { id: PostCategory; label: string }[] = [
   { id: "library-submission", label: "Library submission" },
 ];
 
+const activeMemberStorageKey = "bay-space-active-member";
+
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
     x: member?.links?.x ?? { url: "", display: false },
@@ -198,6 +200,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       const activeMember = activeSavedMember?.member ?? "";
 
       if (activeMember && activeSavedMember) {
+        window.localStorage.setItem(activeMemberStorageKey, activeMember);
         setResolvedMember(activeMember);
         setSavedMember(activeSavedMember);
         applySettingsFields(activeSavedMember);
@@ -206,6 +209,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         return;
       }
 
+      if (response.status !== 401) {
+        return;
+      }
+
+      window.localStorage.removeItem(activeMemberStorageKey);
       setResolvedMember(member);
       const fallbackMember = await fetchSavedMember(member);
       setSavedMember(fallbackMember);
@@ -228,9 +236,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       getBayPosts().then((savedPosts) => {
         setAllPosts(savedPosts);
         setMyPosts(
-          savedPosts.filter(
-            (post) => !post.anonymous && post.author === resolvedMember,
-          ),
+          savedPosts.filter((post) => post.author === resolvedMember),
         );
       });
     }
@@ -302,6 +308,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     const data = (await response.json()) as { member?: SavedMember };
 
     if (response.ok && data.member) {
+      window.localStorage.setItem(activeMemberStorageKey, data.member.member);
       setSavedMember(data.member);
       window.dispatchEvent(new Event("bay-space-auth"));
       setErrorMessage("");
@@ -314,6 +321,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
+    window.localStorage.removeItem(activeMemberStorageKey);
     window.dispatchEvent(new Event("bay-space-auth"));
     setIsUnlocked(false);
     setPassword("");
@@ -350,7 +358,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function buildCurrentPost(): Omit<BayPost, "id" | "createdAt" | "dateKey"> {
-    const author = postAnonymously ? "anon" : resolvedMember || "unknown";
+    const author = resolvedMember || "unknown";
 
     if (activePostCategory === "top-story") {
       return {
@@ -637,6 +645,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     await fetch("/api/logout", { method: "POST" });
+    window.localStorage.removeItem(activeMemberStorageKey);
     window.dispatchEvent(new Event("bay-space-auth"));
     window.dispatchEvent(new Event(postStoreEvent));
     window.location.href = "/";
@@ -748,8 +757,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     return (
       <>
         {header}
-        <div className="mt-10 grid w-full max-w-4xl gap-6 md:grid-cols-[220px_1fr]">
-        <aside className="border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+        <div
+          className={`mt-10 grid w-full max-w-4xl gap-6 ${
+            isPostOpen && activePanel === "post"
+              ? ""
+              : "md:grid-cols-[220px_1fr]"
+          }`}
+        >
+        <aside
+          className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
+            isPostOpen && activePanel === "post" ? "order-2" : ""
+          }`}
+        >
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
           </p>
@@ -819,7 +838,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </button>
           </div>
         </aside>
-        <section className="border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+        <section
+          className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
+            isPostOpen && activePanel === "post" ? "order-1" : ""
+          }`}
+        >
           {activePanel === "post" && isPostOpen ? (
             postPreview ? (
               <div
@@ -1233,95 +1256,93 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               ) : null}
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <button
-                    type="submit"
-                    className="w-fit border-2 border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                  >
-                    Submit to the ether
-                  </button>
-                  <div className="grid gap-2">
-                    <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
-                      <input
-                        type="checkbox"
-                        checked={postAnonymously}
-                        onChange={(event) => {
-                          setPostAnonymously(event.target.checked);
+              <div className="mt-6 grid gap-2">
+                <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+                  <input
+                    type="checkbox"
+                    checked={postAnonymously}
+                    onChange={(event) => {
+                      setPostAnonymously(event.target.checked);
 
-                          if (event.target.checked) {
-                            setPostIncognito(false);
-                          }
-                        }}
-                        className="h-4 w-4 accent-[#39ff14]"
-                      />
-                      Anon
-                      <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
-                        name will be classified
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
-                      <input
-                        type="checkbox"
-                        checked={postIncognito}
-                        onChange={(event) => {
-                          setPostIncognito(event.target.checked);
+                      if (event.target.checked) {
+                        setPostIncognito(false);
+                      }
+                    }}
+                    className="h-4 w-4 accent-[#39ff14]"
+                  />
+                  Anon
+                  <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
+                    name will be classified
+                  </span>
+                </label>
+                <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+                  <input
+                    type="checkbox"
+                    checked={postIncognito}
+                    onChange={(event) => {
+                      setPostIncognito(event.target.checked);
 
-                          if (event.target.checked) {
-                            setPostAnonymously(false);
-                          }
-                        }}
-                        className="h-4 w-4 accent-[#39ff14]"
-                      />
-                      Incog
-                      <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
-                        wont show up on public page
-                      </span>
-                    </label>
-                    {postIncognito ? (
-                      <div className="border border-[#1d7f12] px-3 py-2">
-                        {isIncognitoShelfSet ? (
-                          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                            reference code :{" "}
-                            {normalizeShelfLabel(incognitoShelfLabel) || "---"}
-                          </p>
-                        ) : (
-                          <div className="grid gap-2">
-                            <label className="grid gap-2">
-                              <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                                reference code
-                              </span>
-                              <input
-                                value={incognitoShelfLabel}
-                                onChange={(event) =>
-                                  setIncognitoShelfLabel(
-                                    event.target.value.slice(0, 120),
-                                  )
-                                }
-                                className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setIsIncognitoShelfSet(true)}
-                              className="w-fit border border-[#39ff14] px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black"
-                            >
-                              set
-                            </button>
-                          </div>
-                        )}
+                      if (event.target.checked) {
+                        setPostAnonymously(false);
+                      }
+                    }}
+                    className="h-4 w-4 accent-[#39ff14]"
+                  />
+                  Incog
+                  <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
+                    wont show up on public page
+                  </span>
+                </label>
+                {postIncognito ? (
+                  <div className="border border-[#1d7f12] px-3 py-2">
+                    {isIncognitoShelfSet ? (
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                        reference code :{" "}
+                        {normalizeShelfLabel(incognitoShelfLabel) || "---"}
+                      </p>
+                    ) : (
+                      <div className="grid gap-2">
+                        <label className="grid gap-2">
+                          <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                            reference code
+                          </span>
+                          <input
+                            value={incognitoShelfLabel}
+                            onChange={(event) =>
+                              setIncognitoShelfLabel(
+                                event.target.value.slice(0, 120),
+                              )
+                            }
+                            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsIncognitoShelfSet(true)}
+                          className="w-fit border border-[#39ff14] px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black"
+                        >
+                          set
+                        </button>
                       </div>
-                    ) : null}
+                    )}
                   </div>
-                </div>
+                ) : null}
               </div>
-              <button
-                type="button"
-                onClick={resetPostDraft}
-                className="mt-4 w-fit self-end border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
-              >
-                wipe
-              </button>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="submit"
+                  className="min-w-0 border-2 border-[#39ff14] px-3 py-3 text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5 sm:text-sm sm:tracking-[0.18em]"
+                >
+                  Submit to the ether
+                </button>
+                <button
+                  type="button"
+                  onClick={resetPostDraft}
+                  className="shrink-0 border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                >
+                  wipe
+                </button>
+              </div>
               </form>
             )
           ) : activePanel === "my-posts" ? (

@@ -9,12 +9,19 @@ import {
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import {
+  favoriteStoreEvent,
+  getFavoriteAuthorIds,
+} from "../components/favorite-store";
+import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
 
 type SortMode = "az" | "date";
+type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
 
 type SavedMember = {
   member: string;
   name: string;
+  roles?: string;
 };
 
 function getPostHashId() {
@@ -29,8 +36,10 @@ function getPostHashId() {
 
 export default function TheoryBoard() {
   const [sortMode, setSortMode] = useState<SortMode>("date");
+  const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
+  const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
   const [openPostId, setOpenPostId] = useState(getPostHashId);
 
   useEffect(() => {
@@ -41,6 +50,11 @@ export default function TheoryBoard() {
     }
 
     syncPosts();
+    async function syncFavorites() {
+      setFavoriteAuthorIds(await getFavoriteAuthorIds());
+    }
+
+    syncFavorites();
     fetch("/api/members", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { members: [] }))
       .then((data: { members?: SavedMember[] }) => {
@@ -48,10 +62,16 @@ export default function TheoryBoard() {
       });
     window.addEventListener("storage", syncPosts);
     window.addEventListener(postStoreEvent, syncPosts);
+    window.addEventListener("storage", syncFavorites);
+    window.addEventListener("bay-space-auth", syncFavorites);
+    window.addEventListener(favoriteStoreEvent, syncFavorites);
 
     return () => {
       window.removeEventListener("storage", syncPosts);
       window.removeEventListener(postStoreEvent, syncPosts);
+      window.removeEventListener("storage", syncFavorites);
+      window.removeEventListener("bay-space-auth", syncFavorites);
+      window.removeEventListener(favoriteStoreEvent, syncFavorites);
     };
   }, []);
 
@@ -89,7 +109,30 @@ export default function TheoryBoard() {
   }
 
   const sortedPosts = useMemo(() => {
-    return [...posts].sort((leftPost, rightPost) => {
+    const filteredPosts =
+      authorFilter === "all"
+        ? posts
+        : posts.filter((post) => {
+            const authorRoles =
+              members.find((member) => member.member === post.author)?.roles ??
+              "";
+
+            if (authorFilter === "favorite-authors") {
+              return !post.anonymous && favoriteAuthorIds.includes(post.author);
+            }
+
+            if (authorFilter === "ghosts") {
+              return isGhostRole(authorRoles);
+            }
+
+            if (authorFilter === "creators") {
+              return hasCreatorAccess(authorRoles);
+            }
+
+            return post.anonymous;
+          });
+
+    return [...filteredPosts].sort((leftPost, rightPost) => {
       if (sortMode === "az") {
         return leftPost.title.localeCompare(rightPost.title);
       }
@@ -99,23 +142,43 @@ export default function TheoryBoard() {
         new Date(leftPost.createdAt).getTime()
       );
     });
-  }, [posts, sortMode]);
+  }, [authorFilter, favoriteAuthorIds, members, posts, sortMode]);
 
   return (
     <div className="mt-10 grid max-w-4xl gap-6">
-      <label className="grid w-fit gap-2">
-        <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-          organize by
-        </span>
-        <select
-          value={sortMode}
-          onChange={(event) => setSortMode(event.target.value as SortMode)}
-          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-        >
-          <option value="az">A-Z</option>
-          <option value="date">Date</option>
-        </select>
-      </label>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <label className="grid w-fit gap-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+            organize by
+          </span>
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+          >
+            <option value="az">A-Z</option>
+            <option value="date">Date</option>
+          </select>
+        </label>
+        <label className="grid w-fit gap-2 sm:justify-self-end">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+            sort posts by
+          </span>
+          <select
+            value={authorFilter}
+            onChange={(event) =>
+              setAuthorFilter(event.target.value as AuthorFilter)
+            }
+            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+          >
+            <option value="all">All</option>
+            <option value="favorite-authors">Favorite authors</option>
+            <option value="ghosts">Ghosts</option>
+            <option value="creators">Creator/Influencer</option>
+            <option value="anon">Anon</option>
+          </select>
+        </label>
+      </div>
 
       {sortedPosts.length ? (
         <div className="grid gap-3">

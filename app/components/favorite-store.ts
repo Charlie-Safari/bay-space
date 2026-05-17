@@ -1,6 +1,7 @@
 "use client";
 
 export const favoriteStoreEvent = "bay-space-favorites";
+const favoriteAuthorsStoragePrefix = "bay-space-favorite-authors";
 
 export async function getActiveMemberId() {
   const response = await fetch("/api/me", { cache: "no-store" });
@@ -69,4 +70,51 @@ export async function toggleFavoritePost(postId: string) {
   window.dispatchEvent(new Event(favoriteStoreEvent));
 
   return Boolean(data.saved);
+}
+
+function getFavoriteAuthorsStorageKey(memberId: string) {
+  return `${favoriteAuthorsStoragePrefix}:${memberId}`;
+}
+
+export async function getFavoriteAuthorIds() {
+  const activeMemberId = await getActiveMemberId();
+
+  if (!activeMemberId) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(getFavoriteAuthorsStorageKey(activeMemberId)) ??
+        "[]",
+    ) as string[];
+  } catch {
+    return [];
+  }
+}
+
+export async function isFavoriteAuthor(authorId: string) {
+  return (await getFavoriteAuthorIds()).includes(authorId);
+}
+
+export async function toggleFavoriteAuthor(authorId: string) {
+  const activeMemberId = await getActiveMemberId();
+
+  if (!activeMemberId || activeMemberId === authorId) {
+    return false;
+  }
+
+  const favoriteAuthorIds = await getFavoriteAuthorIds();
+  const isFavorite = favoriteAuthorIds.includes(authorId);
+  const nextFavoriteAuthorIds = isFavorite
+    ? favoriteAuthorIds.filter((favoriteAuthorId) => favoriteAuthorId !== authorId)
+    : [...favoriteAuthorIds, authorId];
+
+  window.localStorage.setItem(
+    getFavoriteAuthorsStorageKey(activeMemberId),
+    JSON.stringify(nextFavoriteAuthorIds),
+  );
+  window.dispatchEvent(new Event(favoriteStoreEvent));
+
+  return !isFavorite;
 }

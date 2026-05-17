@@ -10,14 +10,31 @@ import {
 export default function JoinCircleForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const canAutoFocusRef = useRef(false);
   const [username, setUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isUsernameBlocked, setIsUsernameBlocked] = useState(false);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    canAutoFocusRef.current = window.matchMedia(
+      "(hover: hover) and (pointer: fine)",
+    ).matches;
+
+    if (canAutoFocusRef.current) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
   }, []);
+
+  function focusInput() {
+    inputRef.current?.focus({ preventScroll: true });
+  }
+
+  function focusInputForError() {
+    if (canAutoFocusRef.current || document.activeElement === inputRef.current) {
+      focusInput();
+    }
+  }
 
   async function activate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,7 +44,7 @@ export default function JoinCircleForm() {
     if (!isValidUsername(cleanUsername) || isSubmitting) {
       setErrorMessage("username unavailable");
       setIsUsernameBlocked(true);
-      inputRef.current?.focus();
+      focusInputForError();
       return;
     }
 
@@ -71,7 +88,7 @@ export default function JoinCircleForm() {
 
     if (!isAvailable || !data.member) {
       setErrorMessage(data.message ?? "activation unavailable");
-      inputRef.current?.focus();
+      focusInputForError();
       return;
     }
 
@@ -85,7 +102,6 @@ export default function JoinCircleForm() {
   return (
     <form
       onSubmit={activate}
-      onPointerDown={() => inputRef.current?.focus()}
       className="mt-10 w-full max-w-md border-2 border-[#39ff14] bg-black p-3 font-[Courier_New,Courier,monospace] shadow-[0_0_18px_rgba(57,255,20,0.18)]"
       aria-label="Create your user name"
     >
@@ -96,6 +112,7 @@ export default function JoinCircleForm() {
         Create your user name
       </label>
       <div
+        onPointerDown={focusInput}
         onAnimationEnd={() => setIsUsernameBlocked(false)}
         className={`flex items-center gap-2 border border-[#1d7f12] bg-[#001100] px-2 py-2 shadow-[inset_0_0_12px_rgba(57,255,20,0.14)] ${
           isUsernameBlocked ? "animate-[option-shake_180ms_linear]" : ""
@@ -119,7 +136,10 @@ export default function JoinCircleForm() {
             ref={inputRef}
             id="circle-username"
             autoComplete="off"
+            autoCapitalize="none"
+            inputMode="text"
             maxLength={30}
+            spellCheck={false}
             value={username}
             onChange={(event) => {
               setUsername(normalizeUsername(event.target.value));
@@ -133,7 +153,7 @@ export default function JoinCircleForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.24em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        className="mt-3 min-h-11 w-full touch-manipulation border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.24em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
         {isSubmitting ? "activating" : "activate"}
       </button>
