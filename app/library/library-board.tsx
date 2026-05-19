@@ -25,6 +25,24 @@ function getLibraryHashId() {
   return postId === window.location.hash ? "" : postId;
 }
 
+function getPostSources(post: BayPost) {
+  const sourceLinks = post.meta?.sourceLinks;
+  const sources = post.meta?.sources;
+  const source = post.meta?.source;
+
+  return [
+    ...(Array.isArray(sourceLinks) ? sourceLinks : []),
+    ...(Array.isArray(sources) ? sources : []),
+    ...(typeof source === "string" && source ? [source] : []),
+  ];
+}
+
+function getSourceHref(source: string) {
+  return source.startsWith("http://") || source.startsWith("https://")
+    ? source
+    : `https://${source}`;
+}
+
 export default function LibraryBoard() {
   const [query, setQuery] = useState("");
   const [posts, setPosts] = useState<BayPost[]>([]);
@@ -198,6 +216,20 @@ export default function LibraryBoard() {
                   <span className="mt-3 block whitespace-pre-wrap text-sm font-bold leading-6">
                     {post.body}
                   </span>
+                  {getPostSources(post).length ? (
+                    <div className="mt-4 grid gap-1">
+                      {getPostSources(post).map((source) => (
+                        <a
+                          key={source}
+                          href={getSourceHref(source)}
+                          className="grid grid-cols-[1.5rem_1fr] text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78] transition hover:text-[#39ff14]"
+                        >
+                          <span>+</span>
+                          <span className="break-all">{source}</span>
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
                 </>
               ) : null}
             </article>

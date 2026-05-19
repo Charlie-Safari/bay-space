@@ -13,6 +13,10 @@ const tabs = [
 
 const activeMemberStorageKey = "bay-space-active-member";
 
+function minimizeOpenPostWindows() {
+  window.dispatchEvent(new Event("bay-space-minimize-posts"));
+}
+
 export default function HomeBar() {
   const [activeMember, setActiveMember] = useState("");
 
@@ -83,6 +87,7 @@ export default function HomeBar() {
             href={
               activeMember ? `/briefing-room?member=${activeMember}` : "/"
             }
+            onClick={minimizeOpenPostWindows}
             className="text-xl font-black uppercase tracking-[0.24em] text-[#d7ffd0] [text-shadow:0_0_10px_#39ff14]"
           >
             bay-space
@@ -94,6 +99,7 @@ export default function HomeBar() {
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={minimizeOpenPostWindows}
               className="border border-[#39ff14] px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
             >
               {tab.label}

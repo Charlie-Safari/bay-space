@@ -68,6 +68,36 @@ type SourceDraft = {
 
 type FavoriteCategory = "daily-food" | "theory" | "library-submission";
 
+type PostDraft = {
+  id: number;
+  postCategory: PostCategory;
+  topStoryStep: number;
+  ticker: string;
+  report: string;
+  sources: string;
+  sourceDrafts: SourceDraft[];
+  dailyFoodHeadline: string;
+  dailyFoodTag1: string;
+  dailyFoodSource1: string;
+  dailyFoodSourceOpen1: boolean;
+  dailyFoodTag2: string;
+  dailyFoodSource2: string;
+  dailyFoodSourceOpen2: boolean;
+  dailyFoodTag3: string;
+  dailyFoodSource3: string;
+  dailyFoodSourceOpen3: boolean;
+  theoryHeadline: string;
+  theoryPost: string;
+  theorySources: string[];
+  libraryTitle: string;
+  librarySubmission: string;
+  librarySources: string[];
+  postAnonymously: boolean;
+  postIncognito: boolean;
+  incognitoShelfLabel: string;
+  isIncognitoShelfSet: boolean;
+};
+
 const postCategories: { id: PostCategory; label: string }[] = [
   { id: "top-story", label: "Top Story" },
   { id: "daily-food", label: "Daily food" },
@@ -76,6 +106,7 @@ const postCategories: { id: PostCategory; label: string }[] = [
 ];
 
 const activeMemberStorageKey = "bay-space-active-member";
+const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -109,6 +140,16 @@ function formatDailyFoodCode(dateKey: string, order: number) {
     .padStart(4, "0")}`;
 }
 
+function limitWords(value: string, limit: number) {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length <= limit) {
+    return value;
+  }
+
+  return words.slice(0, limit).join(" ");
+}
+
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [resolvedMember, setResolvedMember] = useState(member);
@@ -118,6 +159,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isPostOpen, setIsPostOpen] = useState(false);
+  const [activeDraftId, setActiveDraftId] = useState<number | null>(null);
+  const [minimizedDrafts, setMinimizedDrafts] = useState<PostDraft[]>([]);
   const [allPosts, setAllPosts] = useState<BayPost[]>([]);
   const [myPosts, setMyPosts] = useState<BayPost[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
@@ -165,10 +208,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [dailyFoodTag3, setDailyFoodTag3] = useState("");
   const [dailyFoodSource3, setDailyFoodSource3] = useState("");
   const [dailyFoodSourceOpen3, setDailyFoodSourceOpen3] = useState(false);
+  const [theoryHeadline, setTheoryHeadline] = useState("");
   const [theoryPost, setTheoryPost] = useState("");
-  const [theorySource, setTheorySource] = useState("");
+  const [theorySources, setTheorySources] = useState(["", ""]);
   const [libraryTitle, setLibraryTitle] = useState("");
   const [librarySubmission, setLibrarySubmission] = useState("");
+  const [librarySources, setLibrarySources] = useState(["", ""]);
   const [postAnonymously, setPostAnonymously] = useState(false);
   const [postIncognito, setPostIncognito] = useState(false);
   const [incognitoShelfLabel, setIncognitoShelfLabel] = useState("");
@@ -182,12 +227,185 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     ? postCategory
     : availablePostCategories[0]?.id ?? "library-submission";
   const accountMarker = getRoleAcronym(savedMember?.roles ?? "");
+  const openDrafts = [
+    ...minimizedDrafts,
+    ...(isPostOpen && activeDraftId
+      ? [
+          {
+            id: activeDraftId,
+            postCategory,
+            topStoryStep,
+            ticker,
+            report,
+            sources,
+            sourceDrafts,
+            dailyFoodHeadline,
+            dailyFoodTag1,
+            dailyFoodSource1,
+            dailyFoodSourceOpen1,
+            dailyFoodTag2,
+            dailyFoodSource2,
+            dailyFoodSourceOpen2,
+            dailyFoodTag3,
+            dailyFoodSource3,
+            dailyFoodSourceOpen3,
+            theoryHeadline,
+            theoryPost,
+            theorySources,
+            libraryTitle,
+            librarySubmission,
+            librarySources,
+            postAnonymously,
+            postIncognito,
+            incognitoShelfLabel,
+            isIncognitoShelfSet,
+          },
+        ]
+      : []),
+  ].sort((leftDraft, rightDraft) => leftDraft.id - rightDraft.id);
+  const nextDraftId =
+    openDrafts.reduce(
+      (highestId, draft) => Math.max(highestId, draft.id),
+      0,
+    ) + 1;
+
+  function createBlankDraft(id: number): PostDraft {
+    return {
+      id,
+      postCategory: availablePostCategories[0]?.id ?? "library-submission",
+      topStoryStep: 1,
+      ticker: "",
+      report: "",
+      sources: "",
+      sourceDrafts: [],
+      dailyFoodHeadline: "",
+      dailyFoodTag1: "",
+      dailyFoodSource1: "",
+      dailyFoodSourceOpen1: false,
+      dailyFoodTag2: "",
+      dailyFoodSource2: "",
+      dailyFoodSourceOpen2: false,
+      dailyFoodTag3: "",
+      dailyFoodSource3: "",
+      dailyFoodSourceOpen3: false,
+      theoryHeadline: "",
+      theoryPost: "",
+      theorySources: ["", ""],
+      libraryTitle: "",
+      librarySubmission: "",
+      librarySources: ["", ""],
+      postAnonymously: false,
+      postIncognito: false,
+      incognitoShelfLabel: "",
+      isIncognitoShelfSet: false,
+    };
+  }
+
+  function getCurrentDraft(): PostDraft | null {
+    if (!activeDraftId) {
+      return null;
+    }
+
+    return {
+      id: activeDraftId,
+      postCategory,
+      topStoryStep,
+      ticker,
+      report,
+      sources,
+      sourceDrafts,
+      dailyFoodHeadline,
+      dailyFoodTag1,
+      dailyFoodSource1,
+      dailyFoodSourceOpen1,
+      dailyFoodTag2,
+      dailyFoodSource2,
+      dailyFoodSourceOpen2,
+      dailyFoodTag3,
+      dailyFoodSource3,
+      dailyFoodSourceOpen3,
+      theoryHeadline,
+      theoryPost,
+      theorySources,
+      libraryTitle,
+      librarySubmission,
+      librarySources,
+      postAnonymously,
+      postIncognito,
+      incognitoShelfLabel,
+      isIncognitoShelfSet,
+    };
+  }
+
+  function applyPostDraft(draft: PostDraft) {
+    setActiveDraftId(draft.id);
+    setPostCategory(draft.postCategory);
+    setTopStoryStep(draft.topStoryStep);
+    setTicker(draft.ticker);
+    setReport(draft.report);
+    setSources(draft.sources);
+    setSourceDrafts(draft.sourceDrafts);
+    setDailyFoodHeadline(draft.dailyFoodHeadline);
+    setDailyFoodTag1(draft.dailyFoodTag1);
+    setDailyFoodSource1(draft.dailyFoodSource1);
+    setDailyFoodSourceOpen1(draft.dailyFoodSourceOpen1);
+    setDailyFoodTag2(draft.dailyFoodTag2);
+    setDailyFoodSource2(draft.dailyFoodSource2);
+    setDailyFoodSourceOpen2(draft.dailyFoodSourceOpen2);
+    setDailyFoodTag3(draft.dailyFoodTag3);
+    setDailyFoodSource3(draft.dailyFoodSource3);
+    setDailyFoodSourceOpen3(draft.dailyFoodSourceOpen3);
+    setTheoryHeadline(draft.theoryHeadline);
+    setTheoryPost(draft.theoryPost);
+    setTheorySources(
+      Array.isArray(draft.theorySources) && draft.theorySources.length
+        ? draft.theorySources
+        : ["", ""],
+    );
+    setLibraryTitle(draft.libraryTitle);
+    setLibrarySubmission(draft.librarySubmission);
+    setLibrarySources(
+      Array.isArray(draft.librarySources) && draft.librarySources.length
+        ? draft.librarySources
+        : ["", ""],
+    );
+    setPostAnonymously(draft.postAnonymously);
+    setPostIncognito(draft.postIncognito);
+    setIncognitoShelfLabel(draft.incognitoShelfLabel);
+    setIsIncognitoShelfSet(draft.isIncognitoShelfSet);
+    setPostPreview(null);
+    setPreviewWarning(false);
+    setDeletePostId("");
+  }
 
   function applySettingsFields(memberRecord: SavedMember | null) {
     setEmail(memberRecord?.email ?? "");
     setBirthdayMonth(memberRecord?.birthdayMonth ?? "");
     setBirthdayYear(memberRecord?.birthdayYear ?? "");
     setSettingsLinks(getSettingsLinks(memberRecord));
+  }
+
+  function saveOpenPostDrafts(drafts = openDrafts) {
+    if (!resolvedMember) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      `${openPostDraftsStorageKey}:${resolvedMember}`,
+      JSON.stringify(drafts),
+    );
+  }
+
+  function clearOpenPostDrafts() {
+    if (resolvedMember) {
+      window.localStorage.removeItem(
+        `${openPostDraftsStorageKey}:${resolvedMember}`,
+      );
+    }
+
+    setMinimizedDrafts([]);
+    setActiveDraftId(null);
+    setIsPostOpen(false);
   }
 
   useEffect(() => {
@@ -213,6 +431,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         return;
       }
 
+      clearOpenPostDrafts();
       window.localStorage.removeItem(activeMemberStorageKey);
       setResolvedMember(member);
       const fallbackMember = await fetchSavedMember(member);
@@ -230,6 +449,57 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       window.removeEventListener("bay-space-auth", syncActiveMember);
     };
   }, [member]);
+
+  useEffect(() => {
+    if (!resolvedMember || !isUnlocked) {
+      return;
+    }
+
+    const savedDrafts = window.localStorage.getItem(
+      `${openPostDraftsStorageKey}:${resolvedMember}`,
+    );
+
+    if (!savedDrafts) {
+      return;
+    }
+
+    try {
+      const drafts = JSON.parse(savedDrafts) as PostDraft[];
+
+      if (Array.isArray(drafts)) {
+        setMinimizedDrafts(drafts);
+      }
+    } catch {
+      window.localStorage.removeItem(
+        `${openPostDraftsStorageKey}:${resolvedMember}`,
+      );
+    }
+  }, [isUnlocked, resolvedMember]);
+
+  useEffect(() => {
+    if (!resolvedMember || !isUnlocked) {
+      return;
+    }
+
+    saveOpenPostDrafts(openDrafts);
+  }, [isUnlocked, resolvedMember, JSON.stringify(openDrafts)]);
+
+  useEffect(() => {
+    function minimizeBeforeNavigation() {
+      minimizePostWindow();
+    }
+
+    window.addEventListener("bay-space-minimize-posts", minimizeBeforeNavigation);
+    window.addEventListener("pagehide", minimizeBeforeNavigation);
+
+    return () => {
+      window.removeEventListener(
+        "bay-space-minimize-posts",
+        minimizeBeforeNavigation,
+      );
+      window.removeEventListener("pagehide", minimizeBeforeNavigation);
+    };
+  });
 
   useEffect(() => {
     function syncMyPosts() {
@@ -321,11 +591,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
+    clearOpenPostDrafts();
     window.localStorage.removeItem(activeMemberStorageKey);
     window.dispatchEvent(new Event("bay-space-auth"));
     setIsUnlocked(false);
     setPassword("");
-    setIsPostOpen(false);
     setActivePanel("id-card");
     setIsChangingPassword(false);
     setNewPassword("");
@@ -338,13 +608,58 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    if (postCategory !== activePostCategory) {
-      setPostCategory(activePostCategory);
-    }
-
+    const currentDraft = getCurrentDraft();
+    const newDraft = createBlankDraft(nextDraftId);
+    setMinimizedDrafts((drafts) =>
+      currentDraft ? [...drafts, currentDraft] : drafts,
+    );
+    applyPostDraft(newDraft);
     setIsPostOpen(true);
     setActivePanel("post");
-    setDeletePostId("");
+  }
+
+  function minimizePostWindow() {
+    const currentDraft = getCurrentDraft();
+
+    if (!currentDraft) {
+      return;
+    }
+
+    const nextDrafts = [
+      ...minimizedDrafts.filter((draft) => draft.id !== currentDraft.id),
+      currentDraft,
+    ];
+    saveOpenPostDrafts(nextDrafts);
+    setMinimizedDrafts((drafts) => [
+      ...drafts.filter((draft) => draft.id !== currentDraft.id),
+      currentDraft,
+    ]);
+    setActiveDraftId(null);
+    setIsPostOpen(false);
+    setActivePanel((panel) => (panel === "post" ? "id-card" : panel));
+    setPostPreview(null);
+    setPreviewWarning(false);
+  }
+
+  function restorePostDraft(draftId: number) {
+    const draft = minimizedDrafts.find((postDraft) => postDraft.id === draftId);
+    const currentDraft = getCurrentDraft();
+
+    if (!draft) {
+      if (activeDraftId === draftId) {
+        setActivePanel("post");
+      }
+
+      return;
+    }
+
+    setMinimizedDrafts((drafts) => [
+      ...drafts.filter((postDraft) => postDraft.id !== draftId),
+      ...(currentDraft ? [currentDraft] : []),
+    ]);
+    applyPostDraft(draft);
+    setIsPostOpen(true);
+    setActivePanel("post");
   }
 
   function submitPost(event: FormEvent<HTMLFormElement>) {
@@ -425,7 +740,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     if (activePostCategory === "theory") {
       return {
         category: activePostCategory,
-        title: theoryPost.slice(0, 80) || "untitled theory",
+        title: theoryHeadline || "untitled theory",
         body: theoryPost,
         anonymous: postAnonymously,
         incognito: postIncognito,
@@ -435,7 +750,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
-          source: theorySource,
+          sources: theorySources.map((source) => source.trim()).filter(Boolean),
         },
       };
     }
@@ -449,7 +764,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       author,
       shelfLabel: libraryTitle,
       shelfCode: normalizeShelfLabel(libraryTitle),
-      meta: {},
+      meta: {
+        sources: librarySources.map((source) => source.trim()).filter(Boolean),
+      },
     };
   }
 
@@ -479,7 +796,15 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function resetPostDraft() {
+    const closingDraftId = activeDraftId;
+    const nextDrafts = closingDraftId
+      ? minimizedDrafts.filter((draft) => draft.id !== closingDraftId)
+      : minimizedDrafts;
+
     setIsPostOpen(false);
+    setActiveDraftId(null);
+    setMinimizedDrafts(nextDrafts);
+    saveOpenPostDrafts(nextDrafts);
     setActivePanel("id-card");
     setPostCategory(availablePostCategories[0]?.id ?? "library-submission");
     setTopStoryStep(1);
@@ -497,10 +822,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodTag3("");
     setDailyFoodSource3("");
     setDailyFoodSourceOpen3(false);
+    setTheoryHeadline("");
     setTheoryPost("");
-    setTheorySource("");
+    setTheorySources(["", ""]);
     setLibraryTitle("");
     setLibrarySubmission("");
+    setLibrarySources(["", ""]);
     setPostAnonymously(false);
     setPostIncognito(false);
     setIncognitoShelfLabel("");
@@ -525,6 +852,34 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSourceDrafts((drafts) =>
       drafts.map((draft) =>
         draft.id === id ? { ...draft, [field]: value } : draft,
+      ),
+    );
+  }
+
+  function focusTheorySource(index: number) {
+    if (index === theorySources.length - 1 && index >= 1) {
+      setTheorySources((drafts) => [...drafts, ""]);
+    }
+  }
+
+  function updateTheorySource(index: number, value: string) {
+    setTheorySources((drafts) =>
+      drafts.map((source, sourceIndex) =>
+        sourceIndex === index ? value : source,
+      ),
+    );
+  }
+
+  function focusLibrarySource(index: number) {
+    if (index === librarySources.length - 1 && index >= 1) {
+      setLibrarySources((drafts) => [...drafts, ""]);
+    }
+  }
+
+  function updateLibrarySource(index: number, value: string) {
+    setLibrarySources((drafts) =>
+      drafts.map((source, sourceIndex) =>
+        sourceIndex === index ? value : source,
       ),
     );
   }
@@ -735,19 +1090,20 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       </div>
       {isUnlocked && canCreatePosts ? (
         <div className="mt-6 flex flex-wrap items-end gap-2">
-          {isPostOpen ? (
+          {openDrafts.map((draft) => (
             <button
+              key={draft.id}
               type="button"
-              onClick={() => setActivePanel("post")}
+              onClick={() => restorePostDraft(draft.id)}
               className={`border-2 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] ${
-                activePanel === "post"
+                activePanel === "post" && activeDraftId === draft.id
                   ? "border-[#39ff14] bg-[#39ff14] text-black"
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              post # - [open]
+              post {draft.id} - [open]
             </button>
-          ) : null}
+          ))}
         </div>
       ) : null}
     </div>
@@ -852,9 +1208,31 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   previewWarning ? "animate-[option-shake_180ms_linear]" : ""
                 }
               >
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                  preview
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                    preview
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={minimizePostWindow}
+                      className="grid h-7 w-7 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      aria-label="Minimize post window"
+                      title="Minimize"
+                    >
+                      -
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetPostDraft}
+                      className="grid h-7 w-7 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                      aria-label="Wipe post window"
+                      title="Wipe"
+                    >
+                      x
+                    </button>
+                  </div>
+                </div>
                 <article className="mt-5 border-2 border-[#1d7f12] px-4 py-4">
                   {postPreview.category === "daily-food" &&
                   typeof postPreview.meta?.dailyFoodOrder === "string" ? (
@@ -931,9 +1309,31 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               </div>
             ) : (
               <form onSubmit={submitPost}>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                post window
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                  post window
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={minimizePostWindow}
+                    className="grid h-7 w-7 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    aria-label="Minimize post window"
+                    title="Minimize"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetPostDraft}
+                    className="grid h-7 w-7 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                    aria-label="Wipe post window"
+                    title="Wipe"
+                  >
+                    x
+                  </button>
+                </div>
+              </div>
               <fieldset className="mt-5 grid gap-3 sm:grid-cols-2">
                 <legend className="sr-only">Choose post type</legend>
                 {availablePostCategories.map((category) => (
@@ -1190,35 +1590,62 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      anything{" "}
+                      headline{" "}
                       <span className="text-xs text-[#7f9f78]">
-                        ({10000 - theoryPost.length})
+                        ({75 - theoryHeadline.length})
+                      </span>
+                    </span>
+                    <input
+                      value={theoryHeadline}
+                      onChange={(event) =>
+                        setTheoryHeadline(event.target.value.slice(0, 75))
+                      }
+                      className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      theory{" "}
+                      <span className="text-xs text-[#7f9f78]">
+                        ({50000 - theoryPost.length})
                       </span>
                     </span>
                     <textarea
                       value={theoryPost}
                       onChange={(event) =>
-                        setTheoryPost(event.target.value.slice(0, 10000))
+                        setTheoryPost(event.target.value.slice(0, 50000))
                       }
                       onInput={(event) => expandTextarea(event.currentTarget)}
                       rows={1}
                       className="min-h-[3rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
                     />
                   </label>
-                  <label className="grid gap-2">
+                  <div className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      Source:
+                      sources
                     </span>
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                      optional
-                    </span>
-                    <input
-                      value={theorySource}
-                      onChange={(event) => setTheorySource(event.target.value)}
-                      placeholder="source? what source? eht hem"
-                      className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-                    />
-                  </label>
+                    <div className="grid gap-2">
+                      {theorySources.map((source, index) => (
+                        <label
+                          key={index}
+                          className="grid grid-cols-[1.5rem_1fr] items-center gap-2"
+                        >
+                          <span className="text-lg font-black text-[#7f9f78]">
+                            +
+                          </span>
+                          <input
+                            value={source}
+                            onFocus={() => focusTheorySource(index)}
+                            onChange={(event) =>
+                              updateTheorySource(index, event.target.value)
+                            }
+                            placeholder="[source]"
+                            className="h-11 border border-transparent bg-black px-0 py-2 text-sm font-black text-[#39ff14] caret-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:border-[#39ff14] focus:bg-[#001100] focus:px-3 focus:shadow-[inset_0_-0.55rem_0_rgba(57,255,20,0.28)]"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
@@ -1228,31 +1655,60 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                       shelf label{" "}
                       <span className="text-xs text-[#7f9f78]">
-                        ({120 - libraryTitle.length})
+                        ({75 - libraryTitle.trim().split(/\s+/).filter(Boolean).length})
                       </span>
                     </span>
                     <input
                       value={libraryTitle}
                       onChange={(event) =>
-                        setLibraryTitle(event.target.value.slice(0, 120))
+                        setLibraryTitle(limitWords(event.target.value, 75))
                       }
                       className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
                     />
                   </label>
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      library submission
+                      library submission{" "}
+                      <span className="text-xs text-[#7f9f78]">
+                        ({50000 - librarySubmission.length})
+                      </span>
                     </span>
                     <textarea
                       value={librarySubmission}
                       onChange={(event) =>
-                        setLibrarySubmission(event.target.value)
+                        setLibrarySubmission(event.target.value.slice(0, 50000))
                       }
                       onInput={(event) => expandTextarea(event.currentTarget)}
-                      rows={1}
-                      className="min-h-[3rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      rows={7}
+                      className="min-h-[11rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
                     />
                   </label>
+                  <div className="grid gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      sources
+                    </span>
+                    <div className="grid gap-2">
+                      {librarySources.map((source, index) => (
+                        <label
+                          key={index}
+                          className="grid grid-cols-[1.5rem_1fr] items-center gap-2"
+                        >
+                          <span className="text-lg font-black text-[#7f9f78]">
+                            +
+                          </span>
+                          <input
+                            value={source}
+                            onFocus={() => focusLibrarySource(index)}
+                            onChange={(event) =>
+                              updateLibrarySource(index, event.target.value)
+                            }
+                            placeholder="[source]"
+                            className="h-11 border border-transparent bg-black px-0 py-2 text-sm font-black text-[#39ff14] caret-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:border-[#39ff14] focus:bg-[#001100] focus:px-3 focus:shadow-[inset_0_-0.55rem_0_rgba(57,255,20,0.28)]"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
