@@ -153,11 +153,10 @@ function limitWords(value: string, limit: number) {
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [resolvedMember, setResolvedMember] = useState(member);
-  const [password, setPassword] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activePanel, setActivePanel] = useState("id-card");
   const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
   const [isPostOpen, setIsPostOpen] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<number | null>(null);
   const [minimizedDrafts, setMinimizedDrafts] = useState<PostDraft[]>([]);
@@ -410,34 +409,39 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   useEffect(() => {
     async function syncActiveMember() {
-      const response = await fetch("/api/me", { cache: "no-store" });
-      const data = response.ok
-        ? ((await response.json()) as { member?: SavedMember | null })
-        : { member: null };
-      const activeSavedMember = data.member ?? null;
-      const activeMember = activeSavedMember?.member ?? "";
+      setIsCheckingSession(true);
 
-      if (activeMember && activeSavedMember) {
-        window.localStorage.setItem(activeMemberStorageKey, activeMember);
-        setResolvedMember(activeMember);
-        setSavedMember(activeSavedMember);
-        applySettingsFields(activeSavedMember);
-        setIsUnlocked(true);
-        setErrorMessage("");
-        return;
+      try {
+        const response = await fetch("/api/me", { cache: "no-store" });
+        const data = response.ok
+          ? ((await response.json()) as { member?: SavedMember | null })
+          : { member: null };
+        const activeSavedMember = data.member ?? null;
+        const activeMember = activeSavedMember?.member ?? "";
+
+        if (activeMember && activeSavedMember) {
+          window.localStorage.setItem(activeMemberStorageKey, activeMember);
+          setResolvedMember(activeMember);
+          setSavedMember(activeSavedMember);
+          applySettingsFields(activeSavedMember);
+          setIsUnlocked(true);
+          return;
+        }
+
+        if (response.status !== 401) {
+          return;
+        }
+
+        clearOpenPostDrafts();
+        window.localStorage.removeItem(activeMemberStorageKey);
+        setResolvedMember(member);
+        const fallbackMember = await fetchSavedMember(member);
+        setSavedMember(fallbackMember);
+        applySettingsFields(fallbackMember);
+        setIsUnlocked(false);
+      } finally {
+        setIsCheckingSession(false);
       }
-
-      if (response.status !== 401) {
-        return;
-      }
-
-      clearOpenPostDrafts();
-      window.localStorage.removeItem(activeMemberStorageKey);
-      setResolvedMember(member);
-      const fallbackMember = await fetchSavedMember(member);
-      setSavedMember(fallbackMember);
-      applySettingsFields(fallbackMember);
-      setIsUnlocked(false);
     }
 
     syncActiveMember();
@@ -567,35 +571,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     };
   }, [postPreview]);
 
-  async function unlock(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const response = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ member: resolvedMember, pin: password }),
-    });
-    const data = (await response.json()) as { member?: SavedMember };
-
-    if (response.ok && data.member) {
-      window.localStorage.setItem(activeMemberStorageKey, data.member.member);
-      setSavedMember(data.member);
-      window.dispatchEvent(new Event("bay-space-auth"));
-      setErrorMessage("");
-      setIsUnlocked(true);
-      return;
-    }
-
-    setErrorMessage(response.status === 401 ? "try again" : "no account found");
-  }
-
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
     clearOpenPostDrafts();
     window.localStorage.removeItem(activeMemberStorageKey);
     window.dispatchEvent(new Event("bay-space-auth"));
     setIsUnlocked(false);
-    setPassword("");
     setActivePanel("id-card");
     setIsChangingPassword(false);
     setNewPassword("");
@@ -913,7 +894,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     setSavedMember(data.member);
-    setPassword(newPassword);
     setNewPassword("");
     setConfirmPassword("");
     setIsChangingPassword(false);
@@ -1120,11 +1100,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               : "md:grid-cols-[220px_1fr]"
           }`}
         >
-        <aside
-          className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
-            isPostOpen && activePanel === "post" ? "order-2" : ""
-          }`}
-        >
+        {isPostOpen && activePanel === "post" ? null : (
+        <aside className="border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
           </p>
@@ -1194,6 +1171,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </button>
           </div>
         </aside>
+        )}
         <section
           className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
             isPostOpen && activePanel === "post" ? "order-1" : ""
@@ -1282,7 +1260,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   <button
                     type="button"
                     onClick={confirmPost}
-                    className={`border-2 border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                    className={`border-2 border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.55)] transition hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.72)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
                       previewWarning
                         ? "animate-[preview-confirm-flash_500ms_ease-in-out_2]"
                         : ""
@@ -1823,7 +1801,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   className="mt-5 border-2 border-[#39ff14] bg-[#001100] p-4 shadow-[0_0_18px_rgba(57,255,20,0.22)]"
                 >
                   <p className="dos-type-command w-fit overflow-hidden whitespace-nowrap text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                    comfirm command; wipe all?
+                    Confirm command?
                   </p>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button
@@ -2323,43 +2301,29 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     );
   }
 
+  if (isCheckingSession) {
+    return (
+      <div className="w-full max-w-md border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+        syncing access
+      </div>
+    );
+  }
+
   return (
-    <>
-      {header}
-      <form
-        onSubmit={unlock}
-        className="mt-10 w-full max-w-md border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]"
-        aria-label="Enter briefing room password"
+    <div className="w-full max-w-xl border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+        briefing room requires an active member session
+      </p>
+      <p className="mt-4 text-sm font-bold uppercase leading-6 tracking-[0.14em] text-[#7f9f78]">
+        enter your member number in the top bar or join the circle to create an
+        account.
+      </p>
+      <Link
+        href="/join-the-circle"
+        className="mt-5 inline-flex border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
-        <label
-          htmlFor="briefing-password"
-          className="mb-3 block text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]"
-        >
-          enter password
-        </label>
-        <input
-          id="briefing-password"
-          type="password"
-          value={password}
-          onChange={(event) => {
-            setPassword(event.target.value.slice(0, 24));
-            setErrorMessage("");
-          }}
-          className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-          autoFocus
-        />
-        {errorMessage ? (
-          <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
-            {errorMessage}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          enter
-        </button>
-      </form>
-    </>
+        join the circle
+      </Link>
+    </div>
   );
 }

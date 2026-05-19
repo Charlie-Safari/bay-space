@@ -54,6 +54,16 @@ function getSourceHref(source: string) {
     : `https://${source}`;
 }
 
+function formatPostTimestamp(createdAt: string) {
+  return new Date(createdAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function TheoryBoard() {
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [query, setQuery] = useState("");
@@ -127,6 +137,15 @@ export default function TheoryBoard() {
 
   function getAuthorName(post: BayPost) {
     return members.find((member) => member.member === post.author)?.name.trim() ?? "";
+  }
+
+  function closePost() {
+    setOpenPostId("");
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
   }
 
   const sortedPosts = useMemo(() => {
@@ -245,9 +264,19 @@ export default function TheoryBoard() {
               <h2 className="text-lg font-black uppercase tracking-[0.12em] text-[#39ff14]">
                 {post.title}
               </h2>
+              <span className="mt-2 block text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                {formatPostTimestamp(post.createdAt)}
+              </span>
               </button>
               {openPostId === post.id ? (
                 <>
+                  <button
+                    type="button"
+                    onClick={closePost}
+                    className="mt-4 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    back
+                  </button>
                   <div className="mt-3">
                     <FavoriteButton postId={post.id} />
                   </div>
@@ -268,6 +297,9 @@ export default function TheoryBoard() {
                       classified
                     </p>
                   ) : null}
+                  <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                    posted {formatPostTimestamp(post.createdAt)}
+                  </p>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
                     {post.body}
                   </p>
@@ -277,6 +309,8 @@ export default function TheoryBoard() {
                         <a
                           key={source}
                           href={getSourceHref(source)}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="grid grid-cols-[1.5rem_1fr] text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78] transition hover:text-[#39ff14]"
                         >
                           <span>+</span>
