@@ -39,7 +39,7 @@ export default function DailyFoodShell() {
           <input
             value={referenceQuery}
             onChange={(event) => changeReferenceQuery(event.target.value)}
-            placeholder="code"
+            placeholder="article code"
             className="w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
           />
           <button

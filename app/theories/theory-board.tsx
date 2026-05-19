@@ -56,6 +56,7 @@ function getSourceHref(source: string) {
 
 export default function TheoryBoard() {
   const [sortMode, setSortMode] = useState<SortMode>("date");
+  const [query, setQuery] = useState("");
   const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
@@ -129,7 +130,12 @@ export default function TheoryBoard() {
   }
 
   const sortedPosts = useMemo(() => {
-    const filteredPosts =
+    const searchWords = query
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    const authorFilteredPosts =
       authorFilter === "all"
         ? posts
         : posts.filter((post) => {
@@ -151,6 +157,13 @@ export default function TheoryBoard() {
 
             return post.anonymous;
           });
+    const filteredPosts = searchWords.length
+      ? authorFilteredPosts.filter((post) => {
+          const searchableText = `${post.title} ${post.body}`.toLowerCase();
+
+          return searchWords.every((word) => searchableText.includes(word));
+        })
+      : authorFilteredPosts;
 
     return [...filteredPosts].sort((leftPost, rightPost) => {
       if (sortMode === "az") {
@@ -162,24 +175,36 @@ export default function TheoryBoard() {
         new Date(leftPost.createdAt).getTime()
       );
     });
-  }, [authorFilter, favoriteAuthorIds, members, posts, sortMode]);
+  }, [authorFilter, favoriteAuthorIds, members, posts, query, sortMode]);
 
   return (
     <div className="mt-10 grid max-w-4xl gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <label className="grid w-fit gap-2">
-          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-            organize by
-          </span>
-          <select
-            value={sortMode}
-            onChange={(event) => setSortMode(event.target.value as SortMode)}
-            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-          >
-            <option value="az">A-Z</option>
-            <option value="date">Date</option>
-          </select>
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid w-fit gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              organize by
+            </span>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as SortMode)}
+              className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+            >
+              <option value="az">A-Z</option>
+              <option value="date">Date</option>
+            </select>
+          </label>
+          <label className="grid w-52 gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              search
+            </span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+            />
+          </label>
+        </div>
         <label className="grid w-fit gap-2 sm:justify-self-end">
           <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
             sort posts by
