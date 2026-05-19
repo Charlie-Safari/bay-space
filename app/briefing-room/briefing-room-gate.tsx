@@ -153,6 +153,8 @@ function limitWords(value: string, limit: number) {
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [resolvedMember, setResolvedMember] = useState(member);
+  const [gatePassword, setGatePassword] = useState("");
+  const [gateErrorMessage, setGateErrorMessage] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [activePanel, setActivePanel] = useState("id-card");
@@ -571,6 +573,32 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     };
   }, [postPreview]);
 
+  async function unlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ member: resolvedMember, pin: gatePassword }),
+    });
+    const data = (await response.json()) as { member?: SavedMember };
+
+    if (response.ok && data.member) {
+      window.localStorage.setItem(activeMemberStorageKey, data.member.member);
+      setSavedMember(data.member);
+      applySettingsFields(data.member);
+      window.dispatchEvent(new Event("bay-space-auth"));
+      setGateErrorMessage("");
+      setGatePassword("");
+      setIsUnlocked(true);
+      return;
+    }
+
+    setGateErrorMessage(
+      response.status === 401 ? "try again" : "no account found",
+    );
+  }
+
   async function signOut() {
     await fetch("/api/logout", { method: "POST" });
     clearOpenPostDrafts();
@@ -582,6 +610,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setNewPassword("");
     setConfirmPassword("");
     setPasswordChangeMessage("");
+    window.location.href = "/";
   }
 
   function openPostWindow() {
@@ -2303,9 +2332,54 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   if (isCheckingSession) {
     return (
-      <div className="w-full max-w-md border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
-        syncing access
-      </div>
+      <>
+        {header}
+        <div className="mt-10 w-full max-w-md border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+          syncing access
+        </div>
+      </>
+    );
+  }
+
+  if (resolvedMember) {
+    return (
+      <>
+        {header}
+        <form
+          onSubmit={unlock}
+          className="mt-10 w-full max-w-md border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]"
+          aria-label="Enter briefing room password"
+        >
+          <label
+            htmlFor="briefing-password"
+            className="mb-3 block text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]"
+          >
+            enter password
+          </label>
+          <input
+            id="briefing-password"
+            type="password"
+            value={gatePassword}
+            onChange={(event) => {
+              setGatePassword(event.target.value.slice(0, 24));
+              setGateErrorMessage("");
+            }}
+            className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+            autoFocus
+          />
+          {gateErrorMessage ? (
+            <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
+              {gateErrorMessage}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          >
+            enter
+          </button>
+        </form>
+      </>
     );
   }
 
