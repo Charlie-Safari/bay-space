@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -59,6 +60,9 @@ type PostCategory =
   | "daily-food"
   | "theory"
   | "library-submission";
+type BankPostCategory = Extract<PostCategory, "daily-food" | "theory">;
+type LazyAssistantMode = "chat" | "bank" | "preview";
+type PostPreviewDraft = Omit<BayPost, "id" | "createdAt" | "dateKey">;
 
 type SourceDraft = {
   id: number;
@@ -98,6 +102,13 @@ type PostDraft = {
   isIncognitoShelfSet: boolean;
 };
 
+type ParsedBankPost = {
+  body: string;
+  sources: string[];
+  tags: string[];
+  title: string;
+};
+
 const postCategories: { id: PostCategory; label: string }[] = [
   { id: "top-story", label: "Top Story" },
   { id: "daily-food", label: "Daily food" },
@@ -107,6 +118,8 @@ const postCategories: { id: PostCategory; label: string }[] = [
 
 const activeMemberStorageKey = "bay-space-active-member";
 const openPostDraftsStorageKey = "bay-space-open-post-drafts";
+const lazyPostGptUrl =
+  "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-bay-space-intake-bureau";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -150,6 +163,206 @@ function limitWords(value: string, limit: number) {
   return words.slice(0, limit).join(" ");
 }
 
+function cleanBankLine(value: string) {
+  return value
+    .replace(/^\s*(?:[·*•-]|\d+[.)])\s*/, "")
+    .replace(/^["“”]+|["“”]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanBankHeadline(value: string) {
+  return cleanBankLine(value).replace(/\.$/, "");
+}
+
+function cleanBankUrl(value: string) {
+  return value.replace(/[)\].,;]+$/g, "");
+}
+
+function extractBankUrls(value: string) {
+  const urls = value.match(/https?:\/\/[^\s<>"']+/g) ?? [];
+
+  return Array.from(new Set(urls.map(cleanBankUrl)));
+}
+
+function extractBankHeadline(value: string) {
+  const headlineMatch = value.match(
+    /(?:headline|title)[\s\S]{0,120}?(?:with|:|-)\s*([\s\S]*?)(?=\s+Confirm\b|\n\s*(?:Next\b|Details?\b|Body\b|Tags?\b|Tag\s*\d+|Sources?\b|[·*•-])|$)/i,
+  );
+
+  if (headlineMatch?.[1]) {
+    return cleanBankHeadline(headlineMatch[1]);
+  }
+
+  const lines = value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const fallbackLine = lines.find((line) => {
+    const normalizedLine = line.toLowerCase();
+
+    return (
+      !/^https?:\/\//i.test(line) &&
+      !/^(daily\s*food|theor(?:y|ies)|conspiracy|top\s*story|library)[.!]?$/.test(
+        normalizedLine,
+      ) &&
+      !/^(next|sources?|source links?|details?|body|tags?)\b/.test(
+        normalizedLine,
+      ) &&
+      !/^(?:[·*•-]\s*)?(?:for\s+)?tag\s*\d+\b/.test(normalizedLine)
+    );
+  });
+
+  return fallbackLine ? cleanBankHeadline(fallbackLine) : "";
+}
+
+function extractBankTagBlocks(value: string) {
+  const tags: { index: number; text: string }[] = [];
+  const tagBlockRegex =
+    /(?:^|\n)\s*(?:[·*•-]\s*)?Tag\s*(\d+)(?:\s*\([^)]*\))?\s*(?::\s*([^\n]+))?\n?([\s\S]*?)(?=\n\s*(?:[·*•-]\s*)?(?:For\s+Tag\s*\d+|Tag\s*\d+|Source\s*\d+|$))/gi;
+  let tagMatch = tagBlockRegex.exec(value);
+
+  while (tagMatch) {
+    const tagText = cleanBankLine(
+      `${tagMatch[2] ?? ""}\n${tagMatch[3] ?? ""}`,
+    );
+
+    if (tagText) {
+      tags.push({
+        index: Number(tagMatch[1]),
+        text: tagText,
+      });
+    }
+
+    tagMatch = tagBlockRegex.exec(value);
+  }
+
+  return tags
+    .sort((leftTag, rightTag) => leftTag.index - rightTag.index)
+    .map((tag) => tag.text);
+}
+
+function extractBankSection(value: string, labels: string[]) {
+  const labelPattern = labels.join("|");
+  const sectionMatch = value.match(
+    new RegExp(
+      `(?:^|\\n)\\s*(?:${labelPattern})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:headline|title|details?|body|tags?|sources?|source links?)\\s*:|$)`,
+      "i",
+    ),
+  );
+
+  return sectionMatch?.[1]?.trim() ?? "";
+}
+
+function extractBankDetailLines(value: string) {
+  const detailSection = extractBankSection(value, ["details?", "body", "tags?"]);
+
+  if (!detailSection) {
+    return [];
+  }
+
+  return detailSection
+    .split("\n")
+    .map(cleanBankLine)
+    .filter((line) => line && !/^https?:\/\//i.test(line));
+}
+
+function stripBankSourceLines(value: string) {
+  return value
+    .split("\n")
+    .filter((line) => {
+      const trimmedLine = line.trim().toLowerCase();
+
+      return (
+        trimmedLine &&
+        !/^https?:\/\//i.test(trimmedLine) &&
+        !/^(sources?|source links?)\s*:/.test(trimmedLine)
+      );
+    })
+    .join("\n")
+    .trim();
+}
+
+function parseBankPostInput(
+  value: string,
+  bankCategory: BankPostCategory,
+): { error?: string; post?: ParsedBankPost } {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return { error: "bank box empty" };
+  }
+
+  const normalizedValue = trimmedValue.toLowerCase();
+  const requestedCategory = /\btop\s*story\b/.test(normalizedValue)
+    ? "top-story"
+    : /\blibrary\b/.test(normalizedValue)
+      ? "library-submission"
+      : /\bdaily\s*food\b/.test(normalizedValue)
+        ? "daily-food"
+        : /\b(?:conspiracy|theor(?:y|ies))\b/.test(normalizedValue)
+          ? "theory"
+          : "";
+
+  if (requestedCategory && requestedCategory !== bankCategory) {
+    return {
+      error: `bank lane only supports ${bankCategory.replace("-", " ")} for this account`,
+    };
+  }
+
+  const title = extractBankHeadline(trimmedValue).slice(0, 75);
+  const sources = extractBankUrls(trimmedValue);
+  const tagBlocks = extractBankTagBlocks(trimmedValue);
+  const detailLines = tagBlocks.length ? tagBlocks : extractBankDetailLines(trimmedValue);
+  const tags = detailLines.map((tag) => tag.slice(0, 150)).slice(0, 3);
+  const bodySection = extractBankSection(trimmedValue, ["body", "theory", "post"]);
+  const fallbackBody = tags.length
+    ? tags.join("\n")
+    : stripBankSourceLines(
+        trimmedValue
+          .replace(/https?:\/\/[^\s<>"']+/g, "")
+          .replace(/(?:headline|title)[\s\S]{0,120}?(?:with|:|-)\s*[\s\S]*?(?=\s+Confirm\b|\n|$)/i, ""),
+      );
+  const body =
+    bankCategory === "daily-food"
+      ? tags.join("\n")
+      : stripBankSourceLines(bodySection || fallbackBody).slice(0, 50000);
+
+  if (!title) {
+    return { error: "headline missing" };
+  }
+
+  if (bankCategory === "daily-food" && !tags.length) {
+    return { error: "daily food details missing" };
+  }
+
+  if (bankCategory === "theory" && !body) {
+    return { error: "theory body missing" };
+  }
+
+  return {
+    post: {
+      body,
+      sources,
+      tags,
+      title,
+    },
+  };
+}
+
+function getBankPostCategory(accountMarker: string): BankPostCategory | null {
+  if (accountMarker.endsWith("-N")) {
+    return "daily-food";
+  }
+
+  if (accountMarker.endsWith("-T")) {
+    return "theory";
+  }
+
+  return null;
+}
+
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [resolvedMember, setResolvedMember] = useState(member);
@@ -170,10 +383,17 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   >({});
   const [activeFavoriteCategory, setActiveFavoriteCategory] =
     useState<FavoriteCategory | "">("");
-  const [postPreview, setPostPreview] = useState<Omit<
-    BayPost,
-    "id" | "createdAt" | "dateKey"
-  > | null>(null);
+  const [postPreview, setPostPreview] = useState<PostPreviewDraft | null>(null);
+  const [lazyMode, setLazyMode] = useState<LazyAssistantMode>("chat");
+  const [lazyPrompt, setLazyPrompt] = useState("");
+  const [lazyResponse, setLazyResponse] = useState("");
+  const [lazyBankInput, setLazyBankInput] = useState("");
+  const [lazyBankError, setLazyBankError] = useState("");
+  const [lazyPostPreview, setLazyPostPreview] =
+    useState<PostPreviewDraft | null>(null);
+  const [lazyShakeTarget, setLazyShakeTarget] = useState<
+    "" | "send" | "bank" | "bank-submit"
+  >("");
   const [previewWarning, setPreviewWarning] = useState(false);
   const [deletePostId, setDeletePostId] = useState("");
   const [isWipeAllOpen, setIsWipeAllOpen] = useState(false);
@@ -228,6 +448,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     ? postCategory
     : availablePostCategories[0]?.id ?? "library-submission";
   const accountMarker = getRoleAcronym(savedMember?.roles ?? "");
+  const lazyBankCategory = getBankPostCategory(accountMarker);
   const openDrafts = [
     ...minimizedDrafts,
     ...(isPostOpen && activeDraftId
@@ -269,6 +490,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       (highestId, draft) => Math.max(highestId, draft.id),
       0,
     ) + 1;
+  const openDraftsJson = JSON.stringify(openDrafts);
 
   function createBlankDraft(id: number): PostDraft {
     return {
@@ -397,7 +619,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     );
   }
 
-  function clearOpenPostDrafts() {
+  const clearOpenPostDrafts = useCallback(() => {
     if (resolvedMember) {
       window.localStorage.removeItem(
         `${openPostDraftsStorageKey}:${resolvedMember}`,
@@ -407,7 +629,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setMinimizedDrafts([]);
     setActiveDraftId(null);
     setIsPostOpen(false);
-  }
+  }, [resolvedMember]);
 
   useEffect(() => {
     async function syncActiveMember() {
@@ -454,9 +676,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       window.removeEventListener("storage", syncActiveMember);
       window.removeEventListener("bay-space-auth", syncActiveMember);
     };
-  }, [member]);
+  }, [clearOpenPostDrafts, member]);
 
   useEffect(() => {
+    let loadDraftsFrame = 0;
+
     if (!resolvedMember || !isUnlocked) {
       return;
     }
@@ -473,13 +697,21 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       const drafts = JSON.parse(savedDrafts) as PostDraft[];
 
       if (Array.isArray(drafts)) {
-        setMinimizedDrafts(drafts);
+        loadDraftsFrame = window.requestAnimationFrame(() => {
+          setMinimizedDrafts(drafts);
+        });
       }
     } catch {
       window.localStorage.removeItem(
         `${openPostDraftsStorageKey}:${resolvedMember}`,
       );
     }
+
+    return () => {
+      if (loadDraftsFrame) {
+        window.cancelAnimationFrame(loadDraftsFrame);
+      }
+    };
   }, [isUnlocked, resolvedMember]);
 
   useEffect(() => {
@@ -487,25 +719,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    saveOpenPostDrafts(openDrafts);
-  }, [isUnlocked, resolvedMember, JSON.stringify(openDrafts)]);
-
-  useEffect(() => {
-    function minimizeBeforeNavigation() {
-      minimizePostWindow();
-    }
-
-    window.addEventListener("bay-space-minimize-posts", minimizeBeforeNavigation);
-    window.addEventListener("pagehide", minimizeBeforeNavigation);
-
-    return () => {
-      window.removeEventListener(
-        "bay-space-minimize-posts",
-        minimizeBeforeNavigation,
-      );
-      window.removeEventListener("pagehide", minimizeBeforeNavigation);
-    };
-  });
+    window.localStorage.setItem(
+      `${openPostDraftsStorageKey}:${resolvedMember}`,
+      openDraftsJson,
+    );
+  }, [isUnlocked, openDraftsJson, resolvedMember]);
 
   useEffect(() => {
     function syncMyPosts() {
@@ -651,6 +869,23 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setPreviewWarning(false);
   }
 
+  useEffect(() => {
+    function minimizeBeforeNavigation() {
+      minimizePostWindow();
+    }
+
+    window.addEventListener("bay-space-minimize-posts", minimizeBeforeNavigation);
+    window.addEventListener("pagehide", minimizeBeforeNavigation);
+
+    return () => {
+      window.removeEventListener(
+        "bay-space-minimize-posts",
+        minimizeBeforeNavigation,
+      );
+      window.removeEventListener("pagehide", minimizeBeforeNavigation);
+    };
+  });
+
   function restorePostDraft(draftId: number) {
     const draft = minimizedDrafts.find((postDraft) => postDraft.id === draftId);
     const currentDraft = getCurrentDraft();
@@ -682,7 +917,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setPostPreview(buildCurrentPost());
   }
 
-  function buildCurrentPost(): Omit<BayPost, "id" | "createdAt" | "dateKey"> {
+  function buildCurrentPost(): PostPreviewDraft {
     const author = resolvedMember || "unknown";
 
     if (activePostCategory === "top-story") {
@@ -790,6 +1025,131 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     resetPostDraft();
+  }
+
+  function shakeLazyButton(target: "send" | "bank" | "bank-submit") {
+    setLazyShakeTarget("");
+    window.requestAnimationFrame(() => setLazyShakeTarget(target));
+  }
+
+  function sendLazyPrompt() {
+    if (!lazyPrompt.trim()) {
+      shakeLazyButton("send");
+      return;
+    }
+
+    setLazyResponse("assistant offline");
+    setLazyPrompt("");
+  }
+
+  function openLazyBank() {
+    setLazyPostPreview(null);
+    setLazyBankError("");
+
+    if (!lazyBankCategory) {
+      setLazyResponse("bank lane unavailable");
+      shakeLazyButton("bank");
+      return;
+    }
+
+    setLazyMode("bank");
+    setLazyPrompt("");
+    setLazyResponse("");
+  }
+
+  function buildLazyBankPost(parsedPost: ParsedBankPost): PostPreviewDraft | null {
+    if (!lazyBankCategory) {
+      return null;
+    }
+
+    const author = resolvedMember || "unknown";
+
+    if (lazyBankCategory === "daily-food") {
+      const dateKey = getDateKey();
+      const dailyFoodOrder =
+        allPosts.filter(
+          (post) => post.category === "daily-food" && post.dateKey === dateKey,
+        ).length + 1;
+      const tags = parsedPost.tags.slice(0, 3);
+      const tagSources = tags.map((_, index) => parsedPost.sources[index] ?? "");
+
+      return {
+        category: "daily-food",
+        title: parsedPost.title || "untitled daily food",
+        body: tags.join("\n"),
+        anonymous: false,
+        incognito: false,
+        author,
+        meta: {
+          tags,
+          tagSources,
+          dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
+          dailyFoodOrder: dailyFoodOrder.toString(),
+          sources: parsedPost.sources.filter(Boolean),
+        },
+      };
+    }
+
+    return {
+      category: "theory",
+      title: parsedPost.title || "untitled theory",
+      body: parsedPost.body,
+      anonymous: false,
+      incognito: false,
+      author,
+      meta: {
+        sources: parsedPost.sources.filter(Boolean),
+      },
+    };
+  }
+
+  function submitLazyBank() {
+    if (!lazyBankCategory) {
+      setLazyBankError("bank lane unavailable");
+      shakeLazyButton("bank-submit");
+      return;
+    }
+
+    const parsedPost = parseBankPostInput(lazyBankInput, lazyBankCategory);
+
+    if (parsedPost.error || !parsedPost.post) {
+      setLazyBankError(parsedPost.error ?? "bank parse failed");
+      shakeLazyButton("bank-submit");
+      return;
+    }
+
+    const nextPreview = buildLazyBankPost(parsedPost.post);
+
+    if (!nextPreview) {
+      setLazyBankError("bank lane unavailable");
+      shakeLazyButton("bank-submit");
+      return;
+    }
+
+    setLazyPostPreview(nextPreview);
+    setLazyBankError("");
+    setLazyMode("preview");
+  }
+
+  async function confirmLazyBankPost() {
+    if (
+      lazyPostPreview &&
+      canCreatePosts &&
+      allowedPostCategories.includes(lazyPostPreview.category)
+    ) {
+      await saveBayPost(lazyPostPreview);
+      setLazyPostPreview(null);
+      setLazyBankInput("");
+      setLazyBankError("");
+      setLazyResponse("bank posted");
+      setLazyMode("chat");
+    }
+  }
+
+  function editLazyBankPost() {
+    setLazyPostPreview(null);
+    setLazyBankError("");
+    setLazyMode("bank");
   }
 
   async function wipeAllPosts() {
@@ -1171,9 +1531,22 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               favorites
             </button>
+            <button
+              onClick={() => {
+                setActivePanel("lazy-assistant");
+                setLazyBankError("");
+              }}
+              className={`border px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "lazy-assistant"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              Lazy Assistant
+            </button>
             <Link
               href={`/profile/${resolvedMember}`}
-              className="border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
+              className="border border-[#1d7f12] px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
             >
               profile
             </Link>
@@ -1986,6 +2359,204 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       no favorites filed yet
                     </p>
                   )}
+                </div>
+              )}
+            </div>
+          ) : activePanel === "lazy-assistant" ? (
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                Lazy Assistant
+              </p>
+              {lazyMode === "preview" && lazyPostPreview ? (
+                <div className="mt-5">
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                    preview
+                  </p>
+                  <article className="mt-5 border-2 border-[#1d7f12] px-4 py-4">
+                    {lazyPostPreview.category === "daily-food" &&
+                    typeof lazyPostPreview.meta?.dailyFoodOrder ===
+                      "string" ? (
+                      <p className="float-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                        #{lazyPostPreview.meta.dailyFoodOrder}
+                      </p>
+                    ) : null}
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      {lazyPostPreview.category.replace("-", " ")}
+                    </p>
+                    {(lazyPostPreview.anonymous || savedMember?.name) ? (
+                      <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                        {lazyPostPreview.anonymous
+                          ? "classified"
+                          : savedMember?.name}
+                      </p>
+                    ) : null}
+                    {typeof lazyPostPreview.meta?.dailyFoodCode === "string" ? (
+                      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                        {lazyPostPreview.meta.dailyFoodCode}
+                      </p>
+                    ) : null}
+                    <h2 className="mt-3 text-xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                      {lazyPostPreview.title}
+                    </h2>
+                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
+                      {lazyPostPreview.body || "no body entered"}
+                    </p>
+                    {getPostSources(lazyPostPreview).length ? (
+                      <div className="mt-5 border-t border-[#1d7f12] pt-3">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                          SOURCES
+                        </p>
+                        <div className="mt-2 grid gap-2 text-xs">
+                          {getPostSources(lazyPostPreview).map((source) => (
+                            <a
+                              key={source}
+                              href={getSourceHref(source)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                            >
+                              {source}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </article>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={confirmLazyBankPost}
+                      className="border-2 border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.55)] transition hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.72)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={editLazyBankPost}
+                      className="border border-[#1d7f12] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      edit
+                    </button>
+                  </div>
+                </div>
+              ) : lazyMode === "bank" ? (
+                <div className="mt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      bank lane:{" "}
+                      <span className="text-[#39ff14]">
+                        {lazyBankCategory
+                          ? lazyBankCategory.replace("-", " ")
+                          : "unavailable"}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLazyMode("chat");
+                        setLazyBankError("");
+                      }}
+                      className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      back
+                    </button>
+                  </div>
+                  <textarea
+                    aria-label="Bank post intake"
+                    value={lazyBankInput}
+                    onChange={(event) => {
+                      setLazyBankInput(event.target.value);
+                      setLazyBankError("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.metaKey || event.ctrlKey)
+                      ) {
+                        event.preventDefault();
+                        submitLazyBank();
+                      }
+                    }}
+                    rows={12}
+                    className="mt-4 min-h-[20rem] w-full resize-y border-2 border-[#39ff14] bg-black px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14] outline-none shadow-[0_0_18px_rgba(57,255,20,0.18)] placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#d7ffd0]"
+                  />
+                  {lazyBankError ? (
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#ff6b6b]">
+                      {lazyBankError}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={submitLazyBank}
+                    onAnimationEnd={() => setLazyShakeTarget("")}
+                    className={`mt-5 border-2 border-dashed border-[#39ff14] px-8 py-4 text-3xl font-black text-[#39ff14] shadow-[0_0_16px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                      lazyShakeTarget === "bank-submit"
+                        ? "animate-[option-shake_180ms_linear]"
+                        : ""
+                    }`}
+                    aria-label="Submit bank lane post"
+                  >
+                    ✅💰
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-5 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+                  <div
+                    className="min-h-[14rem] border border-[#1d7f12] bg-[#001100] px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14]"
+                    aria-live="polite"
+                  >
+                    {lazyResponse || "\u00a0"}
+                  </div>
+                  <textarea
+                    aria-label="Lazy Assistant message"
+                    value={lazyPrompt}
+                    onChange={(event) => setLazyPrompt(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        sendLazyPrompt();
+                      }
+                    }}
+                    rows={6}
+                    className="mt-4 min-h-[10rem] w-full resize-y border border-[#1d7f12] bg-[#001100] px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  />
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={sendLazyPrompt}
+                      onAnimationEnd={() => setLazyShakeTarget("")}
+                      className={`grid h-12 w-12 place-items-center border border-[#39ff14] text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        lazyShakeTarget === "send"
+                          ? "animate-[option-shake_180ms_linear]"
+                          : ""
+                      }`}
+                      aria-label="Send to Lazy Assistant"
+                    >
+                      🌀
+                    </button>
+                    <a
+                      href={lazyPostGptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="grid h-12 w-12 place-items-center border border-[#39ff14] text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      aria-label="Open Lazy Post GPT"
+                    >
+                      👻📝
+                    </a>
+                    <button
+                      type="button"
+                      onClick={openLazyBank}
+                      onAnimationEnd={() => setLazyShakeTarget("")}
+                      className={`grid h-12 min-w-12 place-items-center border border-[#39ff14] px-3 text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        lazyShakeTarget === "bank"
+                          ? "animate-[option-shake_180ms_linear]"
+                          : ""
+                      }`}
+                      aria-label="Open bank lane"
+                    >
+                      ✅💰
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

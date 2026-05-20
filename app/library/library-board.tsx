@@ -258,14 +258,38 @@ export default function LibraryBoard() {
             <div className="mt-5 grid gap-3">
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  about
+                  How to - Lazy Post
                 </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>BaySpace is a new approach to social media.</li>
-                  <li>It is built as a place to share news, theories, conspiracies, sources, and strange signals.</li>
-                  <li>It is not built for hyping yourself, performing popularity, or showing off.</li>
-                  <li>Here you will not find commenting, messaging, follower counts, or public like counts.</li>
-                </ul>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <a
+                    href="https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-bay-space-intake-bureau"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    Create
+                  </a>
+                  <p>Lazy Post finds stories for you.</p>
+                  <p>
+                    Just ask for: Daily Food, Top Story, or Conspiracy/Theory.
+                  </p>
+                  <p>
+                    Thiago searches, checks the story, and gives you a numbered list.
+                  </p>
+                  <p>You pick a number.</p>
+                  <div>
+                    <p>Then Thiago turns it into a clean post with:</p>
+                    <ul className="mt-2 list-disc space-y-2 pl-5">
+                      <li>headline</li>
+                      <li>body details</li>
+                      <li>source links</li>
+                      <li>ready-to-paste Agent Mode format</li>
+                    </ul>
+                  </div>
+                  <p>
+                    You do not need to find the article, organize the facts, or format the post.
+                  </p>
+                </div>
               </details>
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
@@ -391,6 +415,18 @@ export default function LibraryBoard() {
                   <li>Press Delete account for full erase, or Wipe Account to clear posts while keeping the ID card.</li>
                   <li>Delete account erases the account and all information. Full delete. Account number is retired permanently.</li>
                   <li>Wipe Account clears all posts. ID card stays the same.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  about
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>BaySpace is a new approach to social media.</li>
+                  <li>It is built as a place to share news, theories, conspiracies, sources, and strange signals.</li>
+                  <li>It is not built for hyping yourself, performing popularity, or showing off.</li>
+                  <li>Here you will not find commenting, messaging, follower counts, or public like counts.</li>
                 </ul>
               </details>
             </div>

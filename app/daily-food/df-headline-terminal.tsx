@@ -398,11 +398,6 @@ export default function DfHeadlineTerminal({
             <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimestamp(displayedPost.createdAt)}
             </p>
-            {getMetaString(displayedPost, "dailyFoodCode") ? (
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                {getMetaString(displayedPost, "dailyFoodCode")}
-              </p>
-            ) : null}
             <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
               {displayedPost.title}
             </h2>
@@ -424,7 +419,9 @@ export default function DfHeadlineTerminal({
                           {" "}
                           <a
                             href={getSourceHref(tag.source)}
-                            className="inline-block text-xs font-black text-[#39ff14] transition hover:animate-[option-shake_180ms_linear] hover:text-[#d7ffd0]"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block text-xs font-black text-[#39ff14] transition duration-150 hover:scale-125 hover:text-[#d7ffd0] hover:[text-shadow:0_0_8px_#39ff14,0_0_18px_rgba(57,255,20,0.72)]"
                             aria-label={`Source for ${tag.text}`}
                           >
                             (.)
@@ -459,8 +456,13 @@ export default function DfHeadlineTerminal({
                 </ol>
               </section>
             ) : null}
-            <div className="mt-5">
+            <div className="mt-5 flex flex-wrap items-center gap-3">
               <CopyPostLinkButton path={getPostLinkPath(displayedPost)} />
+              {getMetaString(displayedPost, "dailyFoodCode") ? (
+                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                  {getMetaString(displayedPost, "dailyFoodCode")}
+                </span>
+              ) : null}
             </div>
           </article>
         ) : activePosts.length ? (

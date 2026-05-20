@@ -11,6 +11,7 @@ import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import {
   favoriteStoreEvent,
+  getActiveMemberId,
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
 import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
@@ -72,6 +73,8 @@ export default function TheoryBoard() {
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
   const [openPostId, setOpenPostId] = useState(getPostHashId);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [revealAll, setRevealAll] = useState(false);
 
   useEffect(() => {
     function syncPosts() {
@@ -81,10 +84,15 @@ export default function TheoryBoard() {
     }
 
     syncPosts();
+    async function syncLogin() {
+      setIsLoggedIn(Boolean(await getActiveMemberId()));
+    }
+
     async function syncFavorites() {
       setFavoriteAuthorIds(await getFavoriteAuthorIds());
     }
 
+    syncLogin();
     syncFavorites();
     fetch("/api/members", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : { members: [] }))
@@ -93,6 +101,8 @@ export default function TheoryBoard() {
       });
     window.addEventListener("storage", syncPosts);
     window.addEventListener(postStoreEvent, syncPosts);
+    window.addEventListener("storage", syncLogin);
+    window.addEventListener("bay-space-auth", syncLogin);
     window.addEventListener("storage", syncFavorites);
     window.addEventListener("bay-space-auth", syncFavorites);
     window.addEventListener(favoriteStoreEvent, syncFavorites);
@@ -100,6 +110,8 @@ export default function TheoryBoard() {
     return () => {
       window.removeEventListener("storage", syncPosts);
       window.removeEventListener(postStoreEvent, syncPosts);
+      window.removeEventListener("storage", syncLogin);
+      window.removeEventListener("bay-space-auth", syncLogin);
       window.removeEventListener("storage", syncFavorites);
       window.removeEventListener("bay-space-auth", syncFavorites);
       window.removeEventListener(favoriteStoreEvent, syncFavorites);
@@ -146,6 +158,10 @@ export default function TheoryBoard() {
       "",
       `${window.location.pathname}${window.location.search}`,
     );
+  }
+
+  function isPostRevealed() {
+    return isLoggedIn && revealAll;
   }
 
   const sortedPosts = useMemo(() => {
@@ -223,6 +239,23 @@ export default function TheoryBoard() {
               className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
             />
           </label>
+          {isLoggedIn ? (
+            <label className="grid w-fit gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+                reveal
+              </span>
+              <span className="flex h-[38px] w-fit items-center gap-3 border border-[#1d7f12] px-3 text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                <input
+                  type="checkbox"
+                  checked={revealAll}
+                  onChange={(event) => setRevealAll(event.target.checked)}
+                  className="peer sr-only"
+                />
+                <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
+                <span>{revealAll ? "on" : "off"}</span>
+              </span>
+            </label>
+          ) : null}
         </div>
         <label className="grid w-fit gap-2 sm:justify-self-end">
           <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
@@ -250,7 +283,7 @@ export default function TheoryBoard() {
             <article
               key={post.id}
               id={`post-${post.id}`}
-              className="border-2 border-[#1d7f12] bg-black px-4 py-4"
+              className="theory-card border-2 border-[#1d7f12] bg-black px-4 py-4"
             >
               <button
                 type="button"
@@ -259,14 +292,22 @@ export default function TheoryBoard() {
                     currentId === post.id ? "" : post.id,
                   )
                 }
-                className="block w-full text-left focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
               >
-              <h2 className="text-lg font-black uppercase tracking-[0.12em] text-[#39ff14]">
-                {post.title}
-              </h2>
-              <span className="mt-2 block text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                {formatPostTimestamp(post.createdAt)}
-              </span>
+                <span
+                  className={`theory-title-redacted relative block w-full overflow-hidden text-lg font-black uppercase tracking-[0.12em] text-[#39ff14] ${
+                    isPostRevealed() ? "theory-strip-revealed" : ""
+                  }`}
+                >
+                  <span>{post.title}</span>
+                </span>
+                <span
+                  className={`theory-date-redacted relative mt-2 block w-full overflow-hidden text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78] ${
+                    isPostRevealed() ? "theory-strip-revealed" : ""
+                  }`}
+                >
+                  <span>{formatPostTimestamp(post.createdAt)}</span>
+                </span>
               </button>
               {openPostId === post.id ? (
                 <>
@@ -300,7 +341,7 @@ export default function TheoryBoard() {
                   <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
                     posted {formatPostTimestamp(post.createdAt)}
                   </p>
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
+                  <p className="mt-4 whitespace-pre-wrap font-mono text-base leading-7 text-[#39ff14]">
                     {post.body}
                   </p>
                   {getPostSources(post).length ? (
