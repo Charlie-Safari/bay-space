@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   FormEvent,
@@ -391,6 +392,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyPostPreview, setLazyPostPreview] =
     useState<PostPreviewDraft | null>(null);
+  const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
+    useState(false);
   const [lazyShakeTarget, setLazyShakeTarget] = useState<
     "" | "send" | "bank" | "bank-submit"
   >("");
@@ -1045,6 +1048,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   function openLazyBank() {
     setLazyPostPreview(null);
     setLazyBankError("");
+    setIsLazyAssistantMinimized(false);
+    setActivePanel("lazy-assistant");
 
     if (!lazyBankCategory) {
       setLazyResponse("bank lane unavailable");
@@ -1055,6 +1060,28 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setLazyMode("bank");
     setLazyPrompt("");
     setLazyResponse("");
+  }
+
+  function restoreLazyAssistant() {
+    setIsLazyAssistantMinimized(false);
+    setActivePanel("lazy-assistant");
+  }
+
+  function minimizeLazyAssistant() {
+    setIsLazyAssistantMinimized(true);
+    setActivePanel("id-card");
+  }
+
+  function wipeLazyAssistant() {
+    setLazyMode("chat");
+    setLazyPrompt("");
+    setLazyResponse("");
+    setLazyBankInput("");
+    setLazyBankError("");
+    setLazyPostPreview(null);
+    setLazyShakeTarget("");
+    setIsLazyAssistantMinimized(false);
+    setActivePanel("id-card");
   }
 
   function buildLazyBankPost(parsedPost: ParsedBankPost): PostPreviewDraft | null {
@@ -1448,18 +1475,32 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           briefing room
         </h1>
         {isUnlocked && canCreatePosts ? (
-          <button
-            type="button"
-            onClick={openPostWindow}
-            className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-          >
-            new post
-          </button>
+          <div className="flex w-fit flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={openPostWindow}
+              className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              new post
+            </button>
+            {lazyBankCategory ? (
+              <button
+                type="button"
+                onClick={openLazyBank}
+                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xl font-black leading-none text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                aria-label={`Open ${lazyBankCategory.replace("-", " ")} bank lane`}
+                title={`${lazyBankCategory.replace("-", " ")} bank lane`}
+              >
+                ✅💰
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
-      {isUnlocked && canCreatePosts ? (
+      {isUnlocked && (canCreatePosts || isLazyAssistantMinimized) ? (
         <div className="mt-6 flex flex-wrap items-end gap-2">
-          {openDrafts.map((draft) => (
+          {canCreatePosts
+            ? openDrafts.map((draft) => (
             <button
               key={draft.id}
               type="button"
@@ -1472,7 +1513,17 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               post {draft.id} - [open]
             </button>
-          ))}
+              ))
+            : null}
+          {isLazyAssistantMinimized ? (
+            <button
+              type="button"
+              onClick={restoreLazyAssistant}
+              className="border-2 border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#39ff14]"
+            >
+              LA 1 - [open]
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -1534,6 +1585,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             <button
               onClick={() => {
                 setActivePanel("lazy-assistant");
+                setIsLazyAssistantMinimized(false);
                 setLazyBankError("");
               }}
               className={`border px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
@@ -2364,9 +2416,31 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </div>
           ) : activePanel === "lazy-assistant" ? (
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                Lazy Assistant
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                  Lazy Assistant
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={minimizeLazyAssistant}
+                    className="grid h-7 w-7 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    aria-label="Minimize Lazy Assistant"
+                    title="Minimize"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={wipeLazyAssistant}
+                    className="grid h-7 w-7 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
+                    aria-label="Wipe Lazy Assistant"
+                    title="Wipe"
+                  >
+                    x
+                  </button>
+                </div>
+              </div>
               {lazyMode === "preview" && lazyPostPreview ? (
                 <div className="mt-5">
                   <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
@@ -2520,12 +2594,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     rows={6}
                     className="mt-4 min-h-[10rem] w-full resize-y border border-[#1d7f12] bg-[#001100] px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
                   />
-                  <div className="mt-4 flex flex-wrap gap-3">
+                  <div className="mt-6 flex flex-wrap items-center gap-6">
                     <button
                       type="button"
                       onClick={sendLazyPrompt}
                       onAnimationEnd={() => setLazyShakeTarget("")}
-                      className={`grid h-12 w-12 place-items-center border border-[#39ff14] text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                      className={`inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
                         lazyShakeTarget === "send"
                           ? "animate-[option-shake_180ms_linear]"
                           : ""
@@ -2538,16 +2612,22 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       href={lazyPostGptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="grid h-12 w-12 place-items-center border border-[#39ff14] text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      className="inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                       aria-label="Open Lazy Post GPT"
                     >
-                      👻📝
+                      <Image
+                        src="/bay-space-logo-icon.png"
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 object-contain"
+                      />
                     </a>
                     <button
                       type="button"
                       onClick={openLazyBank}
                       onAnimationEnd={() => setLazyShakeTarget("")}
-                      className={`grid h-12 min-w-12 place-items-center border border-[#39ff14] px-3 text-2xl text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                      className={`inline-flex h-16 min-w-32 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
                         lazyShakeTarget === "bank"
                           ? "animate-[option-shake_180ms_linear]"
                           : ""
