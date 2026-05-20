@@ -186,6 +186,14 @@ function extractBankUrls(value: string) {
   return Array.from(new Set(urls.map(cleanBankUrl)));
 }
 
+function stripBankSourceText(value: string) {
+  return value
+    .replace(/\b(?:source(?:\s+link)?|link)\s*:\s*https?:\/\/[^\s<>"']+/gi, "")
+    .replace(/\b(?:source(?:\s+link)?|link)\s*:\s*/gi, "")
+    .replace(/https?:\/\/[^\s<>"']+/g, "")
+    .trim();
+}
+
 function extractBankHeadline(value: string) {
   const headlineMatch = value.match(
     /(?:headline|title)[\s\S]{0,120}?(?:with|:|-)\s*([\s\S]*?)(?=\s+Confirm\b|\n\s*(?:Next\b|Details?\b|Body\b|Tags?\b|Tag\s*\d+|Sources?\b|[·*•-])|$)/i,
@@ -221,12 +229,12 @@ function extractBankHeadline(value: string) {
 function extractBankTagBlocks(value: string) {
   const tags: { index: number; text: string }[] = [];
   const tagBlockRegex =
-    /(?:^|\n)\s*(?:[·*•-]\s*)?Tag\s*(\d+)(?:\s*\([^)]*\))?\s*(?::\s*([^\n]+))?\n?([\s\S]*?)(?=\n\s*(?:[·*•-]\s*)?(?:For\s+Tag\s*\d+|Tag\s*\d+|Source\s*\d+|$))/gi;
+    /(?:^|\n)\s*(?:[·*•-]\s*)?Tag\s*(\d+)(?:\s*\([^)]*\))?\s*(?::\s*([^\n]+))?\n?([\s\S]*?)(?=\n\s*(?:[·*•-]\s*)?(?:For\s+Tag\s*\d+|Tag\s*\d+|Source(?:\s+Link)?\s*:|Source\s*\d+|Link\s*:|$))/gi;
   let tagMatch = tagBlockRegex.exec(value);
 
   while (tagMatch) {
     const tagText = cleanBankLine(
-      `${tagMatch[2] ?? ""}\n${tagMatch[3] ?? ""}`,
+      stripBankSourceText(`${tagMatch[2] ?? ""}\n${tagMatch[3] ?? ""}`),
     );
 
     if (tagText) {
@@ -265,8 +273,13 @@ function extractBankDetailLines(value: string) {
 
   return detailSection
     .split("\n")
-    .map(cleanBankLine)
-    .filter((line) => line && !/^https?:\/\//i.test(line));
+    .map((line) => cleanBankLine(stripBankSourceText(line)))
+    .filter(
+      (line) =>
+        line &&
+        !/^https?:\/\//i.test(line) &&
+        !/^(sources?|source links?|source link|link)\s*:/.test(line),
+    );
 }
 
 function stripBankSourceLines(value: string) {
