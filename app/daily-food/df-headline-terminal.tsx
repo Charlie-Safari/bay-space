@@ -100,6 +100,10 @@ function getPostHashId() {
   return postId === window.location.hash ? "" : postId;
 }
 
+function normalizeLookupText(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export default function DfHeadlineTerminal({
   onClearReference,
   unlockedReference,
@@ -122,9 +126,8 @@ export default function DfHeadlineTerminal({
   const canMoveForward = activeDate < today;
   const activeDateKey = getDateKey(activeDate);
   const normalizedReferenceQuery = unlockedReference
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+    ? normalizeLookupText(unlockedReference)
+    : "";
   const matchedReferencePost = normalizedReferenceQuery
     ? posts.find(
         (post) =>
@@ -135,7 +138,7 @@ export default function DfHeadlineTerminal({
   const matchedReferenceMember = normalizedReferenceQuery
     ? members.find(
         (savedMember) =>
-          savedMember.refName?.toLowerCase().replace(/[^a-z0-9]/g, "") ===
+          normalizeLookupText(savedMember.refName ?? "") ===
           normalizedReferenceQuery,
       ) ?? null
     : null;
@@ -246,7 +249,9 @@ export default function DfHeadlineTerminal({
     }
 
     if (!matchedReferenceMember) {
-      return [];
+      return filterPostsByAuthorMode(posts)
+        .filter((post) => !post.incognito && doesPostMatchLookup(post))
+        .sort(sortNewestFirst);
     }
 
     return filterPostsByAuthorMode(posts)
@@ -257,6 +262,26 @@ export default function DfHeadlineTerminal({
           post.dateKey === activeDateKey,
       )
       .sort(sortNewestFirst);
+  }
+
+  function doesPostMatchLookup(post: BayPost) {
+    const normalizedTitle = normalizeLookupText(post.title);
+    const normalizedAuthorName = normalizeLookupText(getAuthorName(post));
+    const normalizedAuthorRef = normalizeLookupText(
+      members.find((member) => member.member === post.author)?.refName ?? "",
+    );
+    const normalizedCode = normalizeLookupText(
+      getMetaString(post, "dailyFoodCode"),
+    );
+    const normalizedShelfCode = normalizeLookupText(post.shelfCode ?? "");
+
+    return [
+      normalizedTitle,
+      normalizedAuthorName,
+      normalizedAuthorRef,
+      normalizedCode,
+      normalizedShelfCode,
+    ].some((value) => value.includes(normalizedReferenceQuery));
   }
 
   function filterPostsByAuthorMode(filteredPosts: BayPost[]) {
@@ -502,11 +527,9 @@ export default function DfHeadlineTerminal({
         ) : null}
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
-            {getPostMarker(displayedPost) ? (
-              <span className="absolute right-4 top-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                {getPostMarker(displayedPost)}
-              </span>
-            ) : null}
+            <div className="absolute right-4 top-3">
+              <FavoriteButton postId={displayedPost.id} />
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -527,9 +550,6 @@ export default function DfHeadlineTerminal({
             >
               back
             </button>
-            <div className="absolute bottom-4 right-4">
-              <FavoriteButton postId={displayedPost.id} />
-            </div>
             {!displayedPost.incognito &&
             (shouldClassifyAuthor(displayedPost) ||
               getAuthorName(displayedPost)) ? (
@@ -729,7 +749,7 @@ export default function DfHeadlineTerminal({
         ) : isReferenceMode ? (
           <div className="grid gap-4">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              code channel empty
+              search channel empty
             </p>
             <button
               type="button"

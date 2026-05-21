@@ -1753,7 +1753,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </button>
             <button
               onClick={signOut}
-              className="border border-[#ff3b3b] px-3 py-2 text-left text-[#ff6b6b]"
+              className="border border-[#ff3b3b] px-3 py-2 text-left text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black hover:shadow-[0_0_12px_rgba(255,59,59,0.45)] focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
             >
               sign out
             </button>

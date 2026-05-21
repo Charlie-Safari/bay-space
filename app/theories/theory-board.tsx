@@ -301,49 +301,26 @@ export default function TheoryBoard() {
             <article
               key={post.id}
               id={`post-${post.id}`}
-              className="theory-card border-2 border-[#1d7f12] bg-black px-4 py-4"
+              className={`theory-card relative bg-black px-4 py-4 ${
+                openPostId === post.id
+                  ? "border-2 border-[#39ff14] bg-[#020402] shadow-[0_0_18px_rgba(57,255,20,0.2)]"
+                  : "border-2 border-[#1d7f12]"
+              }`}
             >
-              <button
-                type="button"
-                onClick={() =>
-                  setOpenPostId((currentId) =>
-                    currentId === post.id ? "" : post.id,
-                  )
-                }
-                className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                <span
-                  className={`theory-title-redacted relative block w-full overflow-hidden text-lg font-black uppercase tracking-[0.12em] text-[#39ff14] ${
-                    isPostRevealed() ? "theory-strip-revealed" : ""
-                  }`}
-                >
-                  <span>{post.title}</span>
-                </span>
-                <span
-                  className={`theory-date-redacted relative mt-2 block w-full overflow-hidden text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78] ${
-                    isPostRevealed() ? "theory-strip-revealed" : ""
-                  }`}
-                >
-                  <span>{formatPostTimestamp(post.createdAt)}</span>
-                </span>
-              </button>
               {openPostId === post.id ? (
                 <>
+                  <div className="absolute right-4 top-3">
+                    <FavoriteButton postId={post.id} />
+                  </div>
                   <button
                     type="button"
                     onClick={closePost}
-                    className="mt-4 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
                     back
                   </button>
-                  <div className="mt-3">
-                    <FavoriteButton postId={post.id} />
-                  </div>
-                  <div className="mt-3">
-                    <CopyPostLinkButton path={`/theories#post-${post.id}`} />
-                  </div>
                   {!post.anonymous && getAuthorName(post) ? (
-                    <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                    <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
                       <Link
                         href={`/profile/${post.author}`}
                         className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
@@ -352,34 +329,70 @@ export default function TheoryBoard() {
                       </Link>
                     </p>
                   ) : post.anonymous ? (
-                    <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                    <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
                       classified
                     </p>
                   ) : null}
                   <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                    posted {formatPostTimestamp(post.createdAt)}
+                    {formatPostTimestamp(post.createdAt)}
                   </p>
+                  <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                    {post.title}
+                  </h2>
                   <p className="mt-4 whitespace-pre-wrap font-mono text-base leading-7 text-[#39ff14]">
-                    {post.body}
+                    {post.body || "no theory filed"}
                   </p>
                   {getPostSources(post).length ? (
-                    <div className="mt-4 grid gap-1">
-                      {getPostSources(post).map((source) => (
-                        <a
-                          key={source}
-                          href={getSourceHref(source)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="grid grid-cols-[1.5rem_1fr] text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78] transition hover:text-[#39ff14]"
-                        >
-                          <span>+</span>
-                          <span className="break-all">{source}</span>
-                        </a>
-                      ))}
-                    </div>
+                    <section className="mt-5 border-t border-[#1d7f12] pt-3">
+                      <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                        SOURCES
+                      </h3>
+                      <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
+                        {getPostSources(post).map((source) => (
+                          <li key={source}>
+                            <a
+                              href={getSourceHref(source)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                            >
+                              {source}
+                            </a>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
                   ) : null}
+                  <div className="mt-5">
+                    <CopyPostLinkButton path={`/theories#post-${post.id}`} />
+                  </div>
                 </>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenPostId((currentId) =>
+                      currentId === post.id ? "" : post.id,
+                    )
+                  }
+                  className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  <span
+                    className={`theory-title-redacted relative block w-full overflow-hidden text-lg font-black uppercase tracking-[0.12em] text-[#39ff14] ${
+                      isPostRevealed() ? "theory-strip-revealed" : ""
+                    }`}
+                  >
+                    <span>{post.title}</span>
+                  </span>
+                  <span
+                    className={`theory-date-redacted relative mt-2 block w-full overflow-hidden text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78] ${
+                      isPostRevealed() ? "theory-strip-revealed" : ""
+                    }`}
+                  >
+                    <span>{formatPostTimestamp(post.createdAt)}</span>
+                  </span>
+                </button>
+              )}
             </article>
           ))}
         </div>
