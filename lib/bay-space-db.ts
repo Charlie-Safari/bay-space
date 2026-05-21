@@ -460,6 +460,7 @@ export async function completeMember(
       body: {
         agreement_accepted_at: input.agreementAcceptedAt,
         agreement_version: input.agreementVersion,
+        member_number: getMemberNumber(memberId),
         name: normalizeName(input.name),
         ref_name: refName,
         title: normalizeTitle(input.title),
