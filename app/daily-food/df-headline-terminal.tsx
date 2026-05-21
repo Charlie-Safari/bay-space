@@ -517,26 +517,24 @@ export default function DfHeadlineTerminal({
                       onClick={() =>
                         setIsCategoryListLayout((isListLayout) => !isListLayout)
                       }
-                      className="flex items-center gap-2 border border-[#1d7f12] bg-black/80 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      className="flex items-center gap-2 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                     >
                       <span aria-hidden="true">🔑</span>
                       <span
-                        className={`border px-2 py-1 transition ${
+                        aria-hidden="true"
+                        className={`relative h-5 w-10 rounded-full border transition ${
                           isCategoryListLayout
-                            ? "border-[#1d7f12] text-[#7f9f78]"
-                            : "border-[#39ff14] bg-[#39ff14] text-black"
+                            ? "border-[#39ff14] bg-[#062806]"
+                            : "border-[#1d7f12] bg-black"
                         }`}
                       >
-                        off
-                      </span>
-                      <span
-                        className={`border px-2 py-1 transition ${
-                          isCategoryListLayout
-                            ? "border-[#39ff14] bg-[#39ff14] text-black"
-                            : "border-[#1d7f12] text-[#7f9f78]"
-                        }`}
-                      >
-                        on
+                        <span
+                          className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.7)] transition-transform ${
+                            isCategoryListLayout
+                              ? "translate-x-5"
+                              : "translate-x-1"
+                          }`}
+                        />
                       </span>
                     </button>
                   ) : null}
@@ -593,7 +591,7 @@ export default function DfHeadlineTerminal({
                       key={category}
                       type="button"
                       onClick={() => setSelectedDailyFoodCategory(category)}
-                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-dashed hover:border-[#39ff14] hover:bg-black/75 hover:text-[#d7ffd0] hover:shadow-[0_0_18px_rgba(57,255,20,0.3)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                     >
                       <span className="block text-sm font-black uppercase tracking-[0.14em]">
                         {category}
