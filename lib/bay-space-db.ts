@@ -170,7 +170,7 @@ function normalizeRefName(refName: string) {
 }
 
 function normalizeTitle(title: string) {
-  return title.trim().slice(0, 80) || "Curious Reader";
+  return title.trim().slice(0, 80) || "Reader";
 }
 
 function hashPin(pin: string, salt: string) {
@@ -719,6 +719,45 @@ export async function deletePost(postId: string, actorMember: BayMember) {
   });
 
   return true;
+}
+
+export async function updatePostAnonymous(
+  postId: string,
+  actorMember: BayMember,
+  anonymous: boolean,
+) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      select: "*",
+    },
+  });
+  const post = posts[0];
+
+  if (!post) {
+    return null;
+  }
+
+  const actorMemberNumber = getMemberNumber(actorMember.member);
+  if (post.author_member_number !== actorMemberNumber) {
+    return null;
+  }
+
+  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      anonymous,
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+
+  return publicPost(updatedPosts[0]);
 }
 
 export async function listSavedPostIds(memberId: string) {

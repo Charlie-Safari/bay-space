@@ -1,9 +1,9 @@
 import Link from "next/link";
 import HomeBar from "../../components/home-bar";
-import FavoriteAuthorButton from "../../components/favorite-author-button";
+import PublicIdCard from "./public-id-card";
 import { getMember, listPostsByAuthor } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
-import { getRoleAcronym } from "../../../lib/bay-space-roles";
+import { isBayoClub } from "../../../lib/bay-space-roles";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -70,9 +70,8 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const { member: memberId } = await params;
   const member = await getMember(memberId);
   const posts = await listPostsByAuthor(memberId);
-  const accountMarker = getRoleAcronym(member?.roles ?? "");
+  const isBayoClubMember = isBayoClub(member?.roles ?? "");
 
-  const topStoryPosts = posts.filter((post) => post.category === "top-story");
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
   const theoryPosts = posts.filter((post) => post.category === "theory");
   const libraryPosts = posts
@@ -86,7 +85,10 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   ].filter(
     (item): item is { label: string; link: { url: string; display: boolean } } =>
       Boolean(item.link?.display && item.link.url),
-  );
+  ).map((item) => ({
+    href: getExternalHref(item.link.url),
+    label: item.label,
+  }));
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -98,46 +100,24 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
         </p>
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           {member?.name ?? "profile not found"}
+          {isBayoClubMember ? " 🦉" : ""}
         </h1>
 
         {member ? (
           <>
-            <details className="mt-10 w-full max-w-2xl border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
-              <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                ID card
-              </summary>
-              <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                <p>EXPLORER NUMBER - #{member.member}</p>
-                <p>TITLE: {member.title}</p>
-                {accountMarker ? <p>ID CARD: ({accountMarker})</p> : null}
-                <p>NAME: {member.name}</p>
-                <p>(REFERENCE NAME): {member.refName || "-----"}</p>
-              </div>
-              {publicLinks.length ? (
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {publicLinks.map((item) => (
-                    <a
-                      key={item.label}
-                      href={getExternalHref(item.link.url)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-                    >
-                      {item.label}
-                    </a>
-                  ))}
-                </div>
-              ) : null}
-              <FavoriteAuthorButton authorId={member.member} />
-            </details>
+            <PublicIdCard
+              favoriteAuthorId={member.member}
+              isBayoClubMember={isBayoClubMember}
+              links={publicLinks}
+              member={{
+                member: member.member,
+                name: member.name,
+                refName: member.refName,
+                title: member.title,
+              }}
+            />
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-4">
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
-                  Top Story
-                </h2>
-                <PostList posts={topStoryPosts} />
-              </section>
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">
                 <h2 className="text-sm font-black uppercase tracking-[0.16em]">
                   Daily Food

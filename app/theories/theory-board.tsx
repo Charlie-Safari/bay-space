@@ -14,7 +14,11 @@ import {
   getActiveMemberId,
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
-import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
+import {
+  hasCreatorAccess,
+  isBayoClub,
+  isGhostRole,
+} from "../../lib/bay-space-roles";
 
 type SortMode = "az" | "date";
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
@@ -151,6 +155,20 @@ export default function TheoryBoard() {
     return members.find((member) => member.member === post.author)?.name.trim() ?? "";
   }
 
+  function getAuthorRoles(post: BayPost) {
+    return members.find((member) => member.member === post.author)?.roles ?? "";
+  }
+
+  function getAuthorDisplayName(post: BayPost) {
+    const authorName = getAuthorName(post);
+
+    if (!authorName) {
+      return "";
+    }
+
+    return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
+  }
+
   function closePost() {
     setOpenPostId("");
     window.history.replaceState(
@@ -270,8 +288,8 @@ export default function TheoryBoard() {
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
-            <option value="ghosts">Ghosts</option>
-            <option value="creators">Creator/Influencer</option>
+            <option value="ghosts">Ghost authors</option>
+            <option value="creators">Authors</option>
             <option value="anon">Anon</option>
           </select>
         </label>
@@ -330,7 +348,7 @@ export default function TheoryBoard() {
                         href={`/profile/${post.author}`}
                         className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                       >
-                        {getAuthorName(post)}
+                        {getAuthorDisplayName(post)}
                       </Link>
                     </p>
                   ) : post.anonymous ? (

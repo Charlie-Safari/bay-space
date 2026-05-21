@@ -10,19 +10,17 @@ import {
   getDateKey,
   postStoreEvent,
 } from "../components/post-store";
+import {
+  countFavoritePosts,
+  favoriteStoreEvent,
+} from "../components/favorite-store";
 
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
+type DiamondWindow = "today" | "week" | "all";
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
-}
-
-function formatMonth(date: Date) {
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
 }
 
 function formatDateLine(date: Date) {
@@ -33,27 +31,45 @@ function formatDateLine(date: Date) {
   }).format(date);
 }
 
-function formatTimelineDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
-}
-
 export default function NewsHeadlineTerminal() {
-  const today = useMemo(() => startOfDay(new Date()), []);
-  const [activeDate, setActiveDate] = useState(today);
+  const todayKey = useMemo(() => getDateKey(), []);
+  const weekStartKey = useMemo(() => getDateKey(addDays(new Date(), -6)), []);
+  const [diamondWindow, setDiamondWindow] =
+    useState<DiamondWindow>("today");
   const [posts, setPosts] = useState<BayPost[]>([]);
-  const canMoveForward = activeDate < today;
-  const nextTimelineDate = addDays(activeDate, 1);
-  const previousTimelineDate = addDays(activeDate, -1);
-  const activeDateKey = getDateKey(activeDate);
-  const activePost =
-    posts.find((post) => post.dateKey === activeDateKey) ?? null;
+  const [favoriteCounts, setFavoriteCounts] = useState<Record<string, number>>({});
+  const rankedPosts = useMemo(() => {
+    const windowedPosts = posts.filter((post) => {
+      if (diamondWindow === "today") {
+        return post.dateKey === todayKey;
+      }
+
+      if (diamondWindow === "week") {
+        return post.dateKey >= weekStartKey;
+      }
+
+      return true;
+    });
+
+    return [...windowedPosts].sort((leftPost, rightPost) => {
+      const diamondDifference =
+        (favoriteCounts[rightPost.id] ?? 0) - (favoriteCounts[leftPost.id] ?? 0);
+
+      if (diamondDifference !== 0) {
+        return diamondDifference;
+      }
+
+      return (
+        new Date(rightPost.createdAt).getTime() -
+        new Date(leftPost.createdAt).getTime()
+      );
+    });
+  }, [diamondWindow, favoriteCounts, posts, todayKey, weekStartKey]);
+  const activePost = rankedPosts[0] ?? null;
 
   useEffect(() => {
     function syncPosts() {
-      getBayPostsByCategory("top-story").then((savedPosts) => {
+      getBayPostsByCategory("daily-food").then((savedPosts) => {
         setPosts(savedPosts.filter((post) => !post.incognito));
       });
     }
@@ -68,23 +84,50 @@ export default function NewsHeadlineTerminal() {
     };
   }, []);
 
-  function moveDate(days: number) {
-    setActiveDate((currentDate) => {
-      const nextDate = addDays(currentDate, days);
+  useEffect(() => {
+    async function syncFavoriteCounts() {
+      setFavoriteCounts(await countFavoritePosts(posts.map((post) => post.id)));
+    }
 
-      return nextDate > today ? today : nextDate;
-    });
-  }
+    syncFavoriteCounts();
+    window.addEventListener("storage", syncFavoriteCounts);
+    window.addEventListener(favoriteStoreEvent, syncFavoriteCounts);
+
+    return () => {
+      window.removeEventListener("storage", syncFavoriteCounts);
+      window.removeEventListener(favoriteStoreEvent, syncFavoriteCounts);
+    };
+  }, [posts]);
 
   return (
-    <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-center">
+    <div className="grid w-full max-w-5xl gap-6">
+      <label className="grid w-fit gap-2 justify-self-end">
+        <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+          diamonds <span className="text-[#39ff14]">◆</span>
+        </span>
+        <select
+          value={diamondWindow}
+          onChange={(event) =>
+            setDiamondWindow(event.target.value as DiamondWindow)
+          }
+          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+        >
+          <option value="today">today</option>
+          <option value="week">this week</option>
+          <option value="all">all time</option>
+        </select>
+      </label>
       <Link
         href={activePost ? `/news/post?id=${activePost.id}` : "/news/post"}
         className="group flex min-h-32 w-full items-center overflow-hidden border-2 border-[#39ff14] bg-black px-5 py-8 shadow-[0_0_24px_rgba(57,255,20,0.24)] transition hover:bg-[#031403] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
         <div className="w-full">
           <span className="block text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
-            {formatDateLine(activeDate)}
+            {activePost
+              ? `${formatDateLine(new Date(activePost.createdAt))} - ${
+                  favoriteCounts[activePost.id] ?? 0
+                } ◆`
+              : "diamond ranking waiting"}
           </span>
           <span className="mt-4 block overflow-hidden text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14] sm:text-4xl">
             <span className="top-story-banner-track">
@@ -100,53 +143,25 @@ export default function NewsHeadlineTerminal() {
           </span>
         </div>
       </Link>
-
-      <aside
-        aria-label="Post timeline"
-        className="justify-self-start lg:justify-self-end"
-      >
-        <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">
-          <button
-            type="button"
-            onClick={() => moveDate(1)}
-            disabled={!canMoveForward}
-            className="border border-[#1d7f12] px-3 py-1 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent disabled:hover:text-[#39ff14]"
-            aria-label="Move timeline forward one day"
+      <div className="grid gap-3">
+        {rankedPosts.slice(0, 8).map((post, index) => (
+          <Link
+            key={post.id}
+            href={`/news/post?id=${post.id}`}
+            className="grid gap-2 border border-[#1d7f12] bg-black px-4 py-3 text-[#d7ffd0] transition hover:border-[#39ff14] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:grid-cols-[4rem_1fr_5rem] sm:items-center"
           >
-            ^
-          </button>
-          <div className="flex h-24 flex-col items-center justify-center gap-3">
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-              {nextTimelineDate <= today
-                ? formatTimelineDate(nextTimelineDate)
-                : "current"}
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+              #{index + 1}
             </span>
-            <span className="h-12 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
-          </div>
-          <div className="text-center">
-            <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              {formatMonth(activeDate)}
-            </div>
-            <div className="mt-1 text-5xl font-black leading-none [text-shadow:0_0_14px_#39ff14]">
-              {activeDate.getDate()}
-            </div>
-          </div>
-          <div className="flex h-24 flex-col items-center justify-center gap-3">
-            <span className="h-12 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-              {formatTimelineDate(previousTimelineDate)}
+            <span className="text-sm font-black uppercase tracking-[0.12em]">
+              {post.title}
             </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => moveDate(-1)}
-            className="border border-[#1d7f12] px-3 py-1 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-            aria-label="Move timeline back one day"
-          >
-            V
-          </button>
-        </div>
-      </aside>
+            <span className="text-sm font-black text-[#39ff14]">
+              {favoriteCounts[post.id] ?? 0} ◆
+            </span>
+          </Link>
+        ))}
+      </div>
 
       <CodeAccessDock>
         {(mode) => (

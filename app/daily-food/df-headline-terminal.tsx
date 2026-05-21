@@ -17,7 +17,11 @@ import {
   getFavoriteAuthorIds,
   getFavoritePostIds,
 } from "../components/favorite-store";
-import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
+import {
+  hasCreatorAccess,
+  isBayoClub,
+  isGhostRole,
+} from "../../lib/bay-space-roles";
 import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
@@ -345,6 +349,16 @@ export default function DfHeadlineTerminal({
     return members.find((member) => member.member === post.author)?.roles ?? "";
   }
 
+  function getAuthorDisplayName(post: BayPost) {
+    const authorName = getAuthorName(post);
+
+    if (!authorName) {
+      return "";
+    }
+
+    return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
+  }
+
   function shouldClassifyAuthor(post: BayPost) {
     return (
       post.anonymous ||
@@ -405,8 +419,8 @@ export default function DfHeadlineTerminal({
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
-            <option value="ghosts">Ghosts</option>
-            <option value="creators">Creator/Influencer</option>
+            <option value="ghosts">Ghost authors</option>
+            <option value="creators">Authors</option>
             <option value="anon">Anon</option>
           </select>
         </label>
@@ -525,7 +539,7 @@ export default function DfHeadlineTerminal({
                     href={`/profile/${displayedPost.author}`}
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                   >
-                    {getAuthorName(displayedPost)}
+                    {getAuthorDisplayName(displayedPost)}
                   </Link>
                 ) : (
                   "classified"

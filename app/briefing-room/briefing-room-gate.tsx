@@ -24,8 +24,10 @@ import {
   getFavoritePostIds,
 } from "../components/favorite-store";
 import {
+  canUseAnonymousPosting,
+  canUseIncognitoPosting,
   getAllowedPostCategories,
-  getRoleAcronym,
+  isBayoClub,
 } from "../../lib/bay-space-roles";
 import {
   dailyFoodCategories,
@@ -117,7 +119,6 @@ type ParsedBankPost = {
 };
 
 const postCategories: { id: PostCategory; label: string }[] = [
-  { id: "top-story", label: "Top Story" },
   { id: "daily-food", label: "Daily food" },
   { id: "theory", label: "Theory" },
   { id: "library-submission", label: "Library submission" },
@@ -126,7 +127,7 @@ const postCategories: { id: PostCategory; label: string }[] = [
 const activeMemberStorageKey = "bay-space-active-member";
 const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 const lazyPostGptUrl =
-  "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-bay-space-intake-bureau";
+  "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -404,16 +405,26 @@ function parseBankPostInput(
   };
 }
 
-function getBankPostCategory(accountMarker: string): BankPostCategory | null {
-  if (accountMarker.endsWith("-N")) {
+function getBankPostCategories(allowedCategories: PostCategory[]) {
+  const bankCategories: BankPostCategory[] = [];
+
+  if (allowedCategories.includes("daily-food")) {
+    bankCategories.push("daily-food");
+  }
+
+  if (allowedCategories.includes("theory")) {
+    bankCategories.push("theory");
+  }
+
+  return bankCategories;
+}
+
+function getBankCategoryLabel(category: BankPostCategory) {
+  if (category === "daily-food") {
     return "daily-food";
   }
 
-  if (accountMarker.endsWith("-T")) {
-    return "theory";
-  }
-
-  return null;
+  return "theory";
 }
 
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
@@ -442,6 +453,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [lazyResponse, setLazyResponse] = useState("Thiago: coming soon");
   const [lazyBankInput, setLazyBankInput] = useState("");
   const [lazyBankError, setLazyBankError] = useState("");
+  const [lazyBankPostCategory, setLazyBankPostCategory] =
+    useState<BankPostCategory>("daily-food");
   const [lazyPostPreview, setLazyPostPreview] =
     useState<PostPreviewDraft | null>(null);
   const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
@@ -468,7 +481,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   });
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
   const [wipeAccountConfirm, setWipeAccountConfirm] = useState(false);
-  const [postCategory, setPostCategory] = useState<PostCategory>("top-story");
+  const [postCategory, setPostCategory] = useState<PostCategory>("daily-food");
   const [topStoryStep, setTopStoryStep] = useState(1);
   const [ticker, setTicker] = useState("");
   const [report, setReport] = useState("");
@@ -498,6 +511,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [incognitoShelfLabel, setIncognitoShelfLabel] = useState("");
   const [isIncognitoShelfSet, setIsIncognitoShelfSet] = useState(false);
   const allowedPostCategories = getAllowedPostCategories(savedMember?.roles ?? "");
+  const canUseAnonControls = canUseAnonymousPosting(savedMember?.roles ?? "");
+  const canUseIncogControls = canUseIncognitoPosting(savedMember?.roles ?? "");
   const canCreatePosts = allowedPostCategories.length > 0;
   const availablePostCategories = postCategories.filter((category) =>
     allowedPostCategories.includes(category.id),
@@ -505,8 +520,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const activePostCategory = allowedPostCategories.includes(postCategory)
     ? postCategory
     : availablePostCategories[0]?.id ?? "library-submission";
-  const accountMarker = getRoleAcronym(savedMember?.roles ?? "");
-  const lazyBankCategory = getBankPostCategory(accountMarker);
+  const isBayoClubMember = isBayoClub(savedMember?.roles ?? "");
+  const availableBankCategories = getBankPostCategories(allowedPostCategories);
+  const activeLazyBankCategory = availableBankCategories.includes(lazyBankPostCategory)
+    ? lazyBankPostCategory
+    : availableBankCategories[0] ?? null;
   const openDrafts = [
     ...minimizedDrafts,
     ...(isPostOpen && activeDraftId
@@ -981,17 +999,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   function buildCurrentPost(): PostPreviewDraft {
     const author = resolvedMember || "unknown";
+    const canPostAnon = postAnonymously && canUseAnonControls;
+    const canPostIncognito = postIncognito && canUseIncogControls;
 
     if (activePostCategory === "top-story") {
       return {
         category: activePostCategory,
         title: ticker || "untitled top story",
         body: report,
-        anonymous: postAnonymously,
-        incognito: postIncognito,
+        anonymous: canPostAnon,
+        incognito: canPostIncognito,
         author,
-        shelfLabel: postIncognito ? incognitoShelfLabel : undefined,
-        shelfCode: postIncognito
+        shelfLabel: canPostIncognito ? incognitoShelfLabel : undefined,
+        shelfCode: canPostIncognito
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
@@ -1019,11 +1039,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         body: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3]
           .filter(Boolean)
           .join("\n"),
-        anonymous: postAnonymously,
-        incognito: postIncognito,
+        anonymous: canPostAnon,
+        incognito: canPostIncognito,
         author,
-        shelfLabel: postIncognito ? incognitoShelfLabel : undefined,
-        shelfCode: postIncognito
+        shelfLabel: canPostIncognito ? incognitoShelfLabel : undefined,
+        shelfCode: canPostIncognito
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
@@ -1050,11 +1070,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         category: activePostCategory,
         title: theoryHeadline || "untitled theory",
         body: theoryPost,
-        anonymous: postAnonymously,
-        incognito: postIncognito,
+        anonymous: canPostAnon,
+        incognito: canPostIncognito,
         author,
-        shelfLabel: postIncognito ? incognitoShelfLabel : undefined,
-        shelfCode: postIncognito
+        shelfLabel: canPostIncognito ? incognitoShelfLabel : undefined,
+        shelfCode: canPostIncognito
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
@@ -1067,8 +1087,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       category: "library-submission",
       title: libraryTitle || "untitled shelf",
       body: librarySubmission,
-      anonymous: postAnonymously,
-      incognito: postIncognito,
+      anonymous: canPostAnon,
+      incognito: canPostIncognito,
       author,
       shelfLabel: libraryTitle,
       shelfCode: normalizeShelfLabel(libraryTitle),
@@ -1111,12 +1131,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setIsLazyAssistantMinimized(false);
     setActivePanel("lazy-assistant");
 
-    if (!lazyBankCategory) {
+    if (!availableBankCategories.length) {
       setLazyResponse("Thiago: bank lane unavailable");
       shakeLazyButton("bank");
       return;
     }
 
+    setLazyBankPostCategory(availableBankCategories[0]);
     setLazyMode("bank");
     setLazyPrompt("");
     setLazyResponse("");
@@ -1145,13 +1166,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function buildLazyBankPost(parsedPost: ParsedBankPost): PostPreviewDraft | null {
-    if (!lazyBankCategory) {
+    if (!activeLazyBankCategory) {
       return null;
     }
 
     const author = resolvedMember || "unknown";
 
-    if (lazyBankCategory === "daily-food") {
+    if (activeLazyBankCategory === "daily-food") {
       const dateKey = getDateKey();
       const dailyFoodOrder =
         allPosts.filter(
@@ -1192,13 +1213,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function submitLazyBank() {
-    if (!lazyBankCategory) {
+    if (!activeLazyBankCategory) {
       setLazyBankError("bank lane unavailable");
       shakeLazyButton("bank-submit");
       return;
     }
 
-    const parsedPost = parseBankPostInput(lazyBankInput, lazyBankCategory);
+    const parsedPost = parseBankPostInput(lazyBankInput, activeLazyBankCategory);
 
     if (parsedPost.error || !parsedPost.post) {
       setLazyBankError(parsedPost.error ?? "bank parse failed");
@@ -1246,6 +1267,37 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     );
     setDeletePostId("");
     setIsWipeAllOpen(false);
+  }
+
+  async function togglePostAnonymous(post: BayPost) {
+    const response = await fetch(`/api/posts/${post.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ anonymous: !post.anonymous }),
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const data = (await response.json()) as { post?: BayPost };
+    const updatedPost = data.post;
+
+    if (!updatedPost) {
+      return;
+    }
+
+    setMyPosts((posts) =>
+      posts.map((savedPost) =>
+        savedPost.id === updatedPost.id ? updatedPost : savedPost,
+      ),
+    );
+    setAllPosts((posts) =>
+      posts.map((savedPost) =>
+        savedPost.id === updatedPost.id ? updatedPost : savedPost,
+      ),
+    );
+    window.dispatchEvent(new Event(postStoreEvent));
   }
 
   function editPost() {
@@ -1545,17 +1597,36 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               new post
             </button>
-            {lazyBankCategory ? (
+            {availableBankCategories.length ? (
               <button
                 type="button"
                 onClick={openLazyBank}
                 className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xl font-black leading-none text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                aria-label={`Open ${lazyBankCategory.replace("-", " ")} bank lane`}
-                title={`${lazyBankCategory.replace("-", " ")} bank lane`}
+                aria-label="Open bank lane"
+                title="bank lane"
               >
                 ✅💰
               </button>
             ) : null}
+            <a
+              href={lazyPostGptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-[52px] items-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-label="Open Bay Space Intake Bureau"
+              title="Bay Space Intake Bureau"
+            >
+              <Image
+                src="/bay-space-logo-icon.png"
+                alt=""
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
+              <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
+                Lazy Assistant
+              </span>
+            </a>
           </div>
         ) : null}
       </div>
@@ -2225,44 +2296,49 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               ) : null}
 
-              <div className="mt-6 grid gap-2">
-                <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
-                  <input
-                    type="checkbox"
-                    checked={postAnonymously}
-                    onChange={(event) => {
-                      setPostAnonymously(event.target.checked);
+              {canUseAnonControls || canUseIncogControls ? (
+                <div className="mt-6 grid gap-2">
+                  {canUseAnonControls ? (
+                    <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+                      <input
+                        type="checkbox"
+                        checked={postAnonymously}
+                        onChange={(event) => {
+                          setPostAnonymously(event.target.checked);
 
-                      if (event.target.checked) {
-                        setPostIncognito(false);
-                      }
-                    }}
-                    className="h-4 w-4 accent-[#39ff14]"
-                  />
-                  Anon
-                  <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
-                    name will be classified
-                  </span>
-                </label>
-                <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
-                  <input
-                    type="checkbox"
-                    checked={postIncognito}
-                    onChange={(event) => {
-                      setPostIncognito(event.target.checked);
+                          if (event.target.checked) {
+                            setPostIncognito(false);
+                          }
+                        }}
+                        className="h-4 w-4 accent-[#39ff14]"
+                      />
+                      Anon
+                      <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
+                        name will be classified
+                      </span>
+                    </label>
+                  ) : null}
+                  {canUseIncogControls ? (
+                    <label className="flex items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+                      <input
+                        type="checkbox"
+                        checked={postIncognito}
+                        onChange={(event) => {
+                          setPostIncognito(event.target.checked);
 
-                      if (event.target.checked) {
-                        setPostAnonymously(false);
-                      }
-                    }}
-                    className="h-4 w-4 accent-[#39ff14]"
-                  />
-                  Incog
-                  <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
-                    wont show up on public page
-                  </span>
-                </label>
-                {postIncognito ? (
+                          if (event.target.checked) {
+                            setPostAnonymously(false);
+                          }
+                        }}
+                        className="h-4 w-4 accent-[#39ff14]"
+                      />
+                      Incog
+                      <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
+                        wont show up on public page
+                      </span>
+                    </label>
+                  ) : null}
+                  {postIncognito && canUseIncogControls ? (
                   <div className="border border-[#1d7f12] px-3 py-2">
                     {isIncognitoShelfSet ? (
                       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
@@ -2295,8 +2371,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       </div>
                     )}
                   </div>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-4 flex items-center justify-between gap-3">
                 <button
                   type="submit"
@@ -2363,6 +2440,41 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       key={post.id}
                       className="relative border border-[#1d7f12] px-3 py-3"
                     >
+                      {canUseAnonControls ? (
+                        <button
+                          type="button"
+                          onClick={() => togglePostAnonymous(post)}
+                          className="absolute right-10 top-2 grid h-7 w-9 place-items-center border border-[#1d7f12] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                          aria-label={
+                            post.anonymous
+                              ? `Show author for ${post.title}`
+                              : `Classify author for ${post.title}`
+                          }
+                          title={post.anonymous ? "classified" : "public"}
+                        >
+                          {post.anonymous ? (
+                            <span className="relative h-4 w-6" aria-hidden="true">
+                              <span className="absolute left-0 right-0 top-1/2 h-px bg-current" />
+                              <span className="absolute left-1 top-1/2 h-2 w-px origin-top rotate-[-28deg] bg-current" />
+                              <span className="absolute left-1/2 top-1/2 h-2 w-px -translate-x-1/2 bg-current" />
+                              <span className="absolute right-1 top-1/2 h-2 w-px origin-top rotate-[28deg] bg-current" />
+                            </span>
+                          ) : (
+                            <span className="relative h-5 w-7" aria-hidden="true">
+                              <span className="absolute left-1 top-0 h-1.5 w-px rotate-[-20deg] bg-current" />
+                              <span className="absolute left-1/2 top-0 h-1.5 w-px -translate-x-1/2 bg-current" />
+                              <span className="absolute right-1 top-0 h-1.5 w-px rotate-[20deg] bg-current" />
+                              <span className="absolute inset-x-0 bottom-0 h-4 rounded-[50%] border border-current" />
+                              <span className="absolute left-1/2 top-[0.65rem] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-current" />
+                            </span>
+                          )}
+                        </button>
+                      ) : null}
+                      {post.anonymous && canUseAnonControls ? (
+                        <span className="absolute right-10 top-10 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                          classified
+                        </span>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => setDeletePostId(post.id)}
@@ -2600,8 +2712,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
                       bank lane:{" "}
                       <span className="text-[#39ff14]">
-                        {lazyBankCategory
-                          ? lazyBankCategory.replace("-", " ")
+                        {activeLazyBankCategory
+                          ? activeLazyBankCategory.replace("-", " ")
                           : "unavailable"}
                       </span>
                     </p>
@@ -2616,6 +2728,28 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       back
                     </button>
                   </div>
+                  {availableBankCategories.length > 1 ? (
+                    <label className="mt-4 grid max-w-xs gap-2">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                        post route
+                      </span>
+                      <select
+                        value={activeLazyBankCategory ?? "daily-food"}
+                        onChange={(event) =>
+                          setLazyBankPostCategory(
+                            event.target.value as BankPostCategory,
+                          )
+                        }
+                        className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      >
+                        {availableBankCategories.map((category) => (
+                          <option key={category} value={category}>
+                            {getBankCategoryLabel(category)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                   <textarea
                     aria-label="Bank post intake"
                     value={lazyBankInput}
@@ -2968,13 +3102,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 TITLE: {savedMember.title}
               </p>
-              {accountMarker ? (
-                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                  ID CARD: ({accountMarker})
-                </p>
-              ) : null}
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 NAME: {savedMember.name}
+                {isBayoClubMember ? " 🦉" : ""}
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 PASSWORD: CLASSIFIED

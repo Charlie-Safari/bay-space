@@ -5,7 +5,11 @@ import {
 } from "../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../lib/bay-space-session";
 import { BayPostCategory } from "../../../lib/bay-space-types";
-import { canPostCategory } from "../../../lib/bay-space-roles";
+import {
+  canPostCategory,
+  canUseAnonymousPosting,
+  canUseIncognitoPosting,
+} from "../../../lib/bay-space-roles";
 
 const categories: BayPostCategory[] = [
   "top-story",
@@ -77,8 +81,8 @@ export async function POST(request: Request) {
         category: body.category,
         title: String(body.title ?? "").slice(0, 140),
         body: String(body.body ?? ""),
-        anonymous: Boolean(body.anonymous),
-        incognito: Boolean(body.incognito),
+        anonymous: Boolean(body.anonymous) && canUseAnonymousPosting(member.roles),
+        incognito: Boolean(body.incognito) && canUseIncognitoPosting(member.roles),
         author: member.member,
         shelfLabel: body.shelfLabel ? String(body.shelfLabel) : undefined,
         shelfCode: body.shelfCode ? String(body.shelfCode) : undefined,

@@ -9,10 +9,12 @@ import {
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import { isBayoClub } from "../../lib/bay-space-roles";
 
 type SavedMember = {
   member: string;
   name: string;
+  roles?: string;
 };
 
 function getLibraryHashId() {
@@ -78,6 +80,20 @@ export default function LibraryBoard() {
 
   function getAuthorName(post: BayPost) {
     return members.find((member) => member.member === post.author)?.name.trim() ?? "";
+  }
+
+  function getAuthorRoles(post: BayPost) {
+    return members.find((member) => member.member === post.author)?.roles ?? "";
+  }
+
+  function getAuthorDisplayName(post: BayPost) {
+    const authorName = getAuthorName(post);
+
+    if (!authorName) {
+      return "";
+    }
+
+    return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
   }
 
   useEffect(() => {
@@ -205,7 +221,7 @@ export default function LibraryBoard() {
                         href={`/profile/${post.author}`}
                         className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                       >
-                        {getAuthorName(post)}
+                        {getAuthorDisplayName(post)}
                       </Link>
                     </p>
                   ) : post.anonymous ? (
@@ -262,7 +278,7 @@ export default function LibraryBoard() {
                 </summary>
                 <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <a
-                    href="https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-bay-space-intake-bureau"
+                    href="https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
@@ -350,11 +366,12 @@ export default function LibraryBoard() {
                   types of accounts
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Curious Reader (CR): read/reveal any tab or code channel, post in Library.</li>
-                  <li>Ghost Author - News (GA-N): post in Daily Food and Library. Daily Food name stays classified until favorited.</li>
-                  <li>Ghost Author - Theories (GA-T): post in Theories and Library.</li>
-                  <li>Creator/ Influencer - News (CI-N): post in Top Story, Daily Food, and Library.</li>
-                  <li>Creator/ Influencer - Theories (CI-T): post in Top Story, Theories, and Library.</li>
+                  <li>Reader: read and reveal Bay Space. Posting is closed.</li>
+                  <li>Ghost author - daily food: post in Daily Food only. Anon and incog are available.</li>
+                  <li>Ghost author - theories: post in Theories only. Anon and incog are available.</li>
+                  <li>Author - daily food: post in Daily Food only. Anon and incog are closed.</li>
+                  <li>Author - theories: post in Theories only. Anon and incog are closed.</li>
+                  <li>Bayo Club: selected access for Daily Food, Theories, and Library. Owl marker enabled.</li>
                 </ul>
               </details>
 
@@ -363,11 +380,12 @@ export default function LibraryBoard() {
                   which account is right for you?
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Pick Curious Reader (CR) if you want to read, reveal, save, follow, and file Library posts.</li>
-                  <li>Pick Ghost Author - News (GA-N) if you want Daily Food posting with your Daily Food name classified until favorited.</li>
-                  <li>Pick Ghost Author - Theories (GA-T) if you want to write theories without appearing as a public-facing creator.</li>
-                  <li>Pick Creator/ Influencer - News (CI-N) if you want Top Story, Daily Food, and Library access.</li>
-                  <li>Pick Creator/ Influencer - Theories (CI-T) if you want Top Story, Theories, and Library access.</li>
+                  <li>Pick Reader if you only want to read, reveal, save, and follow.</li>
+                  <li>Pick Ghost author - daily food if you need Daily Food posting with anon and incog controls.</li>
+                  <li>Pick Ghost author - theories if you need Theories posting with anon and incog controls.</li>
+                  <li>Pick Author - daily food if you post Daily Food under your public name.</li>
+                  <li>Pick Author - theories if you post Theories under your public name.</li>
+                  <li>Bayo Club cannot be requested. Have your gatekey ready.</li>
                 </ul>
               </details>
 

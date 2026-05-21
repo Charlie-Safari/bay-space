@@ -1,20 +1,68 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CreatorCodeFormProps = {
+  mode: "admin" | "bayo";
   reportHref: string;
 };
 
-export default function CreatorCodeForm({ reportHref }: CreatorCodeFormProps) {
+const bayoGateBinary =
+  "01101111 01110111 01101100 01100110 01100101 01100001 01110100 01101000 01100101 01110010";
+
+const bayoGatePhrase = "OWLFEATHER";
+const bayoGatePrompt = "e.n.t.e.r. g.a.t.e.k.e.y. 🦉";
+
+export default function CreatorCodeForm({
+  mode,
+  reportHref,
+}: CreatorCodeFormProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const isBayoGate = mode === "bayo";
+  const [typedPrompt, setTypedPrompt] = useState(
+    mode === "bayo" ? "" : "enter code",
+  );
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+
+    if (!isBayoGate) {
+      return;
+    }
+
+    let index = 0;
+    const interval = window.setInterval(() => {
+      index += 1;
+      setTypedPrompt(bayoGatePrompt.slice(0, index));
+
+      if (index >= bayoGatePrompt.length) {
+        window.clearInterval(interval);
+      }
+    }, 75);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [isBayoGate]);
 
   function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const normalizedCode = code.trim();
+    const compactCode = normalizedCode.replace(/\s+/g, "").toLowerCase();
 
-    if (code.toLowerCase() === "admin1") {
+    if (!isBayoGate && compactCode === "admin1") {
+      router.push(reportHref);
+    }
+
+    if (
+      isBayoGate &&
+      (normalizedCode === bayoGateBinary ||
+        compactCode === bayoGateBinary.replace(/\s+/g, "") ||
+        compactCode === bayoGatePhrase.toLowerCase())
+    ) {
       router.push(reportHref);
     }
   }
@@ -28,16 +76,28 @@ export default function CreatorCodeForm({ reportHref }: CreatorCodeFormProps) {
         htmlFor="creator-code"
         className="mb-3 block text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]"
       >
-        enter code
+        {typedPrompt}
+        {isBayoGate ? (
+          <span
+            className="ml-2 inline-block h-4 w-3 translate-y-0.5 bg-[#39ff14] align-baseline shadow-[0_0_10px_rgba(57,255,20,0.75)]"
+            aria-hidden="true"
+          />
+        ) : null}
       </label>
       <input
+        ref={inputRef}
         id="creator-code"
         value={code}
         onChange={(event) =>
-          setCode(event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12))
+          setCode(
+            isBayoGate
+              ? event.target.value
+                  .replace(/[^a-z0-9\s]/gi, "")
+                  .slice(0, bayoGateBinary.length)
+              : event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12),
+          )
         }
         className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-        autoFocus
       />
       <button
         type="submit"

@@ -18,7 +18,7 @@ export default async function PinPage({ searchParams }: PinPageProps) {
     name = "explorer",
     ref = name,
     roles = "",
-    title = "Curious Reader",
+    title = "Reader",
   } = await searchParams;
   const backHref = `/join-the-circle/member/next?${new URLSearchParams({
     member,

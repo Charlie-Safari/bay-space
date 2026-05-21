@@ -4,7 +4,8 @@ import {
   getAccountTitle,
   getRoleDescription,
   getRoleLabel,
-  hasCreatorAccess,
+  needsAdminCode,
+  needsBayoGate,
 } from "../../../../lib/bay-space-roles";
 
 type CircleNextProps = {
@@ -35,7 +36,9 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
   )}&member=${member}&ref=${encodeURIComponent(ref)}`;
   const selectedRole = selectedRoles[0] ?? "";
   const selectedDescription = getRoleDescription(selectedRole);
-  const hasCreatorRole = hasCreatorAccess(selectedRoles.join(","));
+  const selectedRolesText = selectedRoles.join(",");
+  const requiresAdminCode = needsAdminCode(selectedRolesText);
+  const requiresBayoGate = needsBayoGate(selectedRolesText);
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -79,11 +82,16 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
             prescreen
           </p>
           {selectedDescription ? <p className="mt-3">{selectedDescription}</p> : null}
-          {hasCreatorRole ? (
+          {requiresBayoGate ? (
+            <p className="mt-3">
+              you can not request this account, you must be selected. Have your
+              gatekey ready.
+            </p>
+          ) : null}
+          {requiresAdminCode ? (
             <>
               <p className="mt-3">
-                proceding with these will require a creator code - to obtaion a
-                creator code please email bayoracle@protonmail.com
+                proceeding with this account requires the prescreen password.
               </p>
               <p className="mt-3">
                 your contributions may be flagged for removal
