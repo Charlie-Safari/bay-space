@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { baySpaceAgreementHref } from "../../../../lib/bay-space-agreement";
 import styles from "./password-confirm-form.module.css";
 
 type PasswordConfirmFormProps = {
@@ -11,8 +12,6 @@ type PasswordConfirmFormProps = {
   roles: string;
   title: string;
 };
-
-const agreementHref = "/BaySpace-Privacy-Notice-and-user-agreement.pdf";
 
 export default function PasswordConfirmForm({
   member,
@@ -126,7 +125,7 @@ export default function PasswordConfirmForm({
         />
       </div>
       <a
-        href={agreementHref}
+        href={baySpaceAgreementHref}
         target="_blank"
         rel="noopener noreferrer"
         onClick={() => {

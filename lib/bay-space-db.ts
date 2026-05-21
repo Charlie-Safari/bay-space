@@ -12,6 +12,7 @@ import {
   isValidUsername,
   normalizeUsername,
 } from "./bay-space-username";
+export { baySpaceAgreementVersion } from "./bay-space-agreement";
 
 type BayPostCategory =
   | "top-story"
@@ -134,9 +135,6 @@ export class UsernameUnavailableError extends Error {
     this.name = "UsernameUnavailableError";
   }
 }
-
-export const baySpaceAgreementVersion =
-  "BaySpace Privacy Notice and User Agreement v1.0";
 
 export function getStorageErrorMessage(error: unknown) {
   if (error instanceof BaySpaceStorageError) {
