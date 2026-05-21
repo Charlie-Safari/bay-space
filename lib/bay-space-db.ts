@@ -51,8 +51,13 @@ type MemberStats = {
   profileVisits?: number;
 };
 
+type MemberTicketVote = {
+  nextAt?: number;
+};
+
 type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
   _stats?: MemberStats;
+  _ticketVote?: MemberTicketVote;
 };
 
 type MemberRow = {
@@ -256,6 +261,16 @@ function normalizeProfileVisitCount(value: unknown) {
 
 function getMemberProfileVisits(member: MemberRow) {
   return normalizeProfileVisitCount(member.links?._stats?.profileVisits);
+}
+
+function normalizeTicketVoteNextAt(value: unknown) {
+  const nextAt = Number(value);
+
+  return Number.isFinite(nextAt) && nextAt > 0 ? Math.floor(nextAt) : 0;
+}
+
+function getMemberTicketVoteNextAtFromRow(member: MemberRow) {
+  return normalizeTicketVoteNextAt(member.links?._ticketVote?.nextAt);
 }
 
 function splitRoles(roles: string) {
@@ -533,7 +548,9 @@ export async function updateMemberSettings(
       birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? "",
       email: input.email?.trim().slice(0, 120) ?? "",
       links: {
+        ...(member.links ?? {}),
         _stats: member.links?._stats ?? {},
+        _ticketVote: member.links?._ticketVote ?? {},
         x: normalizePublicLink(input.links?.x),
         linkedin: normalizePublicLink(input.links?.linkedin),
         github: normalizePublicLink(input.links?.github),
@@ -586,6 +603,45 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
   });
 
   return rows[0] ? getMemberProfileVisits(rows[0]) : profileVisits;
+}
+
+export async function getMemberTicketVoteNextAt(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberTicketVoteNextAtFromRow(member) : 0;
+}
+
+export async function startMemberTicketVoteCooldown(
+  memberId: string,
+  nextAt: number,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return 0;
+  }
+
+  const normalizedNextAt = normalizeTicketVoteNextAt(nextAt);
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _ticketVote: {
+          ...(member.links?._ticketVote ?? {}),
+          nextAt: normalizedNextAt,
+        },
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getMemberTicketVoteNextAtFromRow(rows[0]) : normalizedNextAt;
 }
 
 export async function wipeMemberAccount(memberId: string) {

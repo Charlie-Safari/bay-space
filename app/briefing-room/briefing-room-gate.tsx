@@ -33,6 +33,7 @@ import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
+import TicketVoteCounter from "../components/ticket-vote-counter";
 
 type BriefingRoomGateProps = {
   member: string;
@@ -3118,6 +3119,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 NAME: {savedMember.name}
                 {isBayoClubMember ? " 🦉" : ""}
               </p>
+              <TicketVoteCounter />
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 PASSWORD: CLASSIFIED
               </p>

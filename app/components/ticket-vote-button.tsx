@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   getTicketVoteAvailability,
+  setNextTicketVoteAt,
   startTicketVoteCooldown,
   ticketVoteStoreEvent,
 } from "./ticket-vote-store";
@@ -25,7 +26,22 @@ export default function TicketVoteButton({
       setCanVote(getTicketVoteAvailability().canVote);
     }
 
+    async function syncAccountAvailability() {
+      const response = await fetch("/api/ticket-vote", { cache: "no-store" });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = (await response.json()) as { nextAt?: number };
+
+      if (typeof data.nextAt === "number") {
+        setNextTicketVoteAt(data.nextAt);
+      }
+    }
+
     syncAvailability();
+    syncAccountAvailability();
     window.addEventListener("storage", syncAvailability);
     window.addEventListener(ticketVoteStoreEvent, syncAvailability);
 
@@ -44,17 +60,27 @@ export default function TicketVoteButton({
     const response = await fetch(`/api/posts/${postId}/ticket`, {
       method: "POST",
     });
-    const data = response.ok
-      ? ((await response.json()) as { ticketVotes?: number })
-      : {};
+    const data = (await response.json().catch(() => ({}))) as {
+      nextTicketVoteAt?: number;
+      ticketVotes?: number;
+    };
     setIsSaving(false);
+
+    if (!response.ok && typeof data.nextTicketVoteAt === "number") {
+      setNextTicketVoteAt(data.nextTicketVoteAt);
+      return;
+    }
 
     if (!response.ok || typeof data.ticketVotes !== "number") {
       return;
     }
 
     setCount(data.ticketVotes);
-    startTicketVoteCooldown();
+    if (typeof data.nextTicketVoteAt === "number") {
+      setNextTicketVoteAt(data.nextTicketVoteAt);
+    } else {
+      startTicketVoteCooldown();
+    }
   }
 
   return (
