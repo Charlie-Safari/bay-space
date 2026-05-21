@@ -411,9 +411,13 @@ export default function DfHeadlineTerminal({
           </select>
         </label>
       </div>
-      <div className="relative min-h-40 w-full overflow-hidden border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+      <div
+        className={`relative w-full overflow-hidden border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)] ${
+          isCategoriesOpen ? "min-h-[42rem] lg:min-h-[38rem]" : "min-h-40"
+        }`}
+      >
         {isCategoriesOpen ? (
-          <div className="daily-food-categories-overlay absolute inset-0 z-20 flex items-center justify-center bg-black/95 px-5 py-8">
+          <div className="daily-food-categories-overlay absolute inset-0 z-20 flex items-start justify-center overflow-y-auto bg-black/95 px-5 py-8">
             <div className="daily-food-categories-grid" aria-hidden="true" />
             <div className="relative z-10 grid w-full max-w-4xl gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">

@@ -110,6 +110,7 @@ type PostDraft = {
 
 type ParsedBankPost = {
   body: string;
+  dailyFoodCategory: string;
   sources: string[];
   tags: string[];
   title: string;
@@ -209,6 +210,25 @@ function stripBankSourceText(value: string) {
     .replace(/\b(?:source(?:\s+link)?|link)\s*:\s*/gi, "")
     .replace(/https?:\/\/[^\s<>"']+/g, "")
     .trim();
+}
+
+function normalizeBankCategory(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function extractBankDailyFoodCategory(value: string) {
+  const categoryMatch = value.match(
+    /(?:^|\n)\s*category\s*:\s*([^\n]+)/i,
+  );
+  const categoryLine = categoryMatch?.[1] ?? "";
+  const normalizedCategoryLine = normalizeBankCategory(categoryLine);
+  const matchedCategory = dailyFoodCategories.find(
+    (category) =>
+      category !== defaultDailyFoodCategory &&
+      normalizedCategoryLine.includes(normalizeBankCategory(category)),
+  );
+
+  return matchedCategory ?? defaultDailyFoodCategory;
 }
 
 function extractBankHeadline(value: string) {
@@ -348,6 +368,7 @@ function parseBankPostInput(
   const detailLines = tagBlocks.length ? tagBlocks : extractBankDetailLines(trimmedValue);
   const tags = detailLines.map((tag) => tag.slice(0, 150)).slice(0, 3);
   const bodySection = extractBankSection(trimmedValue, ["body", "theory", "post"]);
+  const dailyFoodCategory = extractBankDailyFoodCategory(trimmedValue);
   const fallbackBody = tags.length
     ? tags.join("\n")
     : stripBankSourceLines(
@@ -375,6 +396,7 @@ function parseBankPostInput(
   return {
     post: {
       body,
+      dailyFoodCategory,
       sources,
       tags,
       title,
@@ -417,7 +439,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [postPreview, setPostPreview] = useState<PostPreviewDraft | null>(null);
   const [lazyMode, setLazyMode] = useState<LazyAssistantMode>("chat");
   const [lazyPrompt, setLazyPrompt] = useState("");
-  const [lazyResponse, setLazyResponse] = useState("");
+  const [lazyResponse, setLazyResponse] = useState("Thiago: coming soon");
   const [lazyBankInput, setLazyBankInput] = useState("");
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyPostPreview, setLazyPostPreview] =
@@ -1079,7 +1101,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    setLazyResponse("assistant offline");
+    setLazyResponse("Thiago: assistant offline");
     setLazyPrompt("");
   }
 
@@ -1090,7 +1112,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setActivePanel("lazy-assistant");
 
     if (!lazyBankCategory) {
-      setLazyResponse("bank lane unavailable");
+      setLazyResponse("Thiago: bank lane unavailable");
       shakeLazyButton("bank");
       return;
     }
@@ -1149,7 +1171,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           tags,
           tagSources,
           dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
-          dailyFoodCategory: defaultDailyFoodCategory,
+          dailyFoodCategory: parsedPost.dailyFoodCategory,
           dailyFoodOrder: dailyFoodOrder.toString(),
           sources: parsedPost.sources.filter(Boolean),
         },
@@ -1207,7 +1229,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       setLazyPostPreview(null);
       setLazyBankInput("");
       setLazyBankError("");
-      setLazyResponse("bank posted");
+      setLazyResponse("Thiago: bank posted");
       setLazyMode("chat");
     }
   }
@@ -1626,6 +1648,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               onClick={() => {
                 setActivePanel("lazy-assistant");
                 setIsLazyAssistantMinimized(false);
+                setLazyResponse((response) => response || "Thiago: coming soon");
                 setLazyBankError("");
               }}
               className={`border px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
