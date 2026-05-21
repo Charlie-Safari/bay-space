@@ -47,6 +47,14 @@ type MemberSettingsInput = {
   };
 };
 
+type MemberStats = {
+  profileVisits?: number;
+};
+
+type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
+  _stats?: MemberStats;
+};
+
 type MemberRow = {
   agreement_accepted_at: string | null;
   agreement_version: string;
@@ -56,7 +64,7 @@ type MemberRow = {
   deleted_at: string | null;
   email: string;
   id: string;
-  links: Partial<NonNullable<BayMember["links"]>>;
+  links: MemberLinks;
   member_number: number;
   name: string;
   ref_name: string;
@@ -170,7 +178,7 @@ function normalizeRefName(refName: string) {
 }
 
 function normalizeTitle(title: string) {
-  return title.trim().slice(0, 80) || "Reader";
+  return title.trim().slice(0, 80) || "Curious Reader";
 }
 
 function hashPin(pin: string, salt: string) {
@@ -227,11 +235,27 @@ function publicPost(post: PostRow): BayPost {
   };
 }
 
+function getPostTicketVoteCount(post: PostRow) {
+  const count = Number(post.meta?.ticketVotes ?? 0);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
 function normalizePublicLink(link?: PublicLink) {
   return {
     url: link?.url.trim().slice(0, 240) ?? "",
     display: Boolean(link?.display),
   };
+}
+
+function normalizeProfileVisitCount(value: unknown) {
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function getMemberProfileVisits(member: MemberRow) {
+  return normalizeProfileVisitCount(member.links?._stats?.profileVisits);
 }
 
 function splitRoles(roles: string) {
@@ -508,6 +532,7 @@ export async function updateMemberSettings(
       birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? "",
       email: input.email?.trim().slice(0, 120) ?? "",
       links: {
+        _stats: member.links?._stats ?? {},
         x: normalizePublicLink(input.links?.x),
         linkedin: normalizePublicLink(input.links?.linkedin),
         github: normalizePublicLink(input.links?.github),
@@ -524,6 +549,42 @@ export async function updateMemberSettings(
   });
 
   return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function getMemberProfileVisitCount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberProfileVisits(member) : 0;
+}
+
+export async function incrementMemberProfileVisitCount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const profileVisits = getMemberProfileVisits(member) + 1;
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _stats: {
+          ...(member.links?._stats ?? {}),
+          profileVisits,
+        },
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getMemberProfileVisits(rows[0]) : profileVisits;
 }
 
 export async function wipeMemberAccount(memberId: string) {
@@ -758,6 +819,45 @@ export async function updatePostAnonymous(
   });
 
   return publicPost(updatedPosts[0]);
+}
+
+export async function incrementPostTicketVoteCount(postId: string) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      category: "eq.daily-food",
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const post = posts[0];
+
+  if (!post) {
+    return null;
+  }
+
+  const ticketVotes = getPostTicketVoteCount(post) + 1;
+  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      meta: {
+        ...(post.meta ?? {}),
+        ticketVotes: String(ticketVotes),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+
+  return {
+    post: publicPost(updatedPosts[0]),
+    ticketVotes,
+  };
 }
 
 export async function listSavedPostIds(memberId: string) {

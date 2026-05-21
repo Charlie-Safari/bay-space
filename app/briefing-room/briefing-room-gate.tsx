@@ -185,8 +185,10 @@ function limitWords(value: string, limit: number) {
 
 function cleanBankLine(value: string) {
   return value
+    .replace(/\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/^\s*(?:[·*•-]|\d+[.)])\s*/, "")
     .replace(/^["“”]+|["“”]+$/g, "")
+    .replace(/\s+\[$/, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -196,17 +198,27 @@ function cleanBankHeadline(value: string) {
 }
 
 function cleanBankUrl(value: string) {
-  return value.replace(/[)\].,;]+$/g, "");
+  const normalizedUrl = value.replace(/^\[/g, "").replace(/[)\].,;]+$/g, "");
+  const duplicatedMarkdownUrl = normalizedUrl.match(
+    /^(https?:\/\/.+)\]\(\1$/i,
+  );
+
+  return duplicatedMarkdownUrl?.[1] ?? normalizedUrl;
 }
 
 function extractBankUrls(value: string) {
+  const markdownUrls = Array.from(
+    value.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g),
+    (match) => match[1],
+  );
   const urls = value.match(/https?:\/\/[^\s<>"']+/g) ?? [];
 
-  return Array.from(new Set(urls.map(cleanBankUrl)));
+  return Array.from(new Set([...markdownUrls, ...urls].map(cleanBankUrl)));
 }
 
 function stripBankSourceText(value: string) {
   return value
+    .replace(/\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\b(?:source(?:\s+link)?|link)\s*:\s*https?:\/\/[^\s<>"']+/gi, "")
     .replace(/\b(?:source(?:\s+link)?|link)\s*:\s*/gi, "")
     .replace(/https?:\/\/[^\s<>"']+/g, "")

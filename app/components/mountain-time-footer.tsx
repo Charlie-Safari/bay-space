@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  getTicketVoteAvailability,
+  ticketVoteStoreEvent,
+} from "./ticket-vote-store";
 
 const formatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Phoenix",
@@ -20,17 +24,41 @@ function getMountainStandardTime() {
   return formatter.format(new Date());
 }
 
+function formatRemainingTime(milliseconds: number) {
+  const totalSeconds = Math.ceil(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((unit) => unit.toString().padStart(2, "0"))
+    .join(":");
+}
+
 export default function MountainTimeFooter() {
   const [time, setTime] = useState(getMountainStandardTime);
   const [showVersion, setShowVersion] = useState(false);
+  const [ticketVoteAvailability, setTicketVoteAvailability] = useState(
+    getTicketVoteAvailability,
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       setTime(getMountainStandardTime());
+      setTicketVoteAvailability(getTicketVoteAvailability());
     }, 1000);
+
+    function syncTicketVotes() {
+      setTicketVoteAvailability(getTicketVoteAvailability());
+    }
+
+    window.addEventListener("storage", syncTicketVotes);
+    window.addEventListener(ticketVoteStoreEvent, syncTicketVotes);
 
     return () => {
       window.clearInterval(timer);
+      window.removeEventListener("storage", syncTicketVotes);
+      window.removeEventListener(ticketVoteStoreEvent, syncTicketVotes);
     };
   }, []);
 
@@ -62,6 +90,14 @@ export default function MountainTimeFooter() {
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
                 1.10
+              </span>
+            ) : null}
+          </span>
+          <span className="text-[#d7ffd0]">
+            vote tickets 🎟️: {ticketVoteAvailability.canVote ? 1 : 0}
+            {!ticketVoteAvailability.canVote ? (
+              <span className="ml-2 text-[#39ff14]">
+                {formatRemainingTime(ticketVoteAvailability.remainingMs)}
               </span>
             ) : null}
           </span>

@@ -18,7 +18,7 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const name = params.name ?? "explorer";
   const ref = params.ref ?? name;
   const roles = params.roles ?? "";
-  const title = params.title ?? "Reader";
+  const title = params.title ?? "Curious Reader";
   const backHref = `/join-the-circle/member/report?${new URLSearchParams({
     member,
     name,

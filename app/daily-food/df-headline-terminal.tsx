@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CodeAccessDock from "../components/code-access-dock";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import TicketVoteButton from "../components/ticket-vote-button";
 import DosCodeBox from "../components/dos-code-box";
 import {
   BayPost,
@@ -118,6 +119,7 @@ export default function DfHeadlineTerminal({
   const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
+  const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -173,7 +175,12 @@ export default function DfHeadlineTerminal({
 
     async function syncLogin() {
       const response = await fetch("/api/me", { cache: "no-store" });
-      setIsLoggedIn(response.ok);
+      const data = response.ok
+        ? ((await response.json()) as { member?: SavedMember | null })
+        : { member: null };
+
+      setActiveMember(data.member ?? null);
+      setIsLoggedIn(Boolean(data.member));
     }
 
     function syncMembers() {
@@ -336,6 +343,12 @@ export default function DfHeadlineTerminal({
     return Array.isArray(sources) ? sources.filter(Boolean) : [];
   }
 
+  function getTicketVoteCount(post: BayPost) {
+    const count = Number(post.meta?.ticketVotes ?? 0);
+
+    return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  }
+
   function getDailyFoodTags(post: BayPost): DailyFoodTag[] {
     const tags = post.meta?.tags;
     const tagSources = post.meta?.tagSources;
@@ -395,6 +408,15 @@ export default function DfHeadlineTerminal({
     return !post.incognito && !shouldClassifyAuthor(post) && getAuthorName(post);
   }
 
+  function canBayoOpenClassifiedAuthor(post: BayPost) {
+    return (
+      !post.incognito &&
+      shouldClassifyAuthor(post) &&
+      post.author !== "unknown" &&
+      isBayoClub(activeMember?.roles ?? "")
+    );
+  }
+
   function getPostLinkPath(post: BayPost) {
     return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
   }
@@ -444,8 +466,8 @@ export default function DfHeadlineTerminal({
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
-            <option value="ghosts">Ghost authors</option>
-            <option value="creators">Authors</option>
+            <option value="ghosts">Authors</option>
+            <option value="creators">Influencers</option>
             <option value="anon">Anon</option>
           </select>
         </label>
@@ -527,8 +549,12 @@ export default function DfHeadlineTerminal({
         ) : null}
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
-            <div className="absolute right-4 top-3">
+            <div className="absolute right-4 top-3 flex items-center gap-3">
               <FavoriteButton postId={displayedPost.id} />
+              <TicketVoteButton
+                initialCount={getTicketVoteCount(displayedPost)}
+                postId={displayedPost.id}
+              />
             </div>
             <button
               type="button"
@@ -560,6 +586,13 @@ export default function DfHeadlineTerminal({
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                   >
                     {getAuthorDisplayName(displayedPost)}
+                  </Link>
+                ) : canBayoOpenClassifiedAuthor(displayedPost) ? (
+                  <Link
+                    href={`/profile/${displayedPost.author}`}
+                    className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                  >
+                    classified
                   </Link>
                 ) : (
                   "classified"

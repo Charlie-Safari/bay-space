@@ -1,7 +1,13 @@
 import Link from "next/link";
 import HomeBar from "../../components/home-bar";
 import PublicIdCard from "./public-id-card";
-import { getMember, listPostsByAuthor } from "../../../lib/bay-space-db";
+import ProfileStatsCard from "./profile-stats-card";
+import {
+  countSavedPosts,
+  getMember,
+  getMemberProfileVisitCount,
+  listPostsByAuthor,
+} from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
 import { isBayoClub } from "../../../lib/bay-space-roles";
 
@@ -70,6 +76,12 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const { member: memberId } = await params;
   const member = await getMember(memberId);
   const posts = await listPostsByAuthor(memberId);
+  const favoriteCounts = await countSavedPosts(posts.map((post) => post.id));
+  const totalFavoriteCount = Object.values(favoriteCounts).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  const pageVisits = await getMemberProfileVisitCount(memberId);
   const isBayoClubMember = isBayoClub(member?.roles ?? "");
 
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
@@ -105,17 +117,24 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
 
         {member ? (
           <>
-            <PublicIdCard
-              favoriteAuthorId={member.member}
-              isBayoClubMember={isBayoClubMember}
-              links={publicLinks}
-              member={{
-                member: member.member,
-                name: member.name,
-                refName: member.refName,
-                title: member.title,
-              }}
-            />
+            <div className="mt-10 grid w-full max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)] lg:items-start">
+              <PublicIdCard
+                favoriteAuthorId={member.member}
+                isBayoClubMember={isBayoClubMember}
+                links={publicLinks}
+                member={{
+                  member: member.member,
+                  name: member.name,
+                  refName: member.refName,
+                  title: member.title,
+                }}
+              />
+              <ProfileStatsCard
+                initialPageVisits={pageVisits}
+                member={member.member}
+                totalFavoriteCount={totalFavoriteCount}
+              />
+            </div>
 
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">

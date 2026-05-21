@@ -16,6 +16,7 @@ import {
 } from "../components/favorite-store";
 
 type DiamondWindow = "today" | "week" | "all";
+const ticketVoteWeight = 50;
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
@@ -29,6 +30,16 @@ function formatDateLine(date: Date) {
     day: "numeric",
     year: "numeric",
   }).format(date);
+}
+
+function getTicketVoteCount(post: BayPost) {
+  const count = Number(post.meta?.ticketVotes ?? 0);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function getTopStoryScore(post: BayPost, favoriteCounts: Record<string, number>) {
+  return (favoriteCounts[post.id] ?? 0) + getTicketVoteCount(post) * ticketVoteWeight;
 }
 
 export default function NewsHeadlineTerminal() {
@@ -52,11 +63,12 @@ export default function NewsHeadlineTerminal() {
     });
 
     return [...windowedPosts].sort((leftPost, rightPost) => {
-      const diamondDifference =
-        (favoriteCounts[rightPost.id] ?? 0) - (favoriteCounts[leftPost.id] ?? 0);
+      const scoreDifference =
+        getTopStoryScore(rightPost, favoriteCounts) -
+        getTopStoryScore(leftPost, favoriteCounts);
 
-      if (diamondDifference !== 0) {
-        return diamondDifference;
+      if (scoreDifference !== 0) {
+        return scoreDifference;
       }
 
       return (
@@ -125,8 +137,8 @@ export default function NewsHeadlineTerminal() {
           <span className="block text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
             {activePost
               ? `${formatDateLine(new Date(activePost.createdAt))} - ${
-                  favoriteCounts[activePost.id] ?? 0
-                } ◆`
+                  getTopStoryScore(activePost, favoriteCounts)
+                } priority`
               : "diamond ranking waiting"}
           </span>
           <span className="mt-4 block overflow-hidden text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14] sm:text-4xl">
@@ -157,7 +169,7 @@ export default function NewsHeadlineTerminal() {
               {post.title}
             </span>
             <span className="text-sm font-black text-[#39ff14]">
-              {favoriteCounts[post.id] ?? 0} ◆
+              {getTopStoryScore(post, favoriteCounts)} pts
             </span>
           </Link>
         ))}

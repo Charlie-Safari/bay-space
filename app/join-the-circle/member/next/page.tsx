@@ -46,13 +46,13 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
 
       <section className="mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
         <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-          c:\bay-space\circle\next&gt; prescreen
+          c:\bay-space\circle\next&gt; signal-select
         </p>
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           Member: {member} - {name}
         </h1>
         <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
-          prescreening message.
+          review the selected account type before continuing.
         </p>
 
         <div className="mt-10 w-full max-w-2xl border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
@@ -79,7 +79,7 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
 
         <div className="mt-6 w-full max-w-2xl border border-[#1d7f12] bg-[#001100] p-4 text-sm font-bold leading-7 text-[#d7ffd0]">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#39ff14]">
-            prescreen
+            access notes
           </p>
           {selectedDescription ? <p className="mt-3">{selectedDescription}</p> : null}
           {requiresBayoGate ? (
@@ -91,7 +91,7 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
           {requiresAdminCode ? (
             <>
               <p className="mt-3">
-                proceeding with this account requires the prescreen password.
+                influencer access requires the prescreen password: admin1.
               </p>
               <p className="mt-3">
                 your contributions may be flagged for removal

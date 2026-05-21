@@ -56,7 +56,7 @@ export default function PublicIdCard({
       ref={detailsRef}
       open={isOpen}
       onToggle={(event) => setIsOpen(event.currentTarget.open)}
-      className="mt-10 w-full max-w-2xl border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]"
+      className="w-full border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]"
     >
       <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
         ID card

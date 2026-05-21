@@ -46,7 +46,7 @@ export default function RoleSelector({ member, name, refName }: RoleSelectorProp
       <section className="border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-            select signal
+            signal select
           </h2>
           <div className="flex items-center gap-2">
             <button

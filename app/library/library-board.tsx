@@ -366,12 +366,12 @@ export default function LibraryBoard() {
                   types of accounts
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Reader: read and reveal Bay Space. Posting is closed.</li>
-                  <li>Ghost author - daily food: post in Daily Food only. Anon and incog are available.</li>
-                  <li>Ghost author - theories: post in Theories only. Anon and incog are available.</li>
-                  <li>Author - daily food: post in Daily Food only. Anon and incog are closed.</li>
-                  <li>Author - theories: post in Theories only. Anon and incog are closed.</li>
-                  <li>Bayo Club: selected access for Daily Food, Theories, and Library. Owl marker enabled.</li>
+                  <li>Curious Reader: read and reveal posts.</li>
+                  <li>Author - daily food: can only post in Daily Food. Anon and incog available.</li>
+                  <li>Author - theories: can only post in Theories. Anon and incog available.</li>
+                  <li>Influencer - daily food: can only post in Daily Food and Library. Anon and incog unavailable.</li>
+                  <li>Influencer - theories: can only post in Theories and Library. Anon and incog unavailable.</li>
+                  <li>BAYO CLUB: unrestricted posting access to Daily Food, Theories, and Library. Anon and incog available.</li>
                 </ul>
               </details>
 
@@ -380,12 +380,12 @@ export default function LibraryBoard() {
                   which account is right for you?
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Pick Reader if you only want to read, reveal, save, and follow.</li>
-                  <li>Pick Ghost author - daily food if you need Daily Food posting with anon and incog controls.</li>
-                  <li>Pick Ghost author - theories if you need Theories posting with anon and incog controls.</li>
-                  <li>Pick Author - daily food if you post Daily Food under your public name.</li>
-                  <li>Pick Author - theories if you post Theories under your public name.</li>
-                  <li>Bayo Club cannot be requested. Have your gatekey ready.</li>
+                  <li>Pick Curious Reader if you only want to read and reveal posts.</li>
+                  <li>Pick Author - daily food if you need Daily Food posting with anon and incog controls.</li>
+                  <li>Pick Author - theories if you need Theories posting with anon and incog controls.</li>
+                  <li>Pick Influencer - daily food if you post Daily Food and Library under your public name. Code: admin1.</li>
+                  <li>Pick Influencer - theories if you post Theories and Library under your public name. Code: admin1.</li>
+                  <li>BAYO CLUB cannot be requested. Have your gatekey ready.</li>
                 </ul>
               </details>
 

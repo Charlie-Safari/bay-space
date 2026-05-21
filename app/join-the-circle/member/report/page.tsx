@@ -17,7 +17,7 @@ export default async function ReportPage({ searchParams }: ReportPageProps) {
     name = "explorer",
     ref = name,
     roles = "",
-    title = "Reader",
+    title = "Curious Reader",
   } = await searchParams;
   const confirmHref = `/join-the-circle/member/confirm?${new URLSearchParams({
     member,

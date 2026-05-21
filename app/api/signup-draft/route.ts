@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const refName = normalizeUsername(candidateRefName);
     const name = refName;
     const roles = (body.roles ?? "").trim() || "curious reader";
-    const title = (body.title ?? "Reader").trim().slice(0, 80);
+    const title = (body.title ?? "Curious Reader").trim().slice(0, 80);
 
     await setSignupDraftCookie({
       member,

@@ -17,66 +17,63 @@ export const baySpaceRoles: BaySpaceRole[] = [
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
-    description:
-      "Read and reveal Bay Space. Posting access is closed for this account type.",
+    description: "Read and reveal posts.",
     id: "curious reader",
-    label: "Reader",
-    title: "Reader",
+    label: "Curious Reader",
+    title: "Curious Reader",
   },
   {
     allowedCategories: ["daily-food"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Post in Daily Food only. Anonymous and incognito posting are available. Library posting is closed.",
-    id: "ghost author - daily food",
-    label: "Ghost author - daily food",
-    requiresAdminCode: true,
-    title: "Ghost Author - Daily Food",
-  },
-  {
-    allowedCategories: ["theory"],
-    canUseAnonymous: true,
-    canUseIncognito: true,
-    description:
-      "Post in Theories only. Anonymous and incognito posting are available. Library posting is closed.",
-    id: "ghost author - theories",
-    label: "Ghost author - theories",
-    requiresAdminCode: true,
-    title: "Ghost Author - Theories",
-  },
-  {
-    allowedCategories: ["daily-food"],
-    canUseAnonymous: false,
-    canUseIncognito: false,
-    description:
-      "Post in Daily Food only. Anonymous and incognito posting are closed. Library posting is closed.",
+      "Can only post in Daily Food. Anon and incog available.",
     id: "author - daily food",
     label: "Author - daily food",
-    requiresAdminCode: true,
     title: "Author - Daily Food",
   },
   {
     allowedCategories: ["theory"],
+    canUseAnonymous: true,
+    canUseIncognito: true,
+    description:
+      "Can only post in Theories. Anon and incog available.",
+    id: "author - theories",
+    label: "Author - theories",
+    title: "Author - Theories",
+  },
+  {
+    allowedCategories: ["daily-food", "library-submission"],
     canUseAnonymous: false,
     canUseIncognito: false,
     description:
-      "Post in Theories only. Anonymous and incognito posting are closed. Library posting is closed.",
-    id: "author - theories",
-    label: "Author - theories",
+      "Can only post in Daily Food and Library. Anon and incog unavailable.",
+    id: "influencer - daily food",
+    label: "Influencer - daily food",
     requiresAdminCode: true,
-    title: "Author - Theories",
+    title: "Influencer - Daily Food",
+  },
+  {
+    allowedCategories: ["theory", "library-submission"],
+    canUseAnonymous: false,
+    canUseIncognito: false,
+    description:
+      "Can only post in Theories and Library. Anon and incog unavailable.",
+    id: "influencer - theories",
+    label: "Influencer - theories",
+    requiresAdminCode: true,
+    title: "Influencer - Theories",
   },
   {
     allowedCategories: ["daily-food", "theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Unrestricted Bay Space posting access for Daily Food, Theories, and Library. Anonymous posting is available.",
+      "Unrestricted posting access to Daily Food, Theories, and Library. Anon and incog available.",
     id: "bayo club",
-    label: "Bayo Club",
+    label: "BAYO CLUB",
     requiresBayoGate: true,
-    title: "Bayo Club",
+    title: "BAYO CLUB",
   },
 ];
 
@@ -108,7 +105,7 @@ export function getRoleDescription(role: string) {
 }
 
 export function getAccountTitle(roles: string) {
-  return getPrimaryRoleConfig(roles)?.title ?? "Reader";
+  return getPrimaryRoleConfig(roles)?.title ?? "Curious Reader";
 }
 
 export function getRoleAcronym(roles: string) {
@@ -124,11 +121,11 @@ export function canPostCategory(roles: string, category: BayPostCategory) {
 }
 
 export function hasCreatorAccess(roles: string) {
-  return getPrimaryRoleConfig(roles)?.id.startsWith("author -") ?? false;
+  return getPrimaryRoleConfig(roles)?.id.startsWith("influencer -") ?? false;
 }
 
 export function isGhostRole(roles: string) {
-  return getPrimaryRoleConfig(roles)?.id.startsWith("ghost author -") ?? false;
+  return getPrimaryRoleConfig(roles)?.id.startsWith("author -") ?? false;
 }
 
 export function canUseAnonymousPosting(roles: string) {

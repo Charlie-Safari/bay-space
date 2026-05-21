@@ -24,6 +24,7 @@ export default function PasswordConfirmForm({
   const router = useRouter();
   const [confirmPin, setConfirmPin] = useState("");
   const [isWrongPassword, setIsWrongPassword] = useState(false);
+  const [isAgreementAlert, setIsAgreementAlert] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [hasOpenedAgreement, setHasOpenedAgreement] = useState(false);
@@ -32,9 +33,20 @@ export default function PasswordConfirmForm({
   function flashError(message: string) {
     setErrorMessage("");
     setIsWrongPassword(false);
+    setIsAgreementAlert(false);
     window.setTimeout(() => {
       setErrorMessage(message);
       setIsWrongPassword(true);
+    }, 0);
+  }
+
+  function flashAgreementError(message: string) {
+    setErrorMessage("");
+    setIsWrongPassword(false);
+    setIsAgreementAlert(false);
+    window.setTimeout(() => {
+      setErrorMessage(message);
+      setIsAgreementAlert(true);
     }, 0);
   }
 
@@ -42,12 +54,12 @@ export default function PasswordConfirmForm({
     event.preventDefault();
 
     if (!hasOpenedAgreement) {
-      flashError("open the agreement first");
+      flashAgreementError("please read user agreement");
       return;
     }
 
     if (!hasAcceptedAgreement) {
-      flashError("agreement required");
+      flashAgreementError("please read user agreement");
       return;
     }
 
@@ -120,7 +132,10 @@ export default function PasswordConfirmForm({
         onClick={() => {
           setHasOpenedAgreement(true);
         }}
-        className="mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+          isAgreementAlert ? styles.alert : ""
+        }`}
+        onAnimationEnd={() => setIsAgreementAlert(false)}
       >
         VIEW USER AGREEMENT
       </a>
@@ -130,7 +145,7 @@ export default function PasswordConfirmForm({
           checked={hasAcceptedAgreement}
           onChange={(event) => {
             if (event.target.checked && !hasOpenedAgreement) {
-              flashError("open the agreement first");
+              flashAgreementError("please read user agreement");
               setHasAcceptedAgreement(false);
               return;
             }
@@ -139,9 +154,11 @@ export default function PasswordConfirmForm({
           }}
           className="mt-0.5 h-4 w-4 accent-[#39ff14]"
         />
-        <span>I agree to the BaySpace Privacy Notice and User Agreement.</span>
+        <span>
+          I have read and agree the bay-space privacy notice and user agreement.
+        </span>
       </label>
-      {isWrongPassword ? (
+      {isWrongPassword || isAgreementAlert ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
           {errorMessage}
         </p>

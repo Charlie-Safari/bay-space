@@ -11,7 +11,6 @@ import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import {
   favoriteStoreEvent,
-  getActiveMemberId,
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
 import {
@@ -77,6 +76,7 @@ export default function TheoryBoard() {
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
   const [openPostId, setOpenPostId] = useState(getPostHashId);
+  const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
 
@@ -89,7 +89,13 @@ export default function TheoryBoard() {
 
     syncPosts();
     async function syncLogin() {
-      setIsLoggedIn(Boolean(await getActiveMemberId()));
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const data = response.ok
+        ? ((await response.json()) as { member?: SavedMember | null })
+        : { member: null };
+
+      setActiveMember(data.member ?? null);
+      setIsLoggedIn(Boolean(data.member));
     }
 
     async function syncFavorites() {
@@ -167,6 +173,14 @@ export default function TheoryBoard() {
     }
 
     return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
+  }
+
+  function canBayoOpenClassifiedAuthor(post: BayPost) {
+    return (
+      post.anonymous &&
+      post.author !== "unknown" &&
+      isBayoClub(activeMember?.roles ?? "")
+    );
   }
 
   function closePost() {
@@ -288,8 +302,8 @@ export default function TheoryBoard() {
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
-            <option value="ghosts">Ghost authors</option>
-            <option value="creators">Authors</option>
+            <option value="ghosts">Authors</option>
+            <option value="creators">Influencers</option>
             <option value="anon">Anon</option>
           </select>
         </label>
@@ -330,7 +344,16 @@ export default function TheoryBoard() {
                     </p>
                   ) : post.anonymous ? (
                     <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-                      classified
+                      {canBayoOpenClassifiedAuthor(post) ? (
+                        <Link
+                          href={`/profile/${post.author}`}
+                          className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                        >
+                          classified
+                        </Link>
+                      ) : (
+                        "classified"
+                      )}
                     </p>
                   ) : null}
                   <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
