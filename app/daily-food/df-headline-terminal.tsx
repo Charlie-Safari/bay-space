@@ -18,6 +18,10 @@ import {
   getFavoritePostIds,
 } from "../components/favorite-store";
 import { hasCreatorAccess, isGhostRole } from "../../lib/bay-space-roles";
+import {
+  dailyFoodCategories,
+  defaultDailyFoodCategory,
+} from "../../lib/daily-food-categories";
 
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
 
@@ -67,6 +71,16 @@ function getMetaString(post: BayPost, key: string) {
   return typeof value === "string" ? value : "";
 }
 
+function getPostDailyFoodCategory(post: BayPost) {
+  return getMetaString(post, "dailyFoodCategory") || defaultDailyFoodCategory;
+}
+
+function getDailyFoodCategoryLabel(post: BayPost) {
+  const dailyFoodCategory = getPostDailyFoodCategory(post);
+
+  return dailyFoodCategory ? `Daily Food - ${dailyFoodCategory}` : "Daily Food";
+}
+
 type DfHeadlineTerminalProps = {
   onClearReference: () => void;
   unlockedReference: string;
@@ -98,6 +112,9 @@ export default function DfHeadlineTerminal({
   const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [selectedDailyFoodCategory, setSelectedDailyFoodCategory] =
+    useState("");
   const canMoveForward = activeDate < today;
   const activeDateKey = getDateKey(activeDate);
   const normalizedReferenceQuery = unlockedReference
@@ -126,6 +143,19 @@ export default function DfHeadlineTerminal({
   const hashPost =
     posts.find((post) => post.id === hashPostId && !post.incognito) ?? null;
   const displayedPost = matchedReferencePost ?? hashPost ?? expandedPost;
+  const categoryPosts = selectedDailyFoodCategory
+    ? filterPostsByAuthorMode(posts)
+        .filter(
+          (post) =>
+            !post.incognito &&
+            getPostDailyFoodCategory(post) === selectedDailyFoodCategory,
+        )
+        .sort(
+          (leftPost, rightPost) =>
+            new Date(rightPost.createdAt).getTime() -
+            new Date(leftPost.createdAt).getTime(),
+        )
+    : [];
   const nextTimelineDate = addDays(activeDate, 1);
   const previousTimelineDate = addDays(activeDate, -1);
 
@@ -330,25 +360,128 @@ export default function DfHeadlineTerminal({
     return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
   }
 
+  function openCategoryPost(post: BayPost) {
+    setExpandedPostId("");
+    setHashPostId(post.id);
+    setIsCategoriesOpen(false);
+    setSelectedDailyFoodCategory("");
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}#post-${post.id}`,
+    );
+  }
+
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
-      <label className="grid w-fit justify-self-end gap-2 lg:col-span-2">
-        <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-          sort posts by
-        </span>
-        <select
-          value={authorFilter}
-          onChange={(event) => setAuthorFilter(event.target.value as AuthorFilter)}
-          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+      <div className="flex flex-wrap items-end justify-end gap-3 lg:col-span-2">
+        <button
+          type="button"
+          onClick={() => {
+            setIsCategoriesOpen((isOpen) => {
+              if (isOpen) {
+                setSelectedDailyFoodCategory("");
+              }
+
+              return !isOpen;
+            });
+          }}
+          className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+            isCategoriesOpen
+              ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
+              : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+          }`}
         >
-          <option value="all">All</option>
-          <option value="favorite-authors">Favorite authors</option>
-          <option value="ghosts">Ghosts</option>
-          <option value="creators">Creator/Influencer</option>
-          <option value="anon">Anon</option>
-        </select>
-      </label>
-      <div className="min-h-40 w-full border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+          Categories
+        </button>
+        <label className="grid w-fit gap-2">
+          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+            sort posts by
+          </span>
+          <select
+            value={authorFilter}
+            onChange={(event) => setAuthorFilter(event.target.value as AuthorFilter)}
+            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+          >
+            <option value="all">All</option>
+            <option value="favorite-authors">Favorite authors</option>
+            <option value="ghosts">Ghosts</option>
+            <option value="creators">Creator/Influencer</option>
+            <option value="anon">Anon</option>
+          </select>
+        </label>
+      </div>
+      <div className="relative min-h-40 w-full overflow-hidden border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        {isCategoriesOpen ? (
+          <div className="daily-food-categories-overlay absolute inset-0 z-20 flex items-center justify-center bg-black/95 px-5 py-8">
+            <div className="daily-food-categories-grid" aria-hidden="true" />
+            <div className="relative z-10 grid w-full max-w-4xl gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
+                  {selectedDailyFoodCategory || "Categories"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCategoriesOpen(false);
+                    setSelectedDailyFoodCategory("");
+                  }}
+                  className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  aria-label="Close Daily Food categories"
+                >
+                  close
+                </button>
+              </div>
+              {selectedDailyFoodCategory ? (
+                <div className="grid gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDailyFoodCategory("")}
+                    className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    back
+                  </button>
+                  {categoryPosts.length ? (
+                    <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-2">
+                      {categoryPosts.map((post) => (
+                        <button
+                          key={post.id}
+                          type="button"
+                          onClick={() => openCategoryPost(post)}
+                          className="daily-food-category-button border border-[#39ff14]/45 bg-black/80 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.1)] transition hover:border-[#39ff14] hover:bg-[#031403] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          <span className="block text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                            {formatTimestamp(post.createdAt)}
+                          </span>
+                          <span className="mt-2 block text-sm font-black uppercase tracking-[0.14em]">
+                            {post.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      no posts filed in this category
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {dailyFoodCategories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setSelectedDailyFoodCategory(category)}
+                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-3 py-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
             {getPostMarker(displayedPost) ? (
@@ -395,6 +528,9 @@ export default function DfHeadlineTerminal({
                 )}
               </p>
             ) : null}
+            <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+              {getDailyFoodCategoryLabel(displayedPost)}
+            </p>
             <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimestamp(displayedPost.createdAt)}
             </p>

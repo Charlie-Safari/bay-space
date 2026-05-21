@@ -27,6 +27,10 @@ import {
   getAllowedPostCategories,
   getRoleAcronym,
 } from "../../lib/bay-space-roles";
+import {
+  dailyFoodCategories,
+  defaultDailyFoodCategory,
+} from "../../lib/daily-food-categories";
 
 type BriefingRoomGateProps = {
   member: string;
@@ -91,6 +95,7 @@ type PostDraft = {
   dailyFoodTag3: string;
   dailyFoodSource3: string;
   dailyFoodSourceOpen3: boolean;
+  dailyFoodCategory: string;
   theoryHeadline: string;
   theoryPost: string;
   theorySources: string[];
@@ -152,6 +157,18 @@ function formatDailyFoodCode(dateKey: string, order: number) {
   return `DF ${dateKey.replaceAll("-", "")} #${order
     .toString()
     .padStart(4, "0")}`;
+}
+
+function getDailyFoodCategoryLabel(post: Pick<BayPost, "category" | "meta">) {
+  const dailyFoodCategory = post.meta?.dailyFoodCategory;
+
+  if (post.category !== "daily-food") {
+    return post.category.replace("-", " ");
+  }
+
+  return typeof dailyFoodCategory === "string" && dailyFoodCategory
+    ? `Daily Food - ${dailyFoodCategory}`
+    : "Daily Food";
 }
 
 function limitWords(value: string, limit: number) {
@@ -445,6 +462,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [dailyFoodTag3, setDailyFoodTag3] = useState("");
   const [dailyFoodSource3, setDailyFoodSource3] = useState("");
   const [dailyFoodSourceOpen3, setDailyFoodSourceOpen3] = useState(false);
+  const [dailyFoodCategory, setDailyFoodCategory] = useState(
+    defaultDailyFoodCategory,
+  );
   const [theoryHeadline, setTheoryHeadline] = useState("");
   const [theoryPost, setTheoryPost] = useState("");
   const [theorySources, setTheorySources] = useState(["", ""]);
@@ -487,6 +507,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             dailyFoodTag3,
             dailyFoodSource3,
             dailyFoodSourceOpen3,
+            dailyFoodCategory,
             theoryHeadline,
             theoryPost,
             theorySources,
@@ -527,6 +548,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       dailyFoodTag3: "",
       dailyFoodSource3: "",
       dailyFoodSourceOpen3: false,
+      dailyFoodCategory: defaultDailyFoodCategory,
       theoryHeadline: "",
       theoryPost: "",
       theorySources: ["", ""],
@@ -563,6 +585,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       dailyFoodTag3,
       dailyFoodSource3,
       dailyFoodSourceOpen3,
+      dailyFoodCategory,
       theoryHeadline,
       theoryPost,
       theorySources,
@@ -594,6 +617,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodTag3(draft.dailyFoodTag3);
     setDailyFoodSource3(draft.dailyFoodSource3);
     setDailyFoodSourceOpen3(draft.dailyFoodSourceOpen3);
+    setDailyFoodCategory(draft.dailyFoodCategory || defaultDailyFoodCategory);
     setTheoryHeadline(draft.theoryHeadline);
     setTheoryPost(draft.theoryPost);
     setTheorySources(
@@ -988,6 +1012,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             dailyFoodSource3,
           ],
           dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
+          dailyFoodCategory,
           dailyFoodOrder: dailyFoodOrder.toString(),
           sources: [
             dailyFoodSource1,
@@ -1124,6 +1149,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           tags,
           tagSources,
           dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
+          dailyFoodCategory: defaultDailyFoodCategory,
           dailyFoodOrder: dailyFoodOrder.toString(),
           sources: parsedPost.sources.filter(Boolean),
         },
@@ -1232,6 +1258,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodTag3("");
     setDailyFoodSource3("");
     setDailyFoodSourceOpen3(false);
+    setDailyFoodCategory(defaultDailyFoodCategory);
     setTheoryHeadline("");
     setTheoryPost("");
     setTheorySources(["", ""]);
@@ -1686,7 +1713,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     </p>
                   ) : null}
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                    {postPreview.category.replace("-", " ")}
+                    {getDailyFoodCategoryLabel(postPreview)}
                   </p>
                   {(postPreview.anonymous || savedMember?.name) ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
@@ -2028,6 +2055,24 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       )}
                     </div>
                   ))}
+                  <label className="grid gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      category
+                    </span>
+                    <select
+                      value={dailyFoodCategory}
+                      onChange={(event) =>
+                        setDailyFoodCategory(event.target.value)
+                      }
+                      className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    >
+                      {dailyFoodCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               ) : null}
 
@@ -2468,7 +2513,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       </p>
                     ) : null}
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                      {lazyPostPreview.category.replace("-", " ")}
+                      {getDailyFoodCategoryLabel(lazyPostPreview)}
                     </p>
                     {(lazyPostPreview.anonymous || savedMember?.name) ? (
                       <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
