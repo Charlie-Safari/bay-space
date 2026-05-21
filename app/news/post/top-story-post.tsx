@@ -129,11 +129,13 @@ function getPostSources(post: BayPost | null) {
   const tagSources = post.meta?.tagSources;
   const sources = post.meta?.sources;
 
-  return [
+  const sourceValues = [
     ...(Array.isArray(sourceLinks) ? sourceLinks : []),
     ...(Array.isArray(tagSources) ? tagSources : []),
     ...(Array.isArray(sources) ? sources : []),
   ].filter((source): source is string => typeof source === "string" && Boolean(source));
+
+  return Array.from(new Set(sourceValues));
 }
 
 function getDailyFoodTags(post: BayPost | null) {

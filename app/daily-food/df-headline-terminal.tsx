@@ -504,39 +504,32 @@ export default function DfHeadlineTerminal({
             <div className="daily-food-categories-grid" aria-hidden="true" />
             <div className="relative z-10 grid w-full max-w-4xl gap-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
-                  {selectedDailyFoodCategory || "Categories"}
-                </p>
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
+                    {selectedDailyFoodCategory || "Categories"}
+                  </p>
+                  {selectedDailyFoodCategory &&
+                  dailyFoodCategoryDescriptions[selectedDailyFoodCategory] ? (
+                    <p className="max-w-2xl text-xs font-bold normal-case leading-5 tracking-[0.02em] text-[#9fcb98]">
+                      {dailyFoodCategoryDescriptions[selectedDailyFoodCategory]}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {!selectedDailyFoodCategory ? (
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isCategoryListLayout}
-                      aria-label="Toggle Daily Food category list layout"
-                      onClick={() =>
-                        setIsCategoryListLayout((isListLayout) => !isListLayout)
-                      }
-                      className="flex items-center gap-2 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    >
+                    <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
                       <span aria-hidden="true">🔑</span>
-                      <span
-                        aria-hidden="true"
-                        className={`relative h-5 w-10 rounded-full border transition ${
-                          isCategoryListLayout
-                            ? "border-[#39ff14] bg-[#062806]"
-                            : "border-[#1d7f12] bg-black"
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.7)] transition-transform ${
-                            isCategoryListLayout
-                              ? "translate-x-5"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </span>
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={isCategoryListLayout}
+                        onChange={(event) =>
+                          setIsCategoryListLayout(event.target.checked)
+                        }
+                        className="peer sr-only"
+                        aria-label="Toggle Daily Food category list layout"
+                      />
+                      <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
+                    </label>
                   ) : null}
                   <button
                     type="button"

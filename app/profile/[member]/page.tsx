@@ -41,6 +41,12 @@ function getExternalHref(url: string) {
   return `https://${url}`;
 }
 
+function getPostTicketCount(post: BayPost) {
+  const count = Number(post.meta?.ticketVotes ?? 0);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
 function PostList({ posts }: { posts: BayPost[] }) {
   if (!posts.length) {
     return (
@@ -79,6 +85,10 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const favoriteCounts = await countSavedPosts(posts.map((post) => post.id));
   const totalFavoriteCount = Object.values(favoriteCounts).reduce(
     (total, count) => total + count,
+    0,
+  );
+  const totalTicketCount = posts.reduce(
+    (total, post) => total + getPostTicketCount(post),
     0,
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
@@ -133,6 +143,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 initialPageVisits={pageVisits}
                 member={member.member}
                 totalFavoriteCount={totalFavoriteCount}
+                totalTicketCount={totalTicketCount}
               />
             </div>
 
