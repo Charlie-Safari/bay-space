@@ -63,6 +63,27 @@ type DailyFoodTag = {
   text: string;
 };
 
+const dailyFoodCategoryDescriptions: Record<string, string> = {
+  "Survival Status": "Are humans still functioning as a species?",
+  "Extinction Proximity": "How close Earth is to collapse.",
+  "Nuclear Posture": "Who has nukes, who's threatening, who's unstable.",
+  "Climate Stability": "Is the planet becoming less livable?",
+  "Biosphere Health": "Are animals, plants, oceans, forests surviving?",
+  "Resource Burn Rate": "How fast humans are using up essentials.",
+  "Conflict Intensity": "War, terrorism, riots, mass violence.",
+  "Governance Coherence": "Can governments still make sane decisions?",
+  "Technology Leap Risk": "Dangerous tech advancing faster than wisdom.",
+  "AI Emergence": "Machine intelligence becoming powerful or uncontrolled.",
+  "Space Capability": "Can humans leave Earth or defend orbit?",
+  "Signal Output": "How loud Earth is in space.",
+  "Psychological Volatility":
+    "How scared, angry, tribal, or irrational humans are.",
+  "Containment Risk": "Chance humans spread danger beyond Earth.",
+  "Contact Readiness":
+    "Could humans handle alien contact without losing it?",
+  "Observation Priority": "How closely aliens should watch Earth.",
+};
+
 type SavedMember = {
   member: string;
   name?: string;
@@ -123,6 +144,7 @@ export default function DfHeadlineTerminal({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [isCategoryListLayout, setIsCategoryListLayout] = useState(false);
   const [selectedDailyFoodCategory, setSelectedDailyFoodCategory] =
     useState("");
   const canMoveForward = activeDate < today;
@@ -485,17 +507,51 @@ export default function DfHeadlineTerminal({
                 <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
                   {selectedDailyFoodCategory || "Categories"}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoriesOpen(false);
-                    setSelectedDailyFoodCategory("");
-                  }}
-                  className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                  aria-label="Close Daily Food categories"
-                >
-                  close
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  {!selectedDailyFoodCategory ? (
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isCategoryListLayout}
+                      aria-label="Toggle Daily Food category list layout"
+                      onClick={() =>
+                        setIsCategoryListLayout((isListLayout) => !isListLayout)
+                      }
+                      className="flex items-center gap-2 border border-[#1d7f12] bg-black/80 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      <span aria-hidden="true">🔑</span>
+                      <span
+                        className={`border px-2 py-1 transition ${
+                          isCategoryListLayout
+                            ? "border-[#1d7f12] text-[#7f9f78]"
+                            : "border-[#39ff14] bg-[#39ff14] text-black"
+                        }`}
+                      >
+                        off
+                      </span>
+                      <span
+                        className={`border px-2 py-1 transition ${
+                          isCategoryListLayout
+                            ? "border-[#39ff14] bg-[#39ff14] text-black"
+                            : "border-[#1d7f12] text-[#7f9f78]"
+                        }`}
+                      >
+                        on
+                      </span>
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoriesOpen(false);
+                      setSelectedDailyFoodCategory("");
+                    }}
+                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    aria-label="Close Daily Food categories"
+                  >
+                    close
+                  </button>
+                </div>
               </div>
               {selectedDailyFoodCategory ? (
                 <div className="grid gap-4">
@@ -529,6 +585,26 @@ export default function DfHeadlineTerminal({
                       no posts filed in this category
                     </p>
                   )}
+                </div>
+              ) : isCategoryListLayout ? (
+                <div className="grid max-h-[30rem] gap-3 overflow-y-auto pr-2">
+                  {dailyFoodCategories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setSelectedDailyFoodCategory(category)}
+                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    >
+                      <span className="block text-sm font-black uppercase tracking-[0.14em]">
+                        {category}
+                      </span>
+                      {dailyFoodCategoryDescriptions[category] ? (
+                        <span className="mt-2 block text-xs font-bold normal-case leading-5 tracking-[0.02em] text-[#9fcb98]">
+                          {dailyFoodCategoryDescriptions[category]}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
