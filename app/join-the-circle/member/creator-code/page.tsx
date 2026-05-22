@@ -1,7 +1,7 @@
 import Link from "next/link";
 import HomeBar from "../../../components/home-bar";
 import CreatorCodeForm from "./creator-code-form";
-import { needsBayoGate } from "../../../../lib/bay-space-roles";
+import { isCrypti, needsBayoGate } from "../../../../lib/bay-space-roles";
 
 type CreatorCodePageProps = {
   searchParams: Promise<{
@@ -27,6 +27,7 @@ export default async function CreatorCodePage({
   });
   const backHref = `/join-the-circle/member/pin?${query.toString()}`;
   const isBayoGate = needsBayoGate(params.roles ?? "");
+  const isBayoPlusGate = isCrypti(params.roles ?? "");
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -46,7 +47,7 @@ export default async function CreatorCodePage({
         </p>
 
         <CreatorCodeForm
-          mode={isBayoGate ? "bayo" : "admin"}
+          mode={isBayoPlusGate ? "bayo-plus" : isBayoGate ? "bayo" : "admin"}
           reportHref={`/join-the-circle/member/report?${query.toString()}`}
         />
         <Link

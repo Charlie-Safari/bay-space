@@ -9,7 +9,7 @@ import {
   listPostsByAuthor,
 } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
-import { isBayoClub } from "../../../lib/bay-space-roles";
+import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -93,6 +93,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
   const isBayoClubMember = isBayoClub(member?.roles ?? "");
+  const isCryptiMember = isCrypti(member?.roles ?? "");
 
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
   const theoryPosts = posts.filter((post) => post.category === "theory");
@@ -122,7 +123,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
         </p>
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           {member?.name ?? "profile not found"}
-          {isBayoClubMember ? " 🦉" : ""}
+          {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
         </h1>
 
         {member ? (
@@ -131,6 +132,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
               <PublicIdCard
                 favoriteAuthorId={member.member}
                 isBayoClubMember={isBayoClubMember}
+                isCryptiMember={isCryptiMember}
                 links={publicLinks}
                 member={{
                   member: member.member,

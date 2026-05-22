@@ -19,6 +19,7 @@ import {
   getCurrentMember,
   setSessionCookie,
 } from "../../../../lib/bay-space-session";
+import { isCrypti } from "../../../../lib/bay-space-roles";
 
 type MemberContext = {
   params: Promise<{ member: string }>;
@@ -92,6 +93,7 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
     void memberId;
     const body = (await request.json()) as {
       agreementAccepted?: boolean;
+      bayoPlusAgreementAccepted?: boolean;
       confirmPin?: string;
     };
     const pin = body.confirmPin ?? "";
@@ -107,6 +109,13 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
 
     if (!draft || !verifySignupDraftPin(draft, pin)) {
       return Response.json({ message: "Invalid signup draft" }, { status: 400 });
+    }
+
+    if (isCrypti(draft.roles) && body.bayoPlusAgreementAccepted !== true) {
+      return Response.json(
+        { message: "bayo+ agreement required" },
+        { status: 400 },
+      );
     }
 
     const member = await completeMember(draft.member, {

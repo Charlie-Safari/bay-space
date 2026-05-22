@@ -4,14 +4,18 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type CreatorCodeFormProps = {
-  mode: "admin" | "bayo";
+  mode: "admin" | "bayo" | "bayo-plus";
   reportHref: string;
 };
 
 const bayoGateBinary =
   "01101111 01110111 01101100 01100110 01100101 01100001 01110100 01101000 01100101 01110010";
 
+const bayoPlusGateBinary =
+  "01100011 01110010 01111001 01110000 01110100 00100000 01101011 01100101 01100101 01110000 01100101 01110010";
+
 const bayoGatePhrase = "OWLFEATHER";
+const bayoPlusGatePhrase = "CRYPTKEEPER";
 const bayoGatePrompt = "e.n.t.e.r. g.a.t.e.k.e.y. 🦉";
 
 export default function CreatorCodeForm({
@@ -20,7 +24,8 @@ export default function CreatorCodeForm({
 }: CreatorCodeFormProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
-  const isBayoGate = mode === "bayo";
+  const isBayoGate = mode === "bayo" || mode === "bayo-plus";
+  const expectedBayoGate = mode === "bayo-plus" ? bayoPlusGateBinary : bayoGateBinary;
   const [typedPrompt, setTypedPrompt] = useState(
     mode === "bayo" ? "" : "enter code",
   );
@@ -59,12 +64,15 @@ export default function CreatorCodeForm({
 
     if (
       isBayoGate &&
-      (normalizedCode === bayoGateBinary ||
-        compactCode === bayoGateBinary.replace(/\s+/g, "") ||
-        compactCode === bayoGatePhrase.toLowerCase())
+      (normalizedCode === expectedBayoGate ||
+        compactCode === expectedBayoGate.replace(/\s+/g, "") ||
+        (mode === "bayo" && compactCode === bayoGatePhrase.toLowerCase()) ||
+        (mode === "bayo-plus" &&
+          compactCode === bayoPlusGatePhrase.toLowerCase()))
     ) {
       router.push(reportHref);
     }
+
   }
 
   return (
@@ -93,7 +101,7 @@ export default function CreatorCodeForm({
             isBayoGate
               ? event.target.value
                   .replace(/[^a-z0-9\s]/gi, "")
-                  .slice(0, bayoGateBinary.length)
+                  .slice(0, expectedBayoGate.length)
               : event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12),
           )
         }

@@ -3,7 +3,7 @@ import HomeBar from "../../../components/home-bar";
 import {
   getAccountTitle,
   getRoleDescription,
-  getRoleLabel,
+  getRoleReviewLabel,
   needsAdminCode,
   needsBayoGate,
 } from "../../../../lib/bay-space-roles";
@@ -66,7 +66,7 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
                   key={role}
                   className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0]"
                 >
-                  {getRoleLabel(role)}
+                  {getRoleReviewLabel(role)}
                 </p>
               ))
             ) : (

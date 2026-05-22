@@ -9,6 +9,7 @@ type BaySpaceRole = {
   label: string;
   requiresAdminCode?: boolean;
   requiresBayoGate?: boolean;
+  reviewLabel?: string;
   title: string;
 };
 
@@ -75,6 +76,18 @@ export const baySpaceRoles: BaySpaceRole[] = [
     requiresBayoGate: true,
     title: "BAYO CLUB",
   },
+  {
+    allowedCategories: ["daily-food", "theory", "library-submission"],
+    canUseAnonymous: true,
+    canUseIncognito: true,
+    description:
+      "Exclusive circle for devs, traders, conspiracy enthusiasts, knowledge exchange.",
+    id: "crypti",
+    label: "Bayo+",
+    reviewLabel: "Bayo + Crypti",
+    requiresBayoGate: true,
+    title: "Bayo + Crypti",
+  },
 ];
 
 function splitRoles(roles: string) {
@@ -100,6 +113,12 @@ export function getRoleLabel(role: string) {
   return getRoleConfig(role)?.label ?? role;
 }
 
+export function getRoleReviewLabel(role: string) {
+  const roleConfig = getRoleConfig(role);
+
+  return roleConfig?.reviewLabel ?? roleConfig?.label ?? role;
+}
+
 export function getRoleDescription(role: string) {
   return getRoleConfig(role)?.description ?? "";
 }
@@ -109,7 +128,7 @@ export function getAccountTitle(roles: string) {
 }
 
 export function getRoleAcronym(roles: string) {
-  return isBayoClub(roles) ? "🦉" : "";
+  return isCrypti(roles) ? "+" : isBayoClub(roles) ? "🦉" : "";
 }
 
 export function getAllowedPostCategories(roles: string) {
@@ -150,4 +169,8 @@ export function needsPrescreenAccess(roles: string) {
 
 export function isBayoClub(roles: string) {
   return getPrimaryRoleConfig(roles)?.id === "bayo club";
+}
+
+export function isCrypti(roles: string) {
+  return splitRoles(roles).includes("crypti");
 }

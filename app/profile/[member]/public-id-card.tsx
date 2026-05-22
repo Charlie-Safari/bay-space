@@ -6,6 +6,7 @@ import FavoriteAuthorButton from "../../components/favorite-author-button";
 type PublicIdCardProps = {
   favoriteAuthorId: string;
   isBayoClubMember: boolean;
+  isCryptiMember: boolean;
   links: {
     href: string;
     label: string;
@@ -21,6 +22,7 @@ type PublicIdCardProps = {
 export default function PublicIdCard({
   favoriteAuthorId,
   isBayoClubMember,
+  isCryptiMember,
   links,
   member,
 }: PublicIdCardProps) {
@@ -64,7 +66,10 @@ export default function PublicIdCard({
       <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
         <p>EXPLORER NUMBER - #{member.member}</p>
         <p>TITLE: {member.title}</p>
-        <p>NAME: {member.name}{isBayoClubMember ? " 🦉" : ""}</p>
+        <p>
+          NAME: {member.name}
+          {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
+        </p>
         <p>(REFERENCE NAME): {member.refName || "-----"}</p>
       </div>
       {links.length ? (

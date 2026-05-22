@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import MemberLookup from "./member-lookup";
+import { isCrypti } from "../../lib/bay-space-roles";
 
-const tabs = [
+type HomeTab = {
+  href: string;
+  isCrypti?: boolean;
+  label: string;
+};
+
+const tabs: HomeTab[] = [
   { label: "top story", href: "/news" },
   { label: "daily food", href: "/daily-food" },
   { label: "theories", href: "/theories" },
@@ -12,38 +19,61 @@ const tabs = [
 ];
 
 const activeMemberStorageKey = "bay-space-active-member";
+const activeMemberRolesStorageKey = "bay-space-active-member-roles";
+
+function getStoredValue(key: string) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(key) ?? "";
+}
 
 function minimizeOpenPostWindows() {
   window.dispatchEvent(new Event("bay-space-minimize-posts"));
 }
 
 export default function HomeBar() {
-  const [activeMember, setActiveMember] = useState("");
+  const [activeMember, setActiveMember] = useState(() =>
+    getStoredValue(activeMemberStorageKey),
+  );
+  const [activeMemberRoles, setActiveMemberRoles] = useState(() =>
+    getStoredValue(activeMemberRolesStorageKey),
+  );
 
   useEffect(() => {
     let isMounted = true;
 
     async function syncActiveMember() {
       const cachedMember = window.localStorage.getItem(activeMemberStorageKey) ?? "";
+      const cachedRoles =
+        window.localStorage.getItem(activeMemberRolesStorageKey) ?? "";
 
       if (cachedMember && isMounted) {
         setActiveMember(cachedMember);
+        setActiveMemberRoles(cachedRoles);
       }
 
       const response = await fetch("/api/me", { cache: "no-store" });
 
       if (response.ok) {
         const data = (await response.json()) as {
-          member?: { member: string } | null;
+          member?: { member: string; roles?: string } | null;
         };
         const memberId = data.member?.member ?? "";
+        const roles = data.member?.roles ?? "";
 
         if (memberId) {
           window.localStorage.setItem(activeMemberStorageKey, memberId);
+          window.localStorage.setItem(activeMemberRolesStorageKey, roles);
+        } else {
+          window.localStorage.removeItem(activeMemberStorageKey);
+          window.localStorage.removeItem(activeMemberRolesStorageKey);
         }
 
         if (isMounted) {
           setActiveMember(memberId);
+          setActiveMemberRoles(roles);
         }
 
         return;
@@ -51,9 +81,11 @@ export default function HomeBar() {
 
       if (response.status === 401) {
         window.localStorage.removeItem(activeMemberStorageKey);
+        window.localStorage.removeItem(activeMemberRolesStorageKey);
 
         if (isMounted) {
           setActiveMember("");
+          setActiveMemberRoles("");
         }
       }
     }
@@ -69,12 +101,15 @@ export default function HomeBar() {
     };
   }, []);
 
-  const visibleTabs = activeMember
-    ? [
-        { label: "briefing room", href: `/briefing-room?member=${activeMember}` },
-        ...tabs,
-      ]
-    : tabs;
+  const visibleTabs: HomeTab[] = [
+    ...(activeMember
+      ? [{ label: "briefing room", href: `/briefing-room?member=${activeMember}` }]
+      : []),
+    ...(isCrypti(activeMemberRoles)
+      ? [{ isCrypti: true, label: "crypti", href: "/crypti" }]
+      : []),
+    ...tabs,
+  ];
 
   return (
     <nav
@@ -100,7 +135,11 @@ export default function HomeBar() {
               key={tab.href}
               href={tab.href}
               onClick={minimizeOpenPostWindows}
-              className="border border-[#39ff14] px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className={`border px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                tab.isCrypti
+                  ? "border-[#72d7ff] text-[#72d7ff] hover:bg-[#72d7ff] hover:text-black"
+                  : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+              }`}
             >
               {tab.label}
             </Link>

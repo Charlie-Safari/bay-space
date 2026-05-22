@@ -2,7 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { baySpaceAgreementHref } from "../../../../lib/bay-space-agreement";
+import {
+  bayoPlusAgreementHref,
+  baySpaceAgreementHref,
+} from "../../../../lib/bay-space-agreement";
+import { isCrypti } from "../../../../lib/bay-space-roles";
 import styles from "./password-confirm-form.module.css";
 
 type PasswordConfirmFormProps = {
@@ -28,6 +32,11 @@ export default function PasswordConfirmForm({
   const [errorMessage, setErrorMessage] = useState("");
   const [hasOpenedAgreement, setHasOpenedAgreement] = useState(false);
   const [hasAcceptedAgreement, setHasAcceptedAgreement] = useState(false);
+  const [hasOpenedBayoPlusAgreement, setHasOpenedBayoPlusAgreement] =
+    useState(false);
+  const [hasAcceptedBayoPlusAgreement, setHasAcceptedBayoPlusAgreement] =
+    useState(false);
+  const needsBayoPlusAgreement = isCrypti(roles);
 
   function flashError(message: string) {
     setErrorMessage("");
@@ -62,6 +71,16 @@ export default function PasswordConfirmForm({
       return;
     }
 
+    if (needsBayoPlusAgreement && !hasOpenedBayoPlusAgreement) {
+      flashAgreementError("please read bayo+ agreement");
+      return;
+    }
+
+    if (needsBayoPlusAgreement && !hasAcceptedBayoPlusAgreement) {
+      flashAgreementError("please read bayo+ agreement");
+      return;
+    }
+
     if (!confirmPin || isSaving) {
       flashError("try again");
       return;
@@ -74,6 +93,9 @@ export default function PasswordConfirmForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           agreementAccepted: true,
+          bayoPlusAgreementAccepted: needsBayoPlusAgreement
+            ? hasAcceptedBayoPlusAgreement
+            : undefined,
           confirmPin,
           name,
           refName,
@@ -157,6 +179,41 @@ export default function PasswordConfirmForm({
           I have read and agree the bay-space privacy notice and user agreement.
         </span>
       </label>
+      {needsBayoPlusAgreement ? (
+        <>
+          <a
+            href={bayoPlusAgreementHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => {
+              setHasOpenedBayoPlusAgreement(true);
+            }}
+            className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+              isAgreementAlert ? styles.alert : ""
+            }`}
+            onAnimationEnd={() => setIsAgreementAlert(false)}
+          >
+            VIEW BAYO+ AGREEMENT
+          </a>
+          <label className="mt-4 flex items-start gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            <input
+              type="checkbox"
+              checked={hasAcceptedBayoPlusAgreement}
+              onChange={(event) => {
+                if (event.target.checked && !hasOpenedBayoPlusAgreement) {
+                  flashAgreementError("please read bayo+ agreement");
+                  setHasAcceptedBayoPlusAgreement(false);
+                  return;
+                }
+
+                setHasAcceptedBayoPlusAgreement(event.target.checked);
+              }}
+              className="mt-0.5 h-4 w-4 accent-[#39ff14]"
+            />
+            <span>I confirm I read and agree the Bayo+ user agreement.</span>
+          </label>
+        </>
+      ) : null}
       {isWrongPassword || isAgreementAlert ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
           {errorMessage}

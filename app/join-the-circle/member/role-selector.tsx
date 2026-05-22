@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
-  baySpaceRoles,
   getRoleDescription,
+  baySpaceRoles,
 } from "../../../lib/bay-space-roles";
 
 type RoleSelectorProps = {
