@@ -20,9 +20,10 @@ export async function GET() {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    return Response.json(
-      getAvailability(await getMemberTicketVoteNextAt(member.member)),
-    );
+    return Response.json({
+      ...getAvailability(await getMemberTicketVoteNextAt(member.member)),
+      member: member.member,
+    });
   } catch (error) {
     const storageMessage = getStorageErrorMessage(error);
 

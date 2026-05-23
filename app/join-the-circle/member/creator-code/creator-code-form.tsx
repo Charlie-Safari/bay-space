@@ -16,6 +16,7 @@ const bayoPlusGateBinary =
 
 const bayoGatePhrase = "OWLFEATHER";
 const bayoPlusGatePhrase = "CRYPTKEEPER";
+const bayoPlusGatePhraseWithSpace = "CRYPT KEEPER";
 const bayoGatePrompt = "e.n.t.e.r. g.a.t.e.k.e.y. 🦉";
 
 export default function CreatorCodeForm({
@@ -29,6 +30,7 @@ export default function CreatorCodeForm({
   const [typedPrompt, setTypedPrompt] = useState(
     mode === "bayo" ? "" : "enter code",
   );
+  const [errorMessage, setErrorMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,9 +59,11 @@ export default function CreatorCodeForm({
     event.preventDefault();
     const normalizedCode = code.trim();
     const compactCode = normalizedCode.replace(/\s+/g, "").toLowerCase();
+    const exactCode = normalizedCode.toLowerCase();
 
     if (!isBayoGate && compactCode === "admin1") {
       router.push(reportHref);
+      return;
     }
 
     if (
@@ -68,11 +72,14 @@ export default function CreatorCodeForm({
         compactCode === expectedBayoGate.replace(/\s+/g, "") ||
         (mode === "bayo" && compactCode === bayoGatePhrase.toLowerCase()) ||
         (mode === "bayo-plus" &&
-          compactCode === bayoPlusGatePhrase.toLowerCase()))
+          (compactCode === bayoPlusGatePhrase.toLowerCase() ||
+            exactCode === bayoPlusGatePhraseWithSpace.toLowerCase())))
     ) {
       router.push(reportHref);
+      return;
     }
 
+    setErrorMessage(isBayoGate ? "gatekey not recognized" : "code not recognized");
   }
 
   return (
@@ -96,17 +103,23 @@ export default function CreatorCodeForm({
         ref={inputRef}
         id="creator-code"
         value={code}
-        onChange={(event) =>
+        onChange={(event) => {
+          setErrorMessage("");
           setCode(
             isBayoGate
               ? event.target.value
                   .replace(/[^a-z0-9\s]/gi, "")
                   .slice(0, expectedBayoGate.length)
               : event.target.value.replace(/[^a-z0-9]/gi, "").slice(0, 12),
-          )
-        }
+          );
+        }}
         className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
       />
+      {errorMessage ? (
+        <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
+          {errorMessage}
+        </p>
+      ) : null}
       <button
         type="submit"
         className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"

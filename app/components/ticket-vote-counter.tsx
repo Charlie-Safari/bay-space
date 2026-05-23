@@ -26,10 +26,16 @@ export default function TicketVoteCounter() {
         return;
       }
 
-      const data = (await response.json()) as { nextAt?: number };
+      const data = (await response.json()) as {
+        member?: string;
+        nextAt?: number;
+      };
 
       if (typeof data.nextAt === "number") {
-        setNextTicketVoteAt(data.nextAt);
+        setNextTicketVoteAt(data.nextAt, data.member);
+        setTicketVoteAvailability(
+          getTicketVoteAvailability(Date.now(), data.member),
+        );
       } else {
         syncTicketVotes();
       }

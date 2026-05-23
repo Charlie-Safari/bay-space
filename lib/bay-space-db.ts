@@ -333,12 +333,17 @@ async function getMemberRowById(memberId: string) {
   return rows[0] ?? null;
 }
 
-function isUniqueViolation(error: unknown) {
+function isRefNameUniqueViolation(error: unknown) {
   return (
     error instanceof SupabaseServerError &&
-    /duplicate key value|unique constraint|members_ref_name_unique_idx/i.test(
-      error.message,
-    )
+    /members_ref_name_unique_idx/i.test(error.message)
+  );
+}
+
+function isMemberNumberUniqueViolation(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    /members_member_number/i.test(error.message)
   );
 }
 
@@ -468,12 +473,12 @@ export async function completeMember(
   const pinSalt = randomBytes(16).toString("hex");
   let members: MemberRow[];
 
-  try {
-    members = await supabaseRequest<MemberRow[]>("members", {
+  async function insertMember(memberNumber?: number) {
+    return supabaseRequest<MemberRow[]>("members", {
       body: {
         agreement_accepted_at: input.agreementAcceptedAt,
         agreement_version: input.agreementVersion,
-        member_number: getMemberNumber(memberId),
+        ...(memberNumber ? { member_number: memberNumber } : {}),
         name: normalizeName(input.name),
         ref_name: refName,
         title: normalizeTitle(input.title),
@@ -482,12 +487,28 @@ export async function completeMember(
       prefer: "return=representation",
       query: { select: "*" },
     });
+  }
+
+  try {
+    members = await insertMember(getMemberNumber(memberId));
   } catch (error) {
-    if (isUniqueViolation(error)) {
+    if (isRefNameUniqueViolation(error)) {
       throw new UsernameUnavailableError();
     }
 
-    throw error;
+    if (!isMemberNumberUniqueViolation(error)) {
+      throw error;
+    }
+
+    try {
+      members = await insertMember(getMemberNumber(await getNextMemberId()));
+    } catch (retryError) {
+      if (isRefNameUniqueViolation(retryError)) {
+        throw new UsernameUnavailableError();
+      }
+
+      throw retryError;
+    }
   }
   const member = members[0];
 

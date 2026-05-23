@@ -33,10 +33,14 @@ export default function TicketVoteButton({
         return;
       }
 
-      const data = (await response.json()) as { nextAt?: number };
+      const data = (await response.json()) as {
+        member?: string;
+        nextAt?: number;
+      };
 
       if (typeof data.nextAt === "number") {
-        setNextTicketVoteAt(data.nextAt);
+        setNextTicketVoteAt(data.nextAt, data.member);
+        setCanVote(getTicketVoteAvailability(Date.now(), data.member).canVote);
       }
     }
 
@@ -62,12 +66,13 @@ export default function TicketVoteButton({
     });
     const data = (await response.json().catch(() => ({}))) as {
       nextTicketVoteAt?: number;
+      member?: string;
       ticketVotes?: number;
     };
     setIsSaving(false);
 
     if (!response.ok && typeof data.nextTicketVoteAt === "number") {
-      setNextTicketVoteAt(data.nextTicketVoteAt);
+      setNextTicketVoteAt(data.nextTicketVoteAt, data.member);
       return;
     }
 
@@ -77,9 +82,9 @@ export default function TicketVoteButton({
 
     setCount(data.ticketVotes);
     if (typeof data.nextTicketVoteAt === "number") {
-      setNextTicketVoteAt(data.nextTicketVoteAt);
+      setNextTicketVoteAt(data.nextTicketVoteAt, data.member);
     } else {
-      startTicketVoteCooldown();
+      startTicketVoteCooldown(undefined, data.member);
     }
   }
 

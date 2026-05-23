@@ -27,6 +27,7 @@ export async function POST(request: Request, context: TicketVoteContext) {
         return Response.json(
           {
             canVote: false,
+            member: member.member,
             nextTicketVoteAt,
             remainingMs: nextTicketVoteAt - now,
           },
@@ -52,6 +53,7 @@ export async function POST(request: Request, context: TicketVoteContext) {
     revalidatePath("/news");
 
     return Response.json({
+      member: member?.member,
       nextTicketVoteAt,
       post: result.post,
       ticketVotes: result.ticketVotes,
