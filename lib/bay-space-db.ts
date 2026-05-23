@@ -334,16 +334,14 @@ async function getMemberRowById(memberId: string) {
 }
 
 function isRefNameUniqueViolation(error: unknown) {
-  return (
-    error instanceof SupabaseServerError &&
-    /members_ref_name_unique_idx/i.test(error.message)
+  return /members_ref_name_unique_idx/i.test(
+    error instanceof Error ? error.message : String(error),
   );
 }
 
 function isMemberNumberUniqueViolation(error: unknown) {
-  return (
-    error instanceof SupabaseServerError &&
-    /members_member_number/i.test(error.message)
+  return /members_member_number/i.test(
+    error instanceof Error ? error.message : String(error),
   );
 }
 
@@ -421,7 +419,6 @@ export async function getNextMemberId() {
     "members",
     {
       query: {
-        deleted_at: "is.null",
         limit: 1,
         order: "member_number.desc",
         select: "member_number",

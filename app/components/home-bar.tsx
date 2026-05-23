@@ -21,25 +21,13 @@ const tabs: HomeTab[] = [
 const activeMemberStorageKey = "bay-space-active-member";
 const activeMemberRolesStorageKey = "bay-space-active-member-roles";
 
-function getStoredValue(key: string) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.localStorage.getItem(key) ?? "";
-}
-
 function minimizeOpenPostWindows() {
   window.dispatchEvent(new Event("bay-space-minimize-posts"));
 }
 
 export default function HomeBar() {
-  const [activeMember, setActiveMember] = useState(() =>
-    getStoredValue(activeMemberStorageKey),
-  );
-  const [activeMemberRoles, setActiveMemberRoles] = useState(() =>
-    getStoredValue(activeMemberRolesStorageKey),
-  );
+  const [activeMember, setActiveMember] = useState("");
+  const [activeMemberRoles, setActiveMemberRoles] = useState("");
 
   useEffect(() => {
     let isMounted = true;

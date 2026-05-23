@@ -28,6 +28,9 @@ export default function PasswordConfirmForm({
   const [confirmPin, setConfirmPin] = useState("");
   const [isWrongPassword, setIsWrongPassword] = useState(false);
   const [isAgreementAlert, setIsAgreementAlert] = useState(false);
+  const [isBayoPlusAgreementAlert, setIsBayoPlusAgreementAlert] =
+    useState(false);
+  const [isAgreementError, setIsAgreementError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [hasOpenedAgreement, setHasOpenedAgreement] = useState(false);
@@ -42,37 +45,55 @@ export default function PasswordConfirmForm({
     setErrorMessage("");
     setIsWrongPassword(false);
     setIsAgreementAlert(false);
+    setIsBayoPlusAgreementAlert(false);
+    setIsAgreementError(false);
     window.setTimeout(() => {
       setErrorMessage(message);
       setIsWrongPassword(true);
     }, 0);
   }
 
-  function flashAgreementError(message: string) {
+  function flashAgreementError(
+    message: string,
+    alerts: { bayoPlus?: boolean; user?: boolean } = {},
+  ) {
     setErrorMessage("");
     setIsWrongPassword(false);
     setIsAgreementAlert(false);
+    setIsBayoPlusAgreementAlert(false);
+    setIsAgreementError(false);
     window.setTimeout(() => {
       setErrorMessage(message);
-      setIsAgreementAlert(true);
+      setIsAgreementAlert(Boolean(alerts.user));
+      setIsBayoPlusAgreementAlert(Boolean(alerts.bayoPlus));
+      setIsAgreementError(true);
     }, 0);
   }
 
   async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!hasOpenedAgreement) {
-      flashAgreementError("please read user agreement");
+    const needsUserAgreementOpen = !hasOpenedAgreement;
+    const needsBayoPlusAgreementOpen =
+      needsBayoPlusAgreement && !hasOpenedBayoPlusAgreement;
+
+    if (needsUserAgreementOpen || needsBayoPlusAgreementOpen) {
+      flashAgreementError(
+        needsUserAgreementOpen && needsBayoPlusAgreementOpen
+          ? "please read agreements"
+          : needsUserAgreementOpen
+            ? "please read user agreement"
+            : "please read bayo+ agreement",
+        {
+          bayoPlus: needsBayoPlusAgreementOpen,
+          user: needsUserAgreementOpen,
+        },
+      );
       return;
     }
 
     if (!hasAcceptedAgreement) {
       flashAgreementError("please read user agreement");
-      return;
-    }
-
-    if (needsBayoPlusAgreement && !hasOpenedBayoPlusAgreement) {
-      flashAgreementError("please read bayo+ agreement");
       return;
     }
 
@@ -166,7 +187,7 @@ export default function PasswordConfirmForm({
           checked={hasAcceptedAgreement}
           onChange={(event) => {
             if (event.target.checked && !hasOpenedAgreement) {
-              flashAgreementError("please read user agreement");
+              flashAgreementError("please read user agreement", { user: true });
               setHasAcceptedAgreement(false);
               return;
             }
@@ -189,9 +210,9 @@ export default function PasswordConfirmForm({
               setHasOpenedBayoPlusAgreement(true);
             }}
             className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-              isAgreementAlert ? styles.alert : ""
+              isBayoPlusAgreementAlert ? styles.alert : ""
             }`}
-            onAnimationEnd={() => setIsAgreementAlert(false)}
+            onAnimationEnd={() => setIsBayoPlusAgreementAlert(false)}
           >
             VIEW BAYO+ AGREEMENT
           </a>
@@ -201,7 +222,9 @@ export default function PasswordConfirmForm({
               checked={hasAcceptedBayoPlusAgreement}
               onChange={(event) => {
                 if (event.target.checked && !hasOpenedBayoPlusAgreement) {
-                  flashAgreementError("please read bayo+ agreement");
+                  flashAgreementError("please read bayo+ agreement", {
+                    bayoPlus: true,
+                  });
                   setHasAcceptedBayoPlusAgreement(false);
                   return;
                 }
@@ -214,7 +237,7 @@ export default function PasswordConfirmForm({
           </label>
         </>
       ) : null}
-      {isWrongPassword || isAgreementAlert ? (
+      {isWrongPassword || isAgreementError ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14]">
           {errorMessage}
         </p>
