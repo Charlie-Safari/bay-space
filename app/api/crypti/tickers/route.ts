@@ -1,5 +1,6 @@
 import {
   createCryptiTicker,
+  deleteCryptiTicker,
   listCryptiTickers,
 } from "../../../../lib/crypti-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
@@ -74,5 +75,28 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     return cryptiErrorResponse(error, "Unable to save Crypti ticker");
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const member = await requireCryptiMember();
+
+    if (!member) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json()) as {
+      symbol?: string;
+    };
+    const deleted = await deleteCryptiTicker(member, body.symbol ?? "");
+
+    if (!deleted) {
+      return Response.json({ message: "Ticker not found" }, { status: 404 });
+    }
+
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    return cryptiErrorResponse(error, "Unable to delete Crypti ticker");
   }
 }

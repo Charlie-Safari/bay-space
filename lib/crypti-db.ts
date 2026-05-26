@@ -142,6 +142,7 @@ function publicTicker(
   today: CryptiVoteCounts,
   allTime: CryptiVoteCounts,
   userVote?: CryptiVoteValue,
+  submittedBy?: string,
 ): CryptiTicker {
   return {
     allTime,
@@ -152,6 +153,7 @@ function publicTicker(
     createdAt: ticker.created_at,
     id: ticker.id,
     note: ticker.note,
+    submittedBy,
     symbol: ticker.symbol,
     today,
     userVote,
@@ -190,6 +192,39 @@ async function getTickerRow(symbol: string) {
   });
 
   return rows[0] ?? null;
+}
+
+async function getMemberNumberById(memberId: string) {
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${memberId}`,
+      select: "id,member_number",
+    },
+  });
+  const member = rows[0];
+
+  return member ? member.member_number.toString().padStart(5, "0") : undefined;
+}
+
+async function getMemberNumbersByIds(memberIds: string[]) {
+  const uniqueMemberIds = Array.from(new Set(memberIds.filter(Boolean)));
+
+  if (!uniqueMemberIds.length) {
+    return new Map<string, string>();
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      id: `in.(${uniqueMemberIds.join(",")})`,
+      select: "id,member_number",
+    },
+  });
+
+  return new Map(
+    rows.map((row) => [row.id, row.member_number.toString().padStart(5, "0")]),
+  );
 }
 
 function isUniqueViolation(error: unknown) {
@@ -231,6 +266,11 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
     },
   });
   const memberRow = member ? await getMemberRow(member.member) : null;
+  const submittedByMemberNumbers = await getMemberNumbersByIds(
+    tickers
+      .map((ticker) => ticker.submitted_by_member_id ?? "")
+      .filter(Boolean),
+  );
 
   return tickers.map((ticker) => {
     const today = emptyVoteCounts();
@@ -251,7 +291,15 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
         }
       });
 
-    return publicTicker(ticker, today, allTime, userVote);
+    return publicTicker(
+      ticker,
+      today,
+      allTime,
+      userVote,
+      ticker.submitted_by_member_id
+        ? submittedByMemberNumbers.get(ticker.submitted_by_member_id)
+        : undefined,
+    );
   });
 }
 
@@ -268,7 +316,15 @@ export async function createCryptiTicker(
   const existing = await getTickerRow(symbol);
 
   if (existing) {
-    return publicTicker(existing, emptyVoteCounts(), emptyVoteCounts());
+    return publicTicker(
+      existing,
+      emptyVoteCounts(),
+      emptyVoteCounts(),
+      undefined,
+      existing.submitted_by_member_id
+        ? await getMemberNumberById(existing.submitted_by_member_id)
+        : undefined,
+    );
   }
 
   const memberRow = await getMemberRow(member.member);
@@ -293,18 +349,49 @@ export async function createCryptiTicker(
       query: { select: "*" },
     });
 
-    return publicTicker(rows[0], emptyVoteCounts(), emptyVoteCounts());
+    return publicTicker(
+      rows[0],
+      emptyVoteCounts(),
+      emptyVoteCounts(),
+      undefined,
+      member.member,
+    );
   } catch (error) {
     if (isUniqueViolation(error)) {
       const ticker = await getTickerRow(symbol);
 
       if (ticker) {
-        return publicTicker(ticker, emptyVoteCounts(), emptyVoteCounts());
+        return publicTicker(
+          ticker,
+          emptyVoteCounts(),
+          emptyVoteCounts(),
+          undefined,
+          ticker.submitted_by_member_id
+            ? await getMemberNumberById(ticker.submitted_by_member_id)
+            : undefined,
+        );
       }
     }
 
     throw error;
   }
+}
+
+export async function deleteCryptiTicker(member: BayMember, symbol: string) {
+  const ticker = await getTickerRow(symbol);
+  const memberRow = await getMemberRow(member.member);
+
+  if (!ticker || !memberRow || ticker.submitted_by_member_id !== memberRow.id) {
+    return false;
+  }
+
+  await supabaseRequest<CryptiTickerRow[]>("crypti_tickers", {
+    method: "DELETE",
+    prefer: "return=minimal",
+    query: { id: `eq.${ticker.id}` },
+  });
+
+  return true;
 }
 
 export async function voteCryptiTicker(

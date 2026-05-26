@@ -18,6 +18,7 @@ export type CryptiTicker = {
   createdAt: string;
   id: string;
   note: string;
+  submittedBy?: string;
   symbol: string;
   today: CryptiVoteCounts;
   userVote?: CryptiVoteValue;

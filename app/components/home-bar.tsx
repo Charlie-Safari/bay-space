@@ -94,7 +94,7 @@ export default function HomeBar() {
       ? [{ label: "briefing room", href: `/briefing-room?member=${activeMember}` }]
       : []),
     ...(isCrypti(activeMemberRoles)
-      ? [{ isCrypti: true, label: "crypti", href: "/crypti" }]
+      ? [{ isCrypti: true, label: "+Crypti", href: "/crypti" }]
       : []),
     ...tabs,
   ];
