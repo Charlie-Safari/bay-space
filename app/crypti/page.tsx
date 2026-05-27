@@ -19,7 +19,7 @@ export default async function Crypti() {
             <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
               c:\bay-space\crypti&gt; signal-room
             </p>
-            <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#72d7ff] [text-shadow:0_0_16px_#72d7ff] sm:text-7xl">
+            <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
               +CRYPTI
             </h1>
             <div className="mt-10 max-w-2xl border-2 border-[#1d7f12] bg-black p-5 shadow-[0_0_18px_rgba(57,255,20,0.16)]">

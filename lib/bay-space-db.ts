@@ -54,10 +54,12 @@ type MemberStats = {
 
 type MemberTicketVote = {
   nextAt?: number;
+  postIds?: string[];
 };
 
 type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
   _stats?: MemberStats;
+  _cryptiTicketVote?: MemberTicketVote;
   _ticketVote?: MemberTicketVote;
 };
 
@@ -244,6 +246,12 @@ function getPostTicketVoteCount(post: PostRow) {
   return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
 }
 
+function getPostCryptiTicketVoteCount(post: PostRow) {
+  const count = Number(post.meta?.cryptiTicketVotes ?? 0);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
 function normalizePublicLink(link?: PublicLink) {
   return {
     url: link?.url.trim().slice(0, 240) ?? "",
@@ -269,6 +277,18 @@ function normalizeTicketVoteNextAt(value: unknown) {
 
 function getMemberTicketVoteNextAtFromRow(member: MemberRow) {
   return normalizeTicketVoteNextAt(member.links?._ticketVote?.nextAt);
+}
+
+function getMemberCryptiTicketVoteNextAtFromRow(member: MemberRow) {
+  return normalizeTicketVoteNextAt(member.links?._cryptiTicketVote?.nextAt);
+}
+
+function getMemberCryptiTicketedPostIds(member: MemberRow) {
+  const postIds = member.links?._cryptiTicketVote?.postIds;
+
+  return Array.isArray(postIds)
+    ? postIds.filter((postId): postId is string => typeof postId === "string")
+    : [];
 }
 
 function splitRoles(roles: string) {
@@ -660,6 +680,53 @@ export async function startMemberTicketVoteCooldown(
   return rows[0] ? getMemberTicketVoteNextAtFromRow(rows[0]) : normalizedNextAt;
 }
 
+export async function getMemberCryptiTicketVoteNextAt(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberCryptiTicketVoteNextAtFromRow(member) : 0;
+}
+
+export async function listMemberCryptiTicketedPostIds(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberCryptiTicketedPostIds(member) : [];
+}
+
+export async function startMemberCryptiTicketVoteCooldown(
+  memberId: string,
+  nextAt: number,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return 0;
+  }
+
+  const normalizedNextAt = normalizeTicketVoteNextAt(nextAt);
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _cryptiTicketVote: {
+          ...(member.links?._cryptiTicketVote ?? {}),
+          nextAt: normalizedNextAt,
+        },
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0]
+    ? getMemberCryptiTicketVoteNextAtFromRow(rows[0])
+    : normalizedNextAt;
+}
+
 export async function wipeMemberAccount(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
@@ -930,6 +997,83 @@ export async function incrementPostTicketVoteCount(postId: string) {
   return {
     post: publicPost(updatedPosts[0]),
     ticketVotes,
+  };
+}
+
+export async function toggleCryptiPostTicketVote(
+  memberId: string,
+  postId: string,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      category: "eq.theory",
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const post = posts[0];
+
+  if (!post || post.meta?.cryptiPost !== "true") {
+    return null;
+  }
+
+  const ticketedPostIds = getMemberCryptiTicketedPostIds(member);
+  const isTicketed = ticketedPostIds.includes(post.id);
+  const nextTicketedPostIds = isTicketed
+    ? ticketedPostIds.filter((ticketedPostId) => ticketedPostId !== post.id)
+    : [...ticketedPostIds, post.id];
+  const cryptiTicketVotes = Math.max(
+    0,
+    getPostCryptiTicketVoteCount(post) + (isTicketed ? -1 : 1),
+  );
+
+  const [updatedPosts] = await Promise.all([
+    supabaseRequest<PostRow[]>("posts", {
+      body: {
+        meta: {
+          ...(post.meta ?? {}),
+          cryptiTicketVotes: String(cryptiTicketVotes),
+        },
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=representation",
+      query: {
+        id: `eq.${post.id}`,
+        select: "*",
+      },
+    }),
+    supabaseRequest<MemberRow[]>("members", {
+      body: {
+        links: {
+          ...(member.links ?? {}),
+          _cryptiTicketVote: {
+            ...(member.links?._cryptiTicketVote ?? {}),
+            postIds: nextTicketedPostIds,
+          },
+        },
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=minimal",
+      query: {
+        member_number: `eq.${member.member_number}`,
+      },
+    }),
+  ]);
+
+  return {
+    post: publicPost(updatedPosts[0]),
+    ticketed: !isTicketed,
+    ticketVotes: cryptiTicketVotes,
   };
 }
 

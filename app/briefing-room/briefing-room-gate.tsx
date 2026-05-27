@@ -120,6 +120,10 @@ type ParsedBankPost = {
   title: string;
 };
 
+function isCryptiPost(post: BayPost) {
+  return post.meta?.cryptiPost === "true";
+}
+
 const postCategories: { id: PostCategory; label: string }[] = [
   { id: "daily-food", label: "Daily food" },
   { id: "theory", label: "Theory" },
@@ -824,7 +828,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       getBayPosts().then((savedPosts) => {
         setAllPosts(savedPosts);
         setMyPosts(
-          savedPosts.filter((post) => post.author === resolvedMember),
+          savedPosts.filter(
+            (post) => post.author === resolvedMember && !isCryptiPost(post),
+          ),
         );
       });
     }

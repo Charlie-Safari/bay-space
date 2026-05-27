@@ -1,7 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ChangeEvent,
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   cryptiCategories,
   defaultCryptiCategory,
@@ -20,7 +28,12 @@ import {
   saveBayPost,
 } from "../components/post-store";
 import FavoriteButton from "../components/favorite-button";
-import TicketVoteButton from "../components/ticket-vote-button";
+import TicketVoteButton, {
+  cryptiTicketVoteButtonDefaults,
+} from "../components/ticket-vote-button";
+import {
+  ticketVoteStoreEvent,
+} from "../components/ticket-vote-store";
 import {
   countFavoritePosts,
   favoriteStoreEvent,
@@ -41,7 +54,7 @@ type CryptiPanel =
   | "crypti-profile"
   | "bank";
 type CryptiFavoriteSort = "favorite-posts" | "favorite-authors" | "ticket-posts";
-type CryptiMyPostsLane = "tickers" | CryptiSourceMode;
+type CryptiMyPostsLane = "all-posts" | "tickers" | CryptiSourceMode;
 type CryptiTickerFollowSort = "date" | "points";
 type CryptiSourceMode = "R" | "Q" | "S";
 type CryptiBankPreview = {
@@ -49,6 +62,26 @@ type CryptiBankPreview = {
   headline: string;
   receipts: string;
   sources: string[];
+};
+type SavedMember = {
+  member: string;
+  name: string;
+  refName?: string;
+};
+type CryptiPostDraft = {
+  antiThesis: string;
+  antiThesisSource: string;
+  anonymous: boolean;
+  category: string;
+  headline: string;
+  id: number;
+  sourceMode: CryptiSourceMode;
+  sources: string[];
+  supportClaimOne: string;
+  supportClaimOneSource: string;
+  supportClaimTwo: string;
+  supportClaimTwoSource: string;
+  whispers: string;
 };
 
 const ticketVoteWeight = 50;
@@ -85,19 +118,19 @@ const cryptiSourceModes: Array<{
   {
     description: "Trusted Crypto News",
     label: "R News",
-    status: "Verified",
+    status: "Receipts Required",
     value: "R",
   },
   {
     description: "Degen News",
     label: "Q Degen",
-    status: "Receipts Linked",
+    status: "Receipts Encouraged",
     value: "Q",
   },
   {
     description: "Crypto Twitter Buzz",
     label: "S Buzz",
-    status: "Sentiment / Chatter",
+    status: "Talks / Whispers",
     value: "S",
   },
 ];
@@ -155,24 +188,6 @@ function getCryptiPanelSourceMode(
 
   return null;
 }
-
-const categoryEmojiDescriptions: Record<string, string> = {
-  "blue-chip-muscle": "💪 🔵 📈 🏆 💰 💪 🔵 📈 🏆 💰",
-  "clean-launches": "🧼 🚀 ✅ 🔍 💎 🧼 🚀 ✅ 🔍 💎",
-  "cult-heat": "🔥 🗣️ 🌀 ⚡ 👑 🔥 🗣️ 🌀 ⚡ 👑",
-  "degen-sirens": "🚨 🎲 ⚠️ 🔊 💥 🚨 🎲 ⚠️ 🔊 💥",
-  "exchange-bait": "🎣 🏦 👀 📋 🚀 🎣 🏦 👀 📋 🚀",
-  "low-cap-sparks": "✨ 🧨 📉 📈 💰 ✨ 🧨 📉 📈 💰",
-  "meme-furnace": "🔥 😂 🐸 🚀 💎 🔥 😂 🐸 🚀 💎",
-  "narrative-surf": "🌊 🏄 📰 🔥 📈 🌊 🏄 📰 🔥 📈",
-  "panic-rebounds": "🫨 📉 🔁 📈 ⚡ 🫨 📉 🔁 📈 ⚡",
-  "quiet-accumulation": "🤫 🧠 💰 📦 🕯️ 🤫 🧠 💰 📦 🕯️",
-  "rocket-fuel": "🚀 ⛽ 📈 🔥 ⚡ 🚀 ⛽ 📈 🔥 ⚡",
-  "todays-smoke": "💨 👀 🔍 ❓ 📡 💨 👀 🔍 ❓ 📡",
-  "trap-zone": "🪤 ⚠️ 🧨 👀 📉 🪤 ⚠️ 🧨 👀 📉",
-  "whale-footprints": "🐋 👣 💰 🌊 📈 🐋 👣 💰 🌊 📈",
-  "zombie-coins": "🧟 🪙 ⚡ 📈 👀 🧟 🪙 ⚡ 📈 👀",
-};
 
 const cryptiCategoryKeywords: Record<string, string[]> = {
   "blue-chip-muscle": ["btc", "bitcoin", "eth", "ethereum", "sol", "blue chip"],
@@ -471,14 +486,18 @@ function getCryptiTickerSearchText(ticker: CryptiTicker) {
 }
 
 function getCryptiMyPostsLaneLabel(lane: CryptiMyPostsLane) {
+  if (lane === "all-posts") {
+    return "ALL POSTS";
+  }
+
   return (
     cryptiMyPostsLanes.find((myPostsLane) => myPostsLane.value === lane)
       ?.label ?? "MY POSTS"
   );
 }
 
-function getTicketVoteCount(post: BayPost) {
-  const count = Number(post.meta?.ticketVotes ?? 0);
+function getCryptiTicketVoteCount(post: BayPost) {
+  const count = Number(post.meta?.cryptiTicketVotes ?? 0);
 
   return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
 }
@@ -487,7 +506,10 @@ function getCryptiPostScore(
   post: BayPost,
   favoriteCounts: Record<string, number>,
 ) {
-  return (favoriteCounts[post.id] ?? 0) + getTicketVoteCount(post) * ticketVoteWeight;
+  return (
+    (favoriteCounts[post.id] ?? 0) +
+    getCryptiTicketVoteCount(post) * ticketVoteWeight
+  );
 }
 
 function formatPostTimestamp(createdAt: string) {
@@ -517,28 +539,45 @@ function formatCryptiClaimPostBody({
   supportClaimTwo: string;
   supportClaimTwoSource: string;
 }) {
-  return [
+  const claimLines = [
     "SUPPORT CLAIM 1:",
     supportClaimOne.trim(),
     "",
     "SOURCE:",
     supportClaimOneSource.trim(),
-    "",
-    "SUPPORT CLAIM 2:",
-    supportClaimTwo.trim(),
-    "",
-    "SOURCE:",
-    supportClaimTwoSource.trim(),
-    "",
-    "ANTI-THESIS 3:",
-    antiThesis.trim(),
-    "",
-    "SOURCE:",
-    antiThesisSource.trim(),
-    ...(otherSources.length
-      ? ["", "OTHER SOURCES:", ...otherSources.map((source) => source.trim())]
-      : []),
-  ].join("\n");
+  ];
+
+  if (supportClaimTwo.trim() || supportClaimTwoSource.trim()) {
+    claimLines.push(
+      "",
+      "SUPPORT CLAIM 2:",
+      supportClaimTwo.trim(),
+      "",
+      "SOURCE:",
+      supportClaimTwoSource.trim(),
+    );
+  }
+
+  if (antiThesis.trim() || antiThesisSource.trim()) {
+    claimLines.push(
+      "",
+      "ANTI-THESIS 3:",
+      antiThesis.trim(),
+      "",
+      "SOURCE:",
+      antiThesisSource.trim(),
+    );
+  }
+
+  if (otherSources.length) {
+    claimLines.push(
+      "",
+      "OTHER SOURCES:",
+      ...otherSources.map((source) => source.trim()),
+    );
+  }
+
+  return claimLines.join("\n");
 }
 
 function formatCryptiBuzzPostBody(whispers: string) {
@@ -546,8 +585,13 @@ function formatCryptiBuzzPostBody(whispers: string) {
 }
 
 export default function CryptiTerminal() {
-  const [activePanel, setActivePanel] = useState<CryptiPanel>("tickers");
-  const [isCategoryListLayout, setIsCategoryListLayout] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const profileMemberParam = searchParams.get("profile") ?? "";
+  const [activePanel, setActivePanel] = useState<CryptiPanel>(
+    profileMemberParam ? "crypti-profile" : "tickers",
+  );
+  const [isCategoryGridOpen, setIsCategoryGridOpen] = useState(false);
   const [selectedCryptiCategory, setSelectedCryptiCategory] = useState("");
   const [search, setSearch] = useState("");
   const [isAddTickerOpen, setIsAddTickerOpen] = useState(false);
@@ -577,6 +621,9 @@ export default function CryptiTerminal() {
   const [currentMemberNumber, setCurrentMemberNumber] = useState("");
   const [currentMemberName, setCurrentMemberName] = useState("");
   const [currentMemberRefName, setCurrentMemberRefName] = useState("");
+  const [cryptiProfileMemberNumber, setCryptiProfileMemberNumber] =
+    useState(profileMemberParam);
+  const [members, setMembers] = useState<SavedMember[]>([]);
   const [myPostsLane, setMyPostsLane] =
     useState<CryptiMyPostsLane>("tickers");
   const [myPostsOpenLane, setMyPostsOpenLane] =
@@ -588,6 +635,7 @@ export default function CryptiTerminal() {
     Record<string, number>
   >({});
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
+  const [cryptiTicketPostIds, setCryptiTicketPostIds] = useState<string[]>([]);
   const [favoriteSort, setFavoriteSort] =
     useState<CryptiFavoriteSort>("favorite-posts");
   const [cryptiPostCategory, setCryptiPostCategory] = useState(
@@ -606,11 +654,85 @@ export default function CryptiTerminal() {
   const [cryptiAntiThesisSource, setCryptiAntiThesisSource] = useState("");
   const [cryptiWhispers, setCryptiWhispers] = useState("");
   const [cryptiSources, setCryptiSources] = useState(["", ""]);
+  const [cryptiPostAnonymous, setCryptiPostAnonymous] = useState(false);
   const [cryptiPostMessage, setCryptiPostMessage] = useState("");
   const [cryptiBankInput, setCryptiBankInput] = useState("");
   const [cryptiBankError, setCryptiBankError] = useState("");
   const [cryptiBankPreview, setCryptiBankPreview] =
     useState<CryptiBankPreview | null>(null);
+  const [activeCryptiDraftId, setActiveCryptiDraftId] = useState<number | null>(
+    null,
+  );
+  const [minimizedCryptiDrafts, setMinimizedCryptiDrafts] = useState<
+    CryptiPostDraft[]
+  >([]);
+
+  function createBlankCryptiDraft(id: number): CryptiPostDraft {
+    return {
+      antiThesis: "",
+      antiThesisSource: "",
+      anonymous: false,
+      category: defaultCryptiCategory,
+      headline: "",
+      id,
+      sourceMode: "R",
+      sources: ["", ""],
+      supportClaimOne: "",
+      supportClaimOneSource: "",
+      supportClaimTwo: "",
+      supportClaimTwoSource: "",
+      whispers: "",
+    };
+  }
+
+  function getCurrentCryptiDraft(): CryptiPostDraft | null {
+    if (!activeCryptiDraftId) {
+      return null;
+    }
+
+    return {
+      antiThesis: cryptiAntiThesis,
+      antiThesisSource: cryptiAntiThesisSource,
+      anonymous: cryptiPostAnonymous,
+      category: cryptiPostCategory,
+      headline: cryptiHeadline,
+      id: activeCryptiDraftId,
+      sourceMode: cryptiSourceMode,
+      sources: cryptiSources,
+      supportClaimOne: cryptiSupportClaimOne,
+      supportClaimOneSource: cryptiSupportClaimOneSource,
+      supportClaimTwo: cryptiSupportClaimTwo,
+      supportClaimTwoSource: cryptiSupportClaimTwoSource,
+      whispers: cryptiWhispers,
+    };
+  }
+
+  function getNextCryptiDraftId() {
+    const activeDraftId = activeCryptiDraftId ?? 0;
+    const highestMinimizedDraftId = minimizedCryptiDrafts.reduce(
+      (highestId, draft) => Math.max(highestId, draft.id),
+      0,
+    );
+
+    return Math.max(activeDraftId, highestMinimizedDraftId) + 1;
+  }
+
+  function applyCryptiDraft(draft: CryptiPostDraft) {
+    setActiveCryptiDraftId(draft.id);
+    setCryptiHeadline(draft.headline);
+    setCryptiSupportClaimOne(draft.supportClaimOne);
+    setCryptiSupportClaimOneSource(draft.supportClaimOneSource);
+    setCryptiSupportClaimTwo(draft.supportClaimTwo);
+    setCryptiSupportClaimTwoSource(draft.supportClaimTwoSource);
+    setCryptiAntiThesis(draft.antiThesis);
+    setCryptiAntiThesisSource(draft.antiThesisSource);
+    setCryptiWhispers(draft.whispers);
+    setCryptiPostAnonymous(draft.anonymous);
+    setCryptiPostCategory(draft.category);
+    setCryptiSourceMode(draft.sourceMode);
+    setCryptiSources(draft.sources.length ? draft.sources : ["", ""]);
+    setCryptiPostMessage("");
+  }
 
   function closeAddTicker() {
     setIsAddTickerOpen(false);
@@ -631,19 +753,88 @@ export default function CryptiTerminal() {
     setCryptiAntiThesis("");
     setCryptiAntiThesisSource("");
     setCryptiWhispers("");
+    setCryptiPostAnonymous(false);
     setCryptiPostCategory(defaultCryptiCategory);
     setCryptiSourceMode("R");
     setCryptiSources(["", ""]);
     setCryptiPostMessage("");
   }
 
-  function closeCryptiPost() {
+  function removeActiveCryptiDraft() {
+    const closingDraftId = activeCryptiDraftId;
+
+    if (closingDraftId) {
+      setMinimizedCryptiDrafts((drafts) =>
+        drafts.filter((draft) => draft.id !== closingDraftId),
+      );
+    }
+
+    setActiveCryptiDraftId(null);
+  }
+
+  function wipeCryptiPost() {
     resetCryptiPost();
+    removeActiveCryptiDraft();
+  }
+
+  function closeCryptiPost() {
+    wipeCryptiPost();
+    setActivePanel("tickers");
+  }
+
+  function minimizeCryptiPost() {
+    const currentDraft = getCurrentCryptiDraft();
+
+    if (currentDraft) {
+      setMinimizedCryptiDrafts((drafts) => [
+        ...drafts.filter((draft) => draft.id !== currentDraft.id),
+        currentDraft,
+      ]);
+    }
+
+    setActiveCryptiDraftId(null);
+    setCryptiPostMessage("");
     setActivePanel("tickers");
   }
 
   function openCryptiPost() {
-    setCryptiPostMessage("");
+    const currentDraft = getCurrentCryptiDraft();
+    const newDraft = createBlankCryptiDraft(getNextCryptiDraftId());
+
+    if (currentDraft) {
+      setMinimizedCryptiDrafts((drafts) => [
+        ...drafts.filter((draft) => draft.id !== currentDraft.id),
+        currentDraft,
+      ]);
+    }
+
+    applyCryptiDraft(newDraft);
+    setActivePanel("post");
+  }
+
+  function restoreCryptiPostDraft(draftId: number) {
+    if (activeCryptiDraftId === draftId && activePanel === "post") {
+      return;
+    }
+
+    const draft = minimizedCryptiDrafts.find(
+      (cryptiDraft) => cryptiDraft.id === draftId,
+    );
+
+    if (!draft) {
+      return;
+    }
+
+    const currentDraft = getCurrentCryptiDraft();
+
+    if (currentDraft) {
+      setMinimizedCryptiDrafts((drafts) => [
+        ...drafts.filter((cryptiDraft) => cryptiDraft.id !== currentDraft.id),
+        currentDraft,
+      ]);
+    }
+
+    applyCryptiDraft(draft);
     setActivePanel("post");
   }
 
@@ -676,6 +867,7 @@ export default function CryptiTerminal() {
     setCryptiSources(
       cryptiBankPreview.sources.length ? [...cryptiBankPreview.sources, ""] : ["", ""],
     );
+    setActiveCryptiDraftId(getNextCryptiDraftId());
     setCryptiPostMessage("draft loaded for review");
     setActivePanel("post");
   }
@@ -770,6 +962,14 @@ export default function CryptiTerminal() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/members", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { members: [] }))
+      .then((data: { members?: SavedMember[] }) => {
+        setMembers(data.members ?? []);
+      });
   }, []);
 
   useEffect(() => {
@@ -912,6 +1112,33 @@ export default function CryptiTerminal() {
     };
   }, [cryptiPosts]);
 
+  useEffect(() => {
+    async function syncCryptiTickets() {
+      const response = await fetch("/api/crypti/ticket-vote", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        setCryptiTicketPostIds([]);
+        return;
+      }
+
+      const data = (await response.json()) as { postIds?: string[] };
+      setCryptiTicketPostIds(data.postIds ?? []);
+    }
+
+    syncCryptiTickets();
+    window.addEventListener("storage", syncCryptiTickets);
+    window.addEventListener("bay-space-auth", syncCryptiTickets);
+    window.addEventListener(ticketVoteStoreEvent, syncCryptiTickets);
+
+    return () => {
+      window.removeEventListener("storage", syncCryptiTickets);
+      window.removeEventListener("bay-space-auth", syncCryptiTickets);
+      window.removeEventListener(ticketVoteStoreEvent, syncCryptiTickets);
+    };
+  }, []);
+
   const normalizedSearch = normalizeCryptiSymbol(search);
   const todayDateKey = getLosAngelesDateKey(new Date());
   const filteredTickers = useMemo(
@@ -956,21 +1183,53 @@ export default function CryptiTerminal() {
     (post) =>
       getCryptiPostCategory(post) === selectedCryptiCategory &&
       (!activeSourceMode || getCryptiPostSourceMode(post) === activeSourceMode),
-  );
-  const rankedSmokePosts = [...cryptiPosts].sort((leftPost, rightPost) => {
-    const scoreDifference =
-      getCryptiPostScore(rightPost, favoritePostCounts) -
-      getCryptiPostScore(leftPost, favoritePostCounts);
-
-    if (scoreDifference !== 0) {
-      return scoreDifference;
-    }
-
-    return (
+  ).sort(
+    (leftPost, rightPost) =>
       new Date(rightPost.createdAt).getTime() -
-      new Date(leftPost.createdAt).getTime()
+      new Date(leftPost.createdAt).getTime(),
+  );
+  const activeSourceModePosts = cryptiPosts.filter(
+    (post) => activeSourceMode && getCryptiPostSourceMode(post) === activeSourceMode,
+  ).sort(
+    (leftPost, rightPost) =>
+      new Date(rightPost.createdAt).getTime() -
+      new Date(leftPost.createdAt).getTime(),
+  );
+  function getCryptiCategoryPostCounts(categoryId: string) {
+    const categoryPosts = cryptiPosts.filter(
+      (post) =>
+        getCryptiPostCategory(post) === categoryId &&
+        (!activeSourceMode || getCryptiPostSourceMode(post) === activeSourceMode),
     );
-  });
+
+    return {
+      allTime: categoryPosts.length,
+      today: categoryPosts.filter(
+        (post) =>
+          getLosAngelesDateKey(new Date(post.createdAt)) === todayDateKey,
+      ).length,
+    };
+  }
+  const rankedSmokePosts = [...cryptiPosts]
+    .filter((post) => {
+      const sourceMode = getCryptiPostSourceMode(post);
+
+      return sourceMode === "R" || sourceMode === "Q" || sourceMode === "S";
+    })
+    .sort((leftPost, rightPost) => {
+      const scoreDifference =
+        getCryptiPostScore(rightPost, favoritePostCounts) -
+        getCryptiPostScore(leftPost, favoritePostCounts);
+
+      if (scoreDifference !== 0) {
+        return scoreDifference;
+      }
+
+      return (
+        new Date(rightPost.createdAt).getTime() -
+        new Date(leftPost.createdAt).getTime()
+      );
+    });
   const favoriteDisplayPosts = [...cryptiPosts]
     .filter((post) => {
       if (favoriteSort === "favorite-authors") {
@@ -978,7 +1237,7 @@ export default function CryptiTerminal() {
       }
 
       if (favoriteSort === "ticket-posts") {
-        return getTicketVoteCount(post) > 0;
+        return getCryptiTicketVoteCount(post) > 0;
       }
 
       return favoritePostIds.includes(post.id);
@@ -986,7 +1245,8 @@ export default function CryptiTerminal() {
     .sort((leftPost, rightPost) => {
       if (favoriteSort === "ticket-posts") {
         const ticketDifference =
-          getTicketVoteCount(rightPost) - getTicketVoteCount(leftPost);
+          getCryptiTicketVoteCount(rightPost) -
+          getCryptiTicketVoteCount(leftPost);
 
         if (ticketDifference !== 0) {
           return ticketDifference;
@@ -1005,15 +1265,33 @@ export default function CryptiTerminal() {
         new Date(rightPost.createdAt).getTime() -
         new Date(leftPost.createdAt).getTime(),
     );
+  const activeCryptiProfileMemberNumber =
+    cryptiProfileMemberNumber || currentMemberNumber;
+  const activeCryptiProfileMember = members.find(
+    (member) => member.member === activeCryptiProfileMemberNumber,
+  );
+  const cryptiProfilePosts = [...cryptiPosts]
+    .filter((post) => post.author === activeCryptiProfileMemberNumber)
+    .sort(
+      (leftPost, rightPost) =>
+        new Date(rightPost.createdAt).getTime() -
+        new Date(leftPost.createdAt).getTime(),
+    );
   const cryptiProfileName =
-    currentMemberRefName || currentMemberName || currentMemberNumber || "Username";
-  const profileRNewsPosts = myCryptiPosts.filter(
+    activeCryptiProfileMember?.refName ||
+    activeCryptiProfileMember?.name ||
+    (activeCryptiProfileMemberNumber === currentMemberNumber
+      ? currentMemberRefName || currentMemberName
+      : "") ||
+    activeCryptiProfileMemberNumber ||
+    "Username";
+  const profileRNewsPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "R",
   );
-  const profileQDegenPosts = myCryptiPosts.filter(
+  const profileQDegenPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "Q",
   );
-  const profileSBuzzPosts = myCryptiPosts.filter(
+  const profileSBuzzPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "S",
   );
   const followedTickers = tickers
@@ -1051,6 +1329,12 @@ export default function CryptiTerminal() {
   const myLanePosts =
     activeMyPostsLane === "tickers"
       ? []
+      : activeMyPostsLane === "all-posts"
+        ? myCryptiPosts.filter(
+            (post) =>
+              !normalizedMyPostsSearch ||
+              getCryptiSearchText(post).includes(normalizedMyPostsSearch),
+          )
       : myCryptiPosts.filter(
           (post) =>
             getCryptiPostSourceMode(post) === activeMyPostsLane &&
@@ -1248,6 +1532,45 @@ export default function CryptiTerminal() {
     );
   }
 
+  function updateCryptiTicketState(
+    postId: string,
+    ticketVotes: number,
+    isTicketed: boolean,
+  ) {
+    setCryptiPosts((posts) =>
+      posts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              meta: {
+                ...(post.meta ?? {}),
+                cryptiTicketVotes: String(ticketVotes),
+              },
+            }
+          : post,
+      ),
+    );
+    setCryptiTicketPostIds((postIds) =>
+      isTicketed
+        ? Array.from(new Set([...postIds, postId]))
+        : postIds.filter((ticketedPostId) => ticketedPostId !== postId),
+    );
+  }
+
+  function openCryptiPostDetail(postId: string) {
+    router.push(`/crypti/post?id=${encodeURIComponent(postId)}`);
+  }
+
+  function openCryptiPostDetailFromKeyboard(
+    event: KeyboardEvent<HTMLElement>,
+    postId: string,
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openCryptiPostDetail(postId);
+    }
+  }
+
   async function submitCryptiPost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCryptiPostMessage("");
@@ -1262,20 +1585,15 @@ export default function CryptiTerminal() {
       return;
     }
 
-    if (
-      cryptiSourceMode !== "S" &&
-      (!cryptiSupportClaimOne.trim() ||
-        !cryptiSupportClaimOneSource.trim() ||
-        !cryptiSupportClaimTwo.trim() ||
-        !cryptiSupportClaimTwoSource.trim() ||
-        !cryptiAntiThesis.trim() ||
-        !cryptiAntiThesisSource.trim())
-    ) {
+    const isMissingRequiredClaim =
+      !cryptiSupportClaimOne.trim() ||
+      (cryptiSourceMode === "R" && !cryptiSupportClaimOneSource.trim());
+    if (cryptiSourceMode !== "S" && isMissingRequiredClaim) {
       setCryptiPostMessage("claims and sources required");
       return;
     }
 
-    const submittedCategory = cryptiPostCategory;
+    const submittedDraftId = activeCryptiDraftId;
     const sourceStatus = getCryptiSourceStatus(cryptiSourceMode);
     const otherSources = cryptiSources
       .map((source) => source.trim())
@@ -1308,7 +1626,7 @@ export default function CryptiTerminal() {
       await saveBayPost({
         body: submittedBody,
         category: "theory",
-        anonymous: false,
+        anonymous: cryptiPostAnonymous,
         author: "unknown",
         incognito: false,
         meta: {
@@ -1327,7 +1645,13 @@ export default function CryptiTerminal() {
 
     await loadCryptiPosts();
     resetCryptiPost();
-    setSelectedCryptiCategory(submittedCategory);
+    setActiveCryptiDraftId(null);
+    if (submittedDraftId) {
+      setMinimizedCryptiDrafts((drafts) =>
+        drafts.filter((draft) => draft.id !== submittedDraftId),
+      );
+    }
+    setSelectedCryptiCategory("");
     setActivePanel(getCryptiSourcePanel(cryptiSourceMode));
   }
 
@@ -1340,7 +1664,11 @@ export default function CryptiTerminal() {
     return (
       <article
         key={post.id}
-        className="daily-food-card border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)]"
+        role="link"
+        tabIndex={0}
+        onClick={() => openCryptiPostDetail(post.id)}
+        onKeyDown={(event) => openCryptiPostDetailFromKeyboard(event, post.id)}
+        className="daily-food-card cursor-pointer border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -1351,14 +1679,24 @@ export default function CryptiTerminal() {
               {formatPostTimestamp(post.createdAt)}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3"
+            onClick={(event) => event.stopPropagation()}
+          >
             <FavoriteButton postId={post.id} />
             <TicketVoteButton
-              initialCount={getTicketVoteCount(post)}
+              availabilityPath="/api/crypti/ticket-vote"
+              initialCount={getCryptiTicketVoteCount(post)}
+              isActive={cryptiTicketPostIds.includes(post.id)}
+              onCountChange={(ticketVotes, isTicketed) =>
+                updateCryptiTicketState(post.id, ticketVotes, isTicketed)
+              }
               postId={post.id}
+              votePath={`/api/posts/${post.id}/crypti-ticket`}
+              {...cryptiTicketVoteButtonDefaults}
             />
             <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
-              {favoritePostCounts[post.id] ?? 0} ◆
+              {getCryptiPostScore(post, favoritePostCounts)} pts
             </span>
           </div>
         </div>
@@ -1388,10 +1726,11 @@ export default function CryptiTerminal() {
               SOURCES
             </h3>
             <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
-              {getPostSources(post).map((source) => (
-                <li key={source}>
+              {getPostSources(post).map((source, index) => (
+                <li key={`${source}-${index}`}>
                   <a
                     href={getSourceHref(source)}
+                    onClick={(event) => event.stopPropagation()}
                     className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
                   >
                     {source}
@@ -1563,7 +1902,11 @@ export default function CryptiTerminal() {
         {posts.map((post) => (
           <article
             key={post.id}
-            className="border border-dashed border-[#1d7f12] bg-black px-4 py-4"
+            role="link"
+            tabIndex={0}
+            onClick={() => openCryptiPostDetail(post.id)}
+            onKeyDown={(event) => openCryptiPostDetailFromKeyboard(event, post.id)}
+            className="cursor-pointer border border-dashed border-[#1d7f12] bg-black px-4 py-4 transition hover:border-[#39ff14] hover:shadow-[0_0_14px_rgba(57,255,20,0.22)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
           >
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatPostTimestamp(post.createdAt)}
@@ -1586,7 +1929,7 @@ export default function CryptiTerminal() {
               c:\bay-space\crypti&gt; signal-room
             </p>
             <div className="flex flex-wrap items-end gap-5">
-              <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#72d7ff] [text-shadow:0_0_16px_#72d7ff] sm:text-7xl">
+              <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
                 +CRYPTI
               </h1>
               <button
@@ -1662,6 +2005,9 @@ export default function CryptiTerminal() {
             type="button"
             onClick={() => {
               setSelectedCryptiCategory("");
+              if (panel.id === "crypti-profile") {
+                setCryptiProfileMemberNumber(currentMemberNumber);
+              }
               setActivePanel(panel.id as CryptiPanel);
             }}
             className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
@@ -1674,6 +2020,28 @@ export default function CryptiTerminal() {
           </button>
         ))}
       </div>
+
+      {minimizedCryptiDrafts.length ? (
+        <div className="flex flex-wrap gap-2 border border-dashed border-[#1d7f12] bg-black px-3 py-3">
+          {minimizedCryptiDrafts
+            .slice()
+            .sort((leftDraft, rightDraft) => leftDraft.id - rightDraft.id)
+            .map((draft) => (
+              <button
+                key={draft.id}
+                type="button"
+                onClick={() => restoreCryptiPostDraft(draft.id)}
+                className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                  activePanel === "post" && activeCryptiDraftId === draft.id
+                    ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_14px_rgba(57,255,20,0.45)]"
+                    : "border-[#1d7f12] bg-[#001100] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                }`}
+              >
+                new post {draft.id}
+              </button>
+            ))}
+        </div>
+      ) : null}
 
       {activePanel === "bank" ? (
         <section className="grid gap-5 border-2 border-dashed border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
@@ -1732,8 +2100,8 @@ export default function CryptiTerminal() {
                 </span>
                 {cryptiBankPreview.sources.length ? (
                   <ol className="list-decimal space-y-2 pl-5 text-xs leading-5">
-                    {cryptiBankPreview.sources.map((source) => (
-                      <li key={source}>
+                    {cryptiBankPreview.sources.map((source, index) => (
+                      <li key={`${source}-${index}`}>
                         <a
                           href={getSourceHref(source)}
                           className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
@@ -1831,7 +2199,7 @@ export default function CryptiTerminal() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={resetCryptiPost}
+                onClick={minimizeCryptiPost}
                 aria-label="Minimize new Crypti post"
                 className="grid size-8 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
               >
@@ -2040,6 +2408,15 @@ export default function CryptiTerminal() {
               </div>
             </div>
           )}
+          <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-[#001100] px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
+            <input
+              type="checkbox"
+              checked={cryptiPostAnonymous}
+              onChange={(event) => setCryptiPostAnonymous(event.target.checked)}
+              className="size-4 accent-[#39ff14]"
+            />
+            anon
+          </label>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
@@ -2049,7 +2426,7 @@ export default function CryptiTerminal() {
             </button>
             <button
               type="button"
-              onClick={resetCryptiPost}
+              onClick={wipeCryptiPost}
               className="w-fit border border-[#ff3b3b] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
             >
               wipe
@@ -2067,7 +2444,7 @@ export default function CryptiTerminal() {
         <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#1d7f12] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
           <div className="daily-food-categories-grid" aria-hidden="true" />
           <div className="relative z-10 grid gap-4">
-            {selectedCryptiCategory ? (
+            {isCategoryGridOpen && selectedCryptiCategory ? (
               <div className="grid gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -2101,7 +2478,13 @@ export default function CryptiTerminal() {
                       return (
                         <article
                           key={post.id}
-                          className="daily-food-card border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)]"
+                          role="link"
+                          tabIndex={0}
+                          onClick={() => openCryptiPostDetail(post.id)}
+                          onKeyDown={(event) =>
+                            openCryptiPostDetailFromKeyboard(event, post.id)
+                          }
+                          className="daily-food-card cursor-pointer border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
@@ -2112,14 +2495,28 @@ export default function CryptiTerminal() {
                                 {formatPostTimestamp(post.createdAt)}
                               </p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div
+                              className="flex items-center gap-3"
+                              onClick={(event) => event.stopPropagation()}
+                            >
                               <FavoriteButton postId={post.id} />
                               <TicketVoteButton
-                                initialCount={getTicketVoteCount(post)}
+                                availabilityPath="/api/crypti/ticket-vote"
+                                initialCount={getCryptiTicketVoteCount(post)}
+                                isActive={cryptiTicketPostIds.includes(post.id)}
+                                onCountChange={(ticketVotes, isTicketed) =>
+                                  updateCryptiTicketState(
+                                    post.id,
+                                    ticketVotes,
+                                    isTicketed,
+                                  )
+                                }
                                 postId={post.id}
+                                votePath={`/api/posts/${post.id}/crypti-ticket`}
+                                {...cryptiTicketVoteButtonDefaults}
                               />
                               <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
-                                {favoritePostCounts[post.id] ?? 0} ◆
+                                {getCryptiPostScore(post, favoritePostCounts)} pts
                               </span>
                             </div>
                           </div>
@@ -2152,10 +2549,11 @@ export default function CryptiTerminal() {
                                 SOURCES
                               </h3>
                               <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
-                                {getPostSources(post).map((source) => (
-                                  <li key={source}>
+                                {getPostSources(post).map((source, index) => (
+                                  <li key={`${source}-${index}`}>
                                     <a
                                       href={getSourceHref(source)}
+                                      onClick={(event) => event.stopPropagation()}
                                       className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
                                     >
                                       {source}
@@ -2190,51 +2588,68 @@ export default function CryptiTerminal() {
                     <span aria-hidden="true">🔑</span>
                     <input
                       type="checkbox"
-                      checked={isCategoryListLayout}
-                      onChange={(event) =>
-                        setIsCategoryListLayout(event.target.checked)
-                      }
+                      checked={isCategoryGridOpen}
+                      onChange={(event) => {
+                        const isOpen = event.target.checked;
+
+                        setIsCategoryGridOpen(isOpen);
+                        if (!isOpen) {
+                          setSelectedCryptiCategory("");
+                        }
+                      }}
                       className="peer sr-only"
-                      aria-label="Toggle Crypti category list layout"
+                      aria-label="Toggle Crypti category grid"
                     />
                     <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
                   </label>
                 </div>
 
-                {isCategoryListLayout ? (
-                  <div className="grid max-h-[30rem] gap-3 overflow-y-auto pr-2">
-                    {cryptiCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => setSelectedCryptiCategory(category.id)}
-                        className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-dashed hover:border-[#39ff14] hover:bg-black/75 hover:text-[#d7ffd0] hover:shadow-[0_0_18px_rgba(57,255,20,0.3)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                      >
-                        <span className="block text-sm font-black uppercase tracking-[0.14em]">
-                          {category.label}
-                        </span>
-                        <span className="mt-2 block text-xs font-bold normal-case leading-5 tracking-[0.02em] text-[#9fcb98]">
-                          {categoryEmojiDescriptions[category.id]}
-                        </span>
-                      </button>
-                    ))}
+                {isCategoryGridOpen ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {cryptiCategories.map((category) => {
+                      const counts = getCryptiCategoryPostCounts(category.id);
+
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => setSelectedCryptiCategory(category.id)}
+                          className="daily-food-category-button relative min-h-32 border border-[#39ff14]/50 bg-black/75 px-3 pb-9 pt-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          <span className="block">{category.label}</span>
+                          <span className="mt-2 block text-[0.68rem] font-bold normal-case leading-4 tracking-[0.02em] opacity-80">
+                            {category.description}
+                          </span>
+                          <span className="absolute bottom-3 left-3 text-[0.6rem] font-black uppercase tracking-[0.1em]">
+                            today {counts.today}
+                          </span>
+                          <span className="absolute bottom-3 right-3 text-[0.6rem] font-black uppercase tracking-[0.1em]">
+                            all {counts.allTime}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : isCryptiPostsLoading ? (
+                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    loading crypti posts
+                  </p>
+                ) : activeSourceModePosts.length ? (
+                  <div className="grid gap-3">
+                    {activeSourceModePosts.map((post) =>
+                      renderCryptiPostCard(
+                        post,
+                        cryptiCategories.find(
+                          (category) =>
+                            category.id === getCryptiPostCategory(post),
+                        )?.label ?? activeSourceModeOption.label,
+                      ),
+                    )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {cryptiCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => setSelectedCryptiCategory(category.id)}
-                        className="daily-food-category-button min-h-28 border border-[#39ff14]/50 bg-black/75 px-3 py-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                      >
-                        <span className="block">{category.label}</span>
-                        <span className="mt-2 block text-[0.68rem] font-bold normal-case leading-4 tracking-[0.02em] opacity-80">
-                          {category.description}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    no {activeSourceModeOption.label} posts yet
+                  </p>
                 )}
               </>
             )}
@@ -2249,7 +2664,7 @@ export default function CryptiTerminal() {
               today&apos;s smoke
             </p>
             <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-              ranked by favorite diamonds and ticket votes
+              R News, Q Degen, and S Buzz ranked by points
             </p>
           </div>
           {rankedSmokePosts.length ? (
@@ -2318,9 +2733,13 @@ export default function CryptiTerminal() {
                   : "my posts"}
               </p>
               {!myPostsOpenLane ? (
-                <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-                  open a lane to list entries by date
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setMyPostsOpenLane("all-posts")}
+                  className="mt-3 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] hover:text-[#d7ffd0] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  Show all posts by date
+                </button>
               ) : null}
             </div>
             {myPostsOpenLane ? (
@@ -2423,7 +2842,13 @@ export default function CryptiTerminal() {
                   {myLanePosts.map((post) => (
                     <article
                       key={post.id}
-                      className="border border-dashed border-[#1d7f12] bg-black px-4 py-4 transition hover:scale-[1.01] hover:border-[#39ff14]"
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => openCryptiPostDetail(post.id)}
+                      onKeyDown={(event) =>
+                        openCryptiPostDetailFromKeyboard(event, post.id)
+                      }
+                      className="cursor-pointer border border-dashed border-[#1d7f12] bg-black px-4 py-4 transition hover:scale-[1.01] hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -2440,7 +2865,10 @@ export default function CryptiTerminal() {
                             {formatPostTimestamp(post.createdAt)}
                           </p>
                         </div>
-                        <div className="flex items-start gap-3">
+                        <div
+                          className="flex items-start gap-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           <button
                             type="button"
                             onClick={() => toggleMyCryptiPostAnonymous(post)}
@@ -2469,7 +2897,11 @@ export default function CryptiTerminal() {
                               />
                               <circle cx="32" cy="20" r="7" fill="currentColor" />
                               <path
-                                d="M14 4v10M32 0v10M50 4v10"
+                                d={
+                                  post.anonymous
+                                    ? "M14 36V26M32 40V30M50 36V26"
+                                    : "M14 4v10M32 0v10M50 4v10"
+                                }
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="3"
