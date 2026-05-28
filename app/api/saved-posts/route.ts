@@ -1,4 +1,5 @@
 import {
+  countSavedPost,
   countSavedPosts,
   getStorageErrorMessage,
   listSavedPostIds,
@@ -58,8 +59,11 @@ export async function POST(request: Request) {
       return Response.json({ message: "Post required" }, { status: 400 });
     }
 
+    const saved = await toggleSavedPost(member.member, postId);
+
     return Response.json({
-      saved: await toggleSavedPost(member.member, postId),
+      count: await countSavedPost(postId),
+      saved,
     });
   } catch (error) {
     return savedPostsErrorResponse(error);

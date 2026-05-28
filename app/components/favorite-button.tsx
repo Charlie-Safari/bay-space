@@ -9,10 +9,14 @@ import {
 } from "./favorite-store";
 
 type FavoriteButtonProps = {
+  onCountChange?: (count: number, isFavorite: boolean) => void;
   postId: string;
 };
 
-export default function FavoriteButton({ postId }: FavoriteButtonProps) {
+export default function FavoriteButton({
+  onCountChange,
+  postId,
+}: FavoriteButtonProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -51,7 +55,12 @@ export default function FavoriteButton({ postId }: FavoriteButtonProps) {
   return (
     <button
       type="button"
-      onClick={async () => setIsFavorite(await toggleFavoritePost(postId))}
+      onClick={async () => {
+        const result = await toggleFavoritePost(postId);
+
+        setIsFavorite(result.saved);
+        onCountChange?.(result.count, result.saved);
+      }}
       className={`favorite-diamond text-xl leading-none text-[#39ff14] transition hover:scale-125 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
         isFavorite ? "favorite-diamond-active" : "opacity-55"
       }`}

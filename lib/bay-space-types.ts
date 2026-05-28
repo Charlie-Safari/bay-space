@@ -30,6 +30,7 @@ export type BayMember = {
   birthdayMonth?: string;
   birthdayYear?: string;
   links?: {
+    _cryptiOwnedTickers?: string[];
     x?: PublicLink;
     linkedin?: PublicLink;
     github?: PublicLink;

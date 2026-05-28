@@ -6,10 +6,13 @@ import {
   countSavedPosts,
   getMember,
   getMemberProfileVisitCount,
+  listSavedPostsByMember,
   listPostsByAuthor,
 } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
 import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
+import { listCryptiTickers } from "../../../lib/crypti-db";
+import { CryptiTicker } from "../../../lib/crypti-types";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -18,6 +21,10 @@ type PublicProfileProps = {
 };
 
 function getPostHref(post: BayPost) {
+  if (post.meta?.cryptiPost === "true") {
+    return `/crypti/post?id=${post.id}`;
+  }
+
   if (post.category === "top-story") {
     return `/news/post?id=${post.id}`;
   }
@@ -45,6 +52,37 @@ function getPostTicketCount(post: BayPost) {
   const count = Number(post.meta?.ticketVotes ?? 0);
 
   return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function TickerList({ tickers }: { tickers: CryptiTicker[] }) {
+  if (!tickers.length) {
+    return (
+      <p className="mt-4 border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+        empty
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      {tickers.map((ticker) => (
+        <article
+          key={ticker.id}
+          className="border border-dashed border-[#1d7f12]/70 bg-black px-3 py-3 text-[#d7ffd0]"
+        >
+          <span className="block text-lg font-black uppercase tracking-[0.18em] text-[#39ff14]">
+            {ticker.symbol}
+          </span>
+          <span className="mt-2 block text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+            {ticker.assetType || "ticker"}
+          </span>
+          {ticker.company ? (
+            <span className="mt-2 block text-sm font-bold">{ticker.company}</span>
+          ) : null}
+        </article>
+      ))}
+    </div>
+  );
 }
 
 function PostList({ posts }: { posts: BayPost[] }) {
@@ -82,6 +120,13 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const { member: memberId } = await params;
   const member = await getMember(memberId);
   const posts = await listPostsByAuthor(memberId);
+  const favoritePosts = await listSavedPostsByMember(memberId);
+  const ownedTickerSymbols = new Set(member?.links?._cryptiOwnedTickers ?? []);
+  const ownedTickers = ownedTickerSymbols.size
+    ? (await listCryptiTickers()).filter((ticker) =>
+        ownedTickerSymbols.has(ticker.symbol),
+      )
+    : [];
   const favoriteCounts = await countSavedPosts(posts.map((post) => post.id));
   const totalFavoriteCount = Object.values(favoriteCounts).reduce(
     (total, count) => total + count,
@@ -167,6 +212,21 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                   library
                 </h2>
                 <PostList posts={libraryPosts} />
+              </section>
+            </div>
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-2">
+              <section className="border border-[#1d7f12] bg-black p-4">
+                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+                  i have this ticker
+                </h2>
+                <TickerList tickers={ownedTickers} />
+              </section>
+              <section className="border border-[#1d7f12] bg-black p-4">
+                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+                  favorite posts
+                </h2>
+                <PostList posts={favoritePosts} />
               </section>
             </div>
           </>

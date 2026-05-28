@@ -8,6 +8,7 @@ import {
   BayPost,
   PublicLink,
 } from "./bay-space-types";
+import { getPositiveInteger } from "./bay-space-scoring";
 import {
   isValidUsername,
   normalizeUsername,
@@ -213,6 +214,9 @@ function publicMember(member: MemberRow, roles: string[] = []): BayMember {
     birthdayMonth: member.birthday_month,
     birthdayYear: member.birthday_year,
     links: {
+      _cryptiOwnedTickers: normalizeCryptiOwnedTickerSymbols(
+        member.links?._cryptiOwnedTickers,
+      ),
       x: normalizePublicLink(member.links?.x),
       linkedin: normalizePublicLink(member.links?.linkedin),
       github: normalizePublicLink(member.links?.github),
@@ -241,15 +245,15 @@ function publicPost(post: PostRow): BayPost {
 }
 
 function getPostTicketVoteCount(post: PostRow) {
-  const count = Number(post.meta?.ticketVotes ?? 0);
-
-  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  return getPositiveInteger(post.meta?.ticketVotes);
 }
 
 function getPostCryptiTicketVoteCount(post: PostRow) {
-  const count = Number(post.meta?.cryptiTicketVotes ?? 0);
+  return getPositiveInteger(post.meta?.cryptiTicketVotes);
+}
 
-  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+function getPostVisitCount(post: PostRow) {
+  return getPositiveInteger(post.meta?.postVisits);
 }
 
 function normalizePublicLink(link?: PublicLink) {
@@ -257,6 +261,26 @@ function normalizePublicLink(link?: PublicLink) {
     url: link?.url.trim().slice(0, 240) ?? "",
     display: Boolean(link?.display),
   };
+}
+
+function normalizeCryptiOwnedTickerSymbols(symbols?: unknown) {
+  return Array.isArray(symbols)
+    ? Array.from(
+        new Set(
+          symbols
+            .filter((symbol): symbol is string => typeof symbol === "string")
+            .map((symbol) =>
+              symbol
+                .trim()
+                .replace(/^\$/, "")
+                .replace(/\s+/g, "")
+                .toUpperCase()
+                .slice(0, 12),
+            )
+            .filter(Boolean),
+        ),
+      )
+    : [];
 }
 
 function normalizeProfileVisitCount(value: unknown) {
@@ -586,6 +610,10 @@ export async function updateMemberSettings(
       links: {
         ...(member.links ?? {}),
         _stats: member.links?._stats ?? {},
+        _cryptiOwnedTickers: normalizeCryptiOwnedTickerSymbols(
+          member.links?._cryptiOwnedTickers,
+        ),
+        _cryptiTicketVote: member.links?._cryptiTicketVote ?? {},
         _ticketVote: member.links?._ticketVote ?? {},
         x: normalizePublicLink(input.links?.x),
         linkedin: normalizePublicLink(input.links?.linkedin),
@@ -609,6 +637,50 @@ export async function getMemberProfileVisitCount(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
   return member ? getMemberProfileVisits(member) : 0;
+}
+
+export async function listMemberOwnedCryptiTickerSymbols(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member
+    ? normalizeCryptiOwnedTickerSymbols(member.links?._cryptiOwnedTickers)
+    : [];
+}
+
+export async function addMemberOwnedCryptiTickerSymbol(
+  memberId: string,
+  symbol: string,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  const ownedTickerSymbols = normalizeCryptiOwnedTickerSymbols([
+    ...(member.links?._cryptiOwnedTickers ?? []),
+    symbol,
+  ]);
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _cryptiOwnedTickers: ownedTickerSymbols,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0]
+    ? normalizeCryptiOwnedTickerSymbols(rows[0].links?._cryptiOwnedTickers)
+    : ownedTickerSymbols;
 }
 
 export async function incrementMemberProfileVisitCount(memberId: string) {
@@ -1000,6 +1072,44 @@ export async function incrementPostTicketVoteCount(postId: string) {
   };
 }
 
+export async function incrementPostVisitCount(postId: string) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const post = posts[0];
+
+  if (!post) {
+    return null;
+  }
+
+  const postVisits = getPostVisitCount(post) + 1;
+  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      meta: {
+        ...(post.meta ?? {}),
+        postVisits: String(postVisits),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+
+  return {
+    post: publicPost(updatedPosts[0]),
+    postVisits,
+  };
+}
+
 export async function toggleCryptiPostTicketVote(
   memberId: string,
   postId: string,
@@ -1095,6 +1205,42 @@ export async function listSavedPostIds(memberId: string) {
   return rows.map((row) => row.post_id);
 }
 
+export async function listSavedPostsByMember(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return [];
+  }
+
+  const savedRows = await supabaseRequest<SavedPostRow[]>("saved_posts", {
+    query: {
+      member_id: `eq.${member.id}`,
+      order: "created_at.desc",
+      select: "post_id",
+    },
+  });
+  const postIds = savedRows.map((row) => row.post_id);
+
+  if (!postIds.length) {
+    return [];
+  }
+
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `in.(${postIds.join(",")})`,
+      incognito: "eq.false",
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const postsById = new Map(posts.map((post) => [post.id, publicPost(post)]));
+
+  return postIds
+    .map((postId) => postsById.get(postId))
+    .filter((post): post is BayPost => Boolean(post));
+}
+
 export async function toggleSavedPost(memberId: string, postId: string) {
   const member = await getMemberRowByNumber(memberId);
 
@@ -1132,6 +1278,12 @@ export async function toggleSavedPost(memberId: string, postId: string) {
   });
 
   return true;
+}
+
+export async function countSavedPost(postId: string) {
+  const counts = await countSavedPosts([postId]);
+
+  return counts[postId] ?? 0;
 }
 
 export async function countSavedPosts(postIds: string[]) {

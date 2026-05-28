@@ -6,6 +6,13 @@ import { BayPost, getBayPostsByCategory } from "../../components/post-store";
 import CopyPostLinkButton from "../../components/copy-post-link-button";
 import FavoriteButton from "../../components/favorite-button";
 import { isBayoClub } from "../../../lib/bay-space-roles";
+import {
+  formatPointTenths,
+  getPostPointTenths,
+  getPostVisitCount,
+} from "../../../lib/bay-space-scoring";
+import { countFavoritePosts } from "../../components/favorite-store";
+import { claimPostVisit } from "../../components/post-visit-client";
 
 type SavedMember = {
   member: string;
@@ -20,6 +27,9 @@ type TopStoryPostProps = {
 export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
+  const [favoritePostCounts, setFavoritePostCounts] = useState<
+    Record<string, number>
+  >({});
 
   useEffect(() => {
     function syncPosts() {
@@ -43,6 +53,48 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!postId) {
+      return;
+    }
+
+    if (!claimPostVisit(postId)) {
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/posts/${encodeURIComponent(postId)}/visit`, { method: "POST" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { postVisits?: number } | null) => {
+        if (!isMounted || typeof data?.postVisits !== "number") {
+          return;
+        }
+
+        setPosts((currentPosts) =>
+          currentPosts.map((currentPost) =>
+            currentPost.id === postId
+              ? {
+                  ...currentPost,
+                  meta: {
+                    ...(currentPost.meta ?? {}),
+                    postVisits: String(data.postVisits),
+                  },
+                }
+              : currentPost,
+          ),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [postId]);
+
+  useEffect(() => {
+    countFavoritePosts(posts.map((post) => post.id)).then(setFavoritePostCounts);
+  }, [posts]);
+
   const post =
     posts.find((savedPost) => savedPost.id === postId) ?? posts[0] ?? null;
   const author = members.find((member) => member.member === post?.author);
@@ -51,6 +103,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
     authorName && isBayoClub(author?.roles ?? "") ? `${authorName} 🦉` : authorName;
   const tags = getDailyFoodTags(post);
   const sources = getPostSources(post);
+  const postPoints = post ? formatPointTenths(getPostPointTenths(post, favoritePostCounts)) : "0";
 
   if (!post) {
     return (
@@ -62,13 +115,18 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
 
   return (
     <article className="mt-10 max-w-3xl border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-        {new Date(post.createdAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+          {new Date(post.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+        <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+          {postPoints} pts
+        </p>
+      </div>
       {!post.anonymous && authorName ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
           <Link
@@ -111,10 +169,21 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
         </section>
       ) : null}
       <div className="mt-5">
-        <FavoriteButton postId={post.id} />
+        <FavoriteButton
+          onCountChange={(count) =>
+            setFavoritePostCounts((counts) => ({
+              ...counts,
+              [post.id]: count,
+            }))
+          }
+          postId={post.id}
+        />
       </div>
       <div className="mt-3">
-        <CopyPostLinkButton path={`/news/post?id=${post.id}`} />
+        <CopyPostLinkButton
+          path={`/news/post?id=${post.id}`}
+          visitCount={getPostVisitCount(post)}
+        />
       </div>
     </article>
   );

@@ -28,12 +28,16 @@ import {
   canUseIncognitoPosting,
   getAllowedPostCategories,
   isBayoClub,
+  isCrypti,
 } from "../../lib/bay-space-roles";
 import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
-import { baySpaceAgreementHref } from "../../lib/bay-space-agreement";
+import {
+  bayoPlusAgreementHref,
+  baySpaceAgreementHref,
+} from "../../lib/bay-space-agreement";
 import TicketVoteCounter from "../components/ticket-vote-counter";
 
 type BriefingRoomGateProps = {
@@ -539,6 +543,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     ? postCategory
     : availablePostCategories[0]?.id ?? "library-submission";
   const isBayoClubMember = isBayoClub(savedMember?.roles ?? "");
+  const isCryptiMember = isCrypti(savedMember?.roles ?? "");
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const activeLazyBankCategory = availableBankCategories.includes(lazyBankPostCategory)
     ? lazyBankPostCategory
@@ -3095,6 +3100,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     >
                       privacy + user agreement
                     </Link>
+                    {isCryptiMember ? (
+                      <Link
+                        href={bayoPlusAgreementHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-3 mt-3 inline-flex border border-[#72d7ff] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      >
+                        +Crypti user agreement
+                      </Link>
+                    ) : null}
                     <label className="mt-4 flex items-center gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
                       <input
                         type="checkbox"

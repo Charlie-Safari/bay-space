@@ -62,14 +62,17 @@ export async function toggleFavoritePost(postId: string) {
   });
 
   if (!response.ok) {
-    return false;
+    return { count: 0, saved: false };
   }
 
-  const data = (await response.json()) as { saved?: boolean };
+  const data = (await response.json()) as { count?: number; saved?: boolean };
 
   window.dispatchEvent(new Event(favoriteStoreEvent));
 
-  return Boolean(data.saved);
+  return {
+    count: typeof data.count === "number" ? data.count : 0,
+    saved: Boolean(data.saved),
+  };
 }
 
 function getFavoriteAuthorsStorageKey(memberId: string) {

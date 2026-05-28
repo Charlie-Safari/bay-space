@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+function isCryptiRole(roles = "") {
+  return roles
+    .split(",")
+    .map((role) => role.trim().toLowerCase())
+    .includes("crypti");
+}
+
 const formatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Phoenix",
   weekday: "short",
@@ -23,6 +30,7 @@ function getMountainStandardTime() {
 export default function MountainTimeFooter() {
   const [time, setTime] = useState(getMountainStandardTime);
   const [showVersion, setShowVersion] = useState(false);
+  const [hasCryptiAccess, setHasCryptiAccess] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -31,6 +39,35 @@ export default function MountainTimeFooter() {
 
     return () => {
       window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncMemberAccess() {
+      const response = await fetch("/api/me", { cache: "no-store" });
+      const data = response.ok
+        ? ((await response.json()) as {
+            member?: { roles?: string } | null;
+          })
+        : { member: null };
+
+      if (isMounted) {
+        setHasCryptiAccess(isCryptiRole(data.member?.roles));
+      }
+    }
+
+    syncMemberAccess().catch(() => {
+      if (isMounted) {
+        setHasCryptiAccess(false);
+      }
+    });
+    window.addEventListener("bay-space-auth", syncMemberAccess);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("bay-space-auth", syncMemberAccess);
     };
   }, []);
 
@@ -61,10 +98,18 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                1.14
+                1.16
               </span>
             ) : null}
           </span>
+          {hasCryptiAccess ? (
+            <Link
+              href="/crypti?howto=true"
+              className="border border-[#72d7ff] px-2 py-1 text-left text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              +how to
+            </Link>
+          ) : null}
         </div>
         <div className="flex flex-col items-end gap-1 text-right">
           <time suppressHydrationWarning>{time}</time>

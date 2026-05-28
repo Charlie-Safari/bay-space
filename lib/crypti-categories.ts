@@ -77,10 +77,21 @@ export const cryptiCategories: CryptiCategory[] = [
   },
 ];
 
+export const cryptiSecretsCategory: CryptiCategory = {
+  id: "secrets",
+  label: "Secrets",
+  description: "Private whispers and locked-room chatter.",
+};
+
+export const cryptiSBuzzCategories: CryptiCategory[] = [
+  ...cryptiCategories,
+  cryptiSecretsCategory,
+];
+
 export const defaultCryptiCategory = "rocket-fuel";
 
 export function getCryptiCategory(categoryId: string) {
-  return cryptiCategories.find((category) => category.id === categoryId);
+  return cryptiSBuzzCategories.find((category) => category.id === categoryId);
 }
 
 export function getCryptiCategoryLabel(categoryId: string) {
@@ -92,5 +103,5 @@ export function getCryptiCategoryLabel(categoryId: string) {
 }
 
 export function isCryptiCategory(categoryId: string) {
-  return cryptiCategories.some((category) => category.id === categoryId);
+  return cryptiSBuzzCategories.some((category) => category.id === categoryId);
 }

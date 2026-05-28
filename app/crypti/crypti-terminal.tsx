@@ -12,7 +12,9 @@ import {
 } from "react";
 import {
   cryptiCategories,
+  cryptiSBuzzCategories,
   defaultCryptiCategory,
+  getCryptiCategory,
 } from "../../lib/crypti-categories";
 import {
   CryptiTicker,
@@ -40,6 +42,13 @@ import {
   getFavoriteAuthorIds,
   getFavoritePostIds,
 } from "../components/favorite-store";
+import {
+  formatPointTenths,
+  getCryptiProfilePostBasePoints,
+  getPostPointTenths,
+  getPostTicketCount,
+  getPostVisitCount,
+} from "../../lib/bay-space-scoring";
 
 type VoteRange = "today" | "all-time";
 type CryptiPanel =
@@ -52,7 +61,9 @@ type CryptiPanel =
   | "favorites"
   | "my-posts"
   | "crypti-profile"
-  | "bank";
+  | "how-to"
+  | "bank"
+  | "secrets";
 type CryptiFavoriteSort = "favorite-posts" | "favorite-authors" | "ticket-posts";
 type CryptiMyPostsLane = "all-posts" | "tickers" | CryptiSourceMode;
 type CryptiTickerFollowSort = "date" | "points";
@@ -60,13 +71,25 @@ type CryptiSourceMode = "R" | "Q" | "S";
 type CryptiBankPreview = {
   category: string;
   headline: string;
+  kind: "post";
   receipts: string;
+  sourceMode: CryptiSourceMode;
   sources: string[];
+  tickersMentioned: string[];
+} | CryptiBankTickerPreview;
+type CryptiBankTickerPreview = {
+  assetType: string;
+  chainMarket: string;
+  company: string;
+  kind: "ticker";
+  note: string;
+  symbol: string;
 };
 type SavedMember = {
   member: string;
   name: string;
   refName?: string;
+  title?: string;
 };
 type CryptiPostDraft = {
   antiThesis: string;
@@ -81,12 +104,12 @@ type CryptiPostDraft = {
   supportClaimOneSource: string;
   supportClaimTwo: string;
   supportClaimTwoSource: string;
+  tickersMentioned: string;
   whispers: string;
 };
 
-const ticketVoteWeight = 50;
 const lazyAssistantUrl =
-  "https://chatgpt.com/g/g-6a12c2df32c88191aa719319e0aa557d-bayo";
+  "https://chatgpt.com/g/g-6a12c2df32c88191aa719319e0aa557d-crypti";
 
 const voteOptions: Array<{
   emoji: string;
@@ -189,6 +212,10 @@ function getCryptiPanelSourceMode(
   return null;
 }
 
+function getCryptiCategoriesForSourceMode(sourceMode: CryptiSourceMode | null) {
+  return sourceMode === "S" ? cryptiSBuzzCategories : cryptiCategories;
+}
+
 const cryptiCategoryKeywords: Record<string, string[]> = {
   "blue-chip-muscle": ["btc", "bitcoin", "eth", "ethereum", "sol", "blue chip"],
   "clean-launches": ["clean launch", "new launch", "launched", "fair launch"],
@@ -201,6 +228,7 @@ const cryptiCategoryKeywords: Record<string, string[]> = {
   "panic-rebounds": ["rebound", "bounce", "oversold", "panic", "dip"],
   "quiet-accumulation": ["accumulation", "accumulate", "quiet", "wallets buying"],
   "rocket-fuel": ["momentum", "volume", "breakout", "pump", "rocket"],
+  secrets: ["secret", "secrets", "private", "whisper", "whispers"],
   "trap-zone": ["trap", "danger", "hype", "exit liquidity", "warning"],
   "whale-footprints": ["whale", "wallet", "smart money", "large buy"],
   "zombie-coins": ["zombie", "dead coin", "revived", "waking up"],
@@ -239,6 +267,32 @@ function normalizeCryptiCategoryMatch(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function inferCryptiBankSourceMode(value: string): CryptiSourceMode {
+  const normalizedValue = value.toLowerCase();
+
+  if (
+    /\bs\s*[- ]?\s*buzz\b|\bcrypto twitter\b|\bwhispers?\b/.test(
+      normalizedValue,
+    )
+  ) {
+    return "S";
+  }
+
+  if (/\bq\s*[- ]?\s*degen\b|\bdegen\b/.test(normalizedValue)) {
+    return "Q";
+  }
+
+  if (
+    /\br\s*[- ]?\s*news\b|\bverified\b|\breceipts?\s+required\b/.test(
+      normalizedValue,
+    )
+  ) {
+    return "R";
+  }
+
+  return "R";
+}
+
 function extractCryptiSection(value: string, labels: string[]) {
   const labelPattern = labels.join("|");
   const sectionMatch = value.match(
@@ -251,10 +305,49 @@ function extractCryptiSection(value: string, labels: string[]) {
   return sectionMatch?.[1]?.trim() ?? "";
 }
 
-function inferCryptiBankCategory(value: string) {
+function extractCryptiTemplateField(value: string, labelPattern: string) {
+  const fieldMatch = value.match(
+    new RegExp(
+      `(?:^|\\n)\\s*${labelPattern}\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:ticker|company|chain\\s*\\/\\s*market|type|asset\\s+description\\s+box)\\s*:|$)`,
+      "i",
+    ),
+  );
+
+  return fieldMatch?.[1]?.trim() ?? "";
+}
+
+function parseCryptiBankTickerInput(value: string): CryptiBankTickerPreview | null {
+  const symbol = normalizeCryptiSymbol(extractCryptiTemplateField(value, "ticker"));
+  const company = extractCryptiTemplateField(value, "company").slice(0, 120);
+  const chainMarket = extractCryptiTemplateField(
+    value,
+    "chain\\s*\\/\\s*market",
+  ).slice(0, 120);
+  const assetType = extractCryptiTemplateField(value, "type").slice(0, 60);
+  const note = extractCryptiTemplateField(
+    value,
+    "asset\\s+description\\s+box",
+  ).slice(0, 1000);
+
+  if (!symbol && !company && !chainMarket && !assetType && !note) {
+    return null;
+  }
+
+  return {
+    assetType,
+    chainMarket,
+    company,
+    kind: "ticker",
+    note,
+    symbol,
+  };
+}
+
+function inferCryptiBankCategory(value: string, sourceMode: CryptiSourceMode) {
   const categoryLine = value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i)?.[1];
   const normalizedCategoryLine = normalizeCryptiCategoryMatch(categoryLine ?? "");
-  const explicitCategory = cryptiCategories.find((category) => {
+  const sourceCategories = getCryptiCategoriesForSourceMode(sourceMode);
+  const explicitCategory = sourceCategories.find((category) => {
     const normalizedId = normalizeCryptiCategoryMatch(category.id);
     const normalizedLabel = normalizeCryptiCategoryMatch(category.label);
 
@@ -269,7 +362,7 @@ function inferCryptiBankCategory(value: string) {
   }
 
   const normalizedValue = value.toLowerCase();
-  const matchedCategory = cryptiCategories.find((category) =>
+  const matchedCategory = sourceCategories.find((category) =>
     (cryptiCategoryKeywords[category.id] ?? []).some((keyword) =>
       normalizedValue.includes(keyword),
     ),
@@ -319,8 +412,26 @@ function stripCryptiSourceLines(value: string) {
     })
     .join("\n")
     .replace(/(?:^|\n)\s*category\s*:[^\n]+/gi, "")
+    .replace(/(?:^|\n)\s*tickers?\s+mentioned\s*:[^\n]+/gi, "")
     .replace(/https?:\/\/[^\s<>"']+/g, "")
     .trim();
+}
+
+function extractCryptiTickersMentioned(value: string) {
+  const explicitTickerLines = Array.from(
+    value.matchAll(/(?:^|\n)\s*tickers?\s+mentioned\s*:\s*([^\n]+)/gi),
+    (match) => match[1],
+  ).join(" ");
+  const dollarTickers = Array.from(
+    value.matchAll(/(?:^|[^A-Z0-9])\$([A-Z][A-Z0-9.-]{0,11})\b/gi),
+    (match) => match[1],
+  );
+
+  return parseCryptiTickersMentioned(
+    [explicitTickerLines, ...dollarTickers.map((ticker) => `$${ticker}`)].join(
+      " ",
+    ),
+  );
 }
 
 function parseCryptiBankInput(value: string): {
@@ -333,9 +444,21 @@ function parseCryptiBankInput(value: string): {
     return { error: "draft context required" };
   }
 
+  const tickerPreview = parseCryptiBankTickerInput(trimmedValue);
+
+  if (tickerPreview) {
+    if (!tickerPreview.symbol) {
+      return { error: "ticker missing" };
+    }
+
+    return { preview: tickerPreview };
+  }
+
   const headline = extractCryptiBankHeadline(trimmedValue).slice(0, 75);
-  const category = inferCryptiBankCategory(trimmedValue);
+  const sourceMode = inferCryptiBankSourceMode(trimmedValue);
+  const category = inferCryptiBankCategory(trimmedValue, sourceMode);
   const sources = extractCryptiUrls(trimmedValue);
+  const tickersMentioned = extractCryptiTickersMentioned(trimmedValue);
   const bodySection = extractCryptiSection(trimmedValue, [
     "receipts?",
     "context",
@@ -362,8 +485,11 @@ function parseCryptiBankInput(value: string): {
     preview: {
       category,
       headline,
+      kind: "post",
       receipts,
+      sourceMode,
       sources,
+      tickersMentioned,
     },
   };
 }
@@ -454,6 +580,71 @@ function getPostSources(post: BayPost) {
     : [];
 }
 
+function parseCryptiTickersMentioned(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\s,]+/)
+        .map(normalizeCryptiSymbol)
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getCryptiPostDisplayLines(post: BayPost) {
+  const sourceMode = getCryptiPostSourceMode(post);
+  const lines = post.body
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (sourceMode !== "R" && sourceMode !== "Q") {
+    return lines;
+  }
+
+  const displayLines: string[] = [];
+  let skipNextSourceLine = false;
+  let skipRemainingSourceLines = false;
+
+  lines.forEach((line) => {
+    const normalizedLine = line
+      .replace(/[—-]/g, "-")
+      .replace(/\s+/g, " ")
+      .toUpperCase();
+
+    if (/^OTHER SOURCES?:?$/.test(normalizedLine)) {
+      skipRemainingSourceLines = true;
+      return;
+    }
+
+    if (skipRemainingSourceLines) {
+      return;
+    }
+
+    if (/^SOURCE:?$/.test(normalizedLine)) {
+      skipNextSourceLine = true;
+      return;
+    }
+
+    if (skipNextSourceLine) {
+      skipNextSourceLine = false;
+      return;
+    }
+
+    if (/^SUPPORT CLAIM \d+:?$/.test(normalizedLine)) {
+      return;
+    }
+
+    if (/^ANTI-?THESIS ?\d*:?$/.test(normalizedLine)) {
+      return;
+    }
+
+    displayLines.push(line);
+  });
+
+  return displayLines;
+}
+
 function getSourceHref(source: string) {
   return source.startsWith("http://") || source.startsWith("https://")
     ? source
@@ -506,10 +697,7 @@ function getCryptiPostScore(
   post: BayPost,
   favoriteCounts: Record<string, number>,
 ) {
-  return (
-    (favoriteCounts[post.id] ?? 0) +
-    getCryptiTicketVoteCount(post) * ticketVoteWeight
-  );
+  return getPostPointTenths(post, favoriteCounts);
 }
 
 function formatPostTimestamp(createdAt: string) {
@@ -524,57 +712,21 @@ function formatPostTimestamp(createdAt: string) {
 
 function formatCryptiClaimPostBody({
   antiThesis,
-  antiThesisSource,
-  otherSources,
   supportClaimOne,
-  supportClaimOneSource,
   supportClaimTwo,
-  supportClaimTwoSource,
 }: {
   antiThesis: string;
-  antiThesisSource: string;
-  otherSources: string[];
   supportClaimOne: string;
-  supportClaimOneSource: string;
   supportClaimTwo: string;
-  supportClaimTwoSource: string;
-}) {
-  const claimLines = [
-    "SUPPORT CLAIM 1:",
-    supportClaimOne.trim(),
-    "",
-    "SOURCE:",
-    supportClaimOneSource.trim(),
-  ];
+} & Record<string, unknown>) {
+  const claimLines = [supportClaimOne.trim()];
 
-  if (supportClaimTwo.trim() || supportClaimTwoSource.trim()) {
-    claimLines.push(
-      "",
-      "SUPPORT CLAIM 2:",
-      supportClaimTwo.trim(),
-      "",
-      "SOURCE:",
-      supportClaimTwoSource.trim(),
-    );
+  if (supportClaimTwo.trim()) {
+    claimLines.push("", supportClaimTwo.trim());
   }
 
-  if (antiThesis.trim() || antiThesisSource.trim()) {
-    claimLines.push(
-      "",
-      "ANTI-THESIS 3:",
-      antiThesis.trim(),
-      "",
-      "SOURCE:",
-      antiThesisSource.trim(),
-    );
-  }
-
-  if (otherSources.length) {
-    claimLines.push(
-      "",
-      "OTHER SOURCES:",
-      ...otherSources.map((source) => source.trim()),
-    );
+  if (antiThesis.trim()) {
+    claimLines.push("", antiThesis.trim());
   }
 
   return claimLines.join("\n");
@@ -584,12 +736,56 @@ function formatCryptiBuzzPostBody(whispers: string) {
   return ["WHISPERS:", whispers.trim()].join("\n");
 }
 
+function encodeSecretWhisper(value: string) {
+  const cleanedLines = value
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const secretLines = cleanedLines.length ? cleanedLines : [value.trim()];
+
+  return [
+    "CLASSIFIED WHISPER FILE // S-BUZZ-SECRETS",
+    "CLEARANCE: moonlit wallets only",
+    "",
+    ...secretLines.map((line, index) => {
+      const prefix = `FILE ${String(index + 1).padStart(2, "0")}`;
+      const codedLine = line
+        .replace(/\bbuy\b/gi, "summon green candles")
+        .replace(/\bsell\b/gi, "release the bags to civilian airspace")
+        .replace(/\bcoin\b/gi, "orbital ticker")
+        .replace(/\btoken\b/gi, "chain talisman")
+        .replace(/\bwhale\b/gi, "deep-wallet admiral")
+        .replace(/\brumor\b/gi, "corridor static")
+        .replace(/\bsecret\b/gi, "sealed alpha fragment");
+
+      return `${prefix}: ${codedLine} // transmission remains unverified but suspiciously sparkly.`;
+    }),
+    "",
+    "ANALYST NOTE: treat as classified chatter, not financial prophecy.",
+  ].join("\n");
+}
+
 export default function CryptiTerminal() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const howToParam = searchParams.get("howto") === "true";
   const profileMemberParam = searchParams.get("profile") ?? "";
+  const sourceModeParam = searchParams.get("source")?.toUpperCase() ?? "";
+  const tickerSymbolParam = normalizeCryptiSymbol(searchParams.get("ticker") ?? "");
+  const initialSourcePanel =
+    sourceModeParam === "R" ||
+    sourceModeParam === "Q" ||
+    sourceModeParam === "S"
+      ? getCryptiSourcePanel(sourceModeParam)
+      : null;
   const [activePanel, setActivePanel] = useState<CryptiPanel>(
-    profileMemberParam ? "crypti-profile" : "tickers",
+    howToParam
+      ? "how-to"
+      : profileMemberParam
+      ? "crypti-profile"
+      : tickerSymbolParam
+        ? "tickers"
+        : initialSourcePanel ?? "tickers",
   );
   const [isCategoryGridOpen, setIsCategoryGridOpen] = useState(false);
   const [selectedCryptiCategory, setSelectedCryptiCategory] = useState("");
@@ -621,8 +817,10 @@ export default function CryptiTerminal() {
   const [currentMemberNumber, setCurrentMemberNumber] = useState("");
   const [currentMemberName, setCurrentMemberName] = useState("");
   const [currentMemberRefName, setCurrentMemberRefName] = useState("");
+  const [currentMemberTitle, setCurrentMemberTitle] = useState("");
   const [cryptiProfileMemberNumber, setCryptiProfileMemberNumber] =
     useState(profileMemberParam);
+  const [cryptiProfilePageVisits, setCryptiProfilePageVisits] = useState(0);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [myPostsLane, setMyPostsLane] =
     useState<CryptiMyPostsLane>("tickers");
@@ -638,6 +836,7 @@ export default function CryptiTerminal() {
   const [cryptiTicketPostIds, setCryptiTicketPostIds] = useState<string[]>([]);
   const [favoriteSort, setFavoriteSort] =
     useState<CryptiFavoriteSort>("favorite-posts");
+  const [smokeSearch, setSmokeSearch] = useState("");
   const [cryptiPostCategory, setCryptiPostCategory] = useState(
     defaultCryptiCategory,
   );
@@ -654,12 +853,17 @@ export default function CryptiTerminal() {
   const [cryptiAntiThesisSource, setCryptiAntiThesisSource] = useState("");
   const [cryptiWhispers, setCryptiWhispers] = useState("");
   const [cryptiSources, setCryptiSources] = useState(["", ""]);
+  const [cryptiTickersMentioned, setCryptiTickersMentioned] = useState("");
   const [cryptiPostAnonymous, setCryptiPostAnonymous] = useState(false);
   const [cryptiPostMessage, setCryptiPostMessage] = useState("");
   const [cryptiBankInput, setCryptiBankInput] = useState("");
   const [cryptiBankError, setCryptiBankError] = useState("");
   const [cryptiBankPreview, setCryptiBankPreview] =
     useState<CryptiBankPreview | null>(null);
+  const [secretHeadline, setSecretHeadline] = useState("");
+  const [secretWhisper, setSecretWhisper] = useState("");
+  const [secretPreview, setSecretPreview] = useState("");
+  const [secretMessage, setSecretMessage] = useState("");
   const [activeCryptiDraftId, setActiveCryptiDraftId] = useState<number | null>(
     null,
   );
@@ -681,6 +885,7 @@ export default function CryptiTerminal() {
       supportClaimOneSource: "",
       supportClaimTwo: "",
       supportClaimTwoSource: "",
+      tickersMentioned: "",
       whispers: "",
     };
   }
@@ -703,6 +908,7 @@ export default function CryptiTerminal() {
       supportClaimOneSource: cryptiSupportClaimOneSource,
       supportClaimTwo: cryptiSupportClaimTwo,
       supportClaimTwoSource: cryptiSupportClaimTwoSource,
+      tickersMentioned: cryptiTickersMentioned,
       whispers: cryptiWhispers,
     };
   }
@@ -728,6 +934,7 @@ export default function CryptiTerminal() {
     setCryptiAntiThesisSource(draft.antiThesisSource);
     setCryptiWhispers(draft.whispers);
     setCryptiPostAnonymous(draft.anonymous);
+    setCryptiTickersMentioned(draft.tickersMentioned);
     setCryptiPostCategory(draft.category);
     setCryptiSourceMode(draft.sourceMode);
     setCryptiSources(draft.sources.length ? draft.sources : ["", ""]);
@@ -753,6 +960,7 @@ export default function CryptiTerminal() {
     setCryptiAntiThesis("");
     setCryptiAntiThesisSource("");
     setCryptiWhispers("");
+    setCryptiTickersMentioned("");
     setCryptiPostAnonymous(false);
     setCryptiPostCategory(defaultCryptiCategory);
     setCryptiSourceMode("R");
@@ -812,6 +1020,15 @@ export default function CryptiTerminal() {
     setActivePanel("post");
   }
 
+  function openShareSecrets() {
+    setSecretHeadline("");
+    setSecretWhisper("");
+    setSecretPreview("");
+    setSecretMessage("");
+    setSelectedCryptiCategory("");
+    setActivePanel("secrets");
+  }
+
   function restoreCryptiPostDraft(draftId: number) {
     if (activeCryptiDraftId === draftId && activePanel === "post") {
       return;
@@ -839,7 +1056,8 @@ export default function CryptiTerminal() {
   }
 
   function openCryptiBank() {
-    setCryptiBankError("");
+    resetCryptiBank();
+    setSelectedCryptiCategory("");
     setActivePanel("bank");
   }
 
@@ -855,21 +1073,90 @@ export default function CryptiTerminal() {
     setCryptiBankError("");
   }
 
-  function loadCryptiBankPreview() {
+  async function submitCryptiBankPreview() {
     if (!cryptiBankPreview) {
       return;
     }
 
-    setCryptiPostCategory(cryptiBankPreview.category);
-    setCryptiHeadline(cryptiBankPreview.headline);
-    setCryptiSourceMode("S");
-    setCryptiWhispers(cryptiBankPreview.receipts);
-    setCryptiSources(
-      cryptiBankPreview.sources.length ? [...cryptiBankPreview.sources, ""] : ["", ""],
-    );
-    setActiveCryptiDraftId(getNextCryptiDraftId());
-    setCryptiPostMessage("draft loaded for review");
-    setActivePanel("post");
+    if (cryptiBankPreview.kind === "ticker") {
+      const response = await fetch("/api/crypti/tickers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          assetType: cryptiBankPreview.assetType,
+          category: defaultCryptiCategory,
+          chainMarket: cryptiBankPreview.chainMarket,
+          company: cryptiBankPreview.company,
+          note: cryptiBankPreview.note,
+          symbol: cryptiBankPreview.symbol,
+        }),
+      });
+
+      if (!response.ok) {
+        setCryptiBankError("ticker not saved");
+        return;
+      }
+
+      const data = (await response.json()) as { ticker?: CryptiTicker };
+
+      if (data.ticker) {
+        setTickers((currentTickers) => {
+          const remainingTickers = currentTickers.filter(
+            (ticker) => ticker.id !== data.ticker?.id,
+          );
+
+          return [...remainingTickers, data.ticker as CryptiTicker].sort(
+            (leftTicker, rightTicker) =>
+              leftTicker.symbol.localeCompare(rightTicker.symbol),
+          );
+        });
+        setSelectedTickerId(data.ticker.id);
+        setTickerDetailNotice(`${data.ticker.symbol} added`);
+      }
+
+      resetCryptiBank();
+      setActivePanel("tickers");
+      return;
+    }
+
+    const sourceStatus = getCryptiSourceStatus(cryptiBankPreview.sourceMode);
+    const body =
+      cryptiBankPreview.sourceMode === "S"
+        ? formatCryptiBuzzPostBody(cryptiBankPreview.receipts)
+        : cryptiBankPreview.receipts;
+
+    try {
+      await saveBayPost({
+        body,
+        category: "theory",
+        anonymous: false,
+        author: "unknown",
+        incognito: false,
+        meta: {
+          cryptiCategory: cryptiBankPreview.category,
+          cryptiPost: "true",
+          cryptiSourceMode: cryptiBankPreview.sourceMode,
+          cryptiSourceStatus: sourceStatus,
+          sources:
+            cryptiBankPreview.sourceMode === "S"
+              ? []
+              : cryptiBankPreview.sources,
+          tickersMentioned: cryptiBankPreview.tickersMentioned,
+        },
+        title: cryptiBankPreview.headline,
+      });
+    } catch {
+      setCryptiBankError("post not saved");
+      return;
+    }
+
+    await loadCryptiPosts();
+    const submittedSourceMode = cryptiBankPreview.sourceMode;
+    const submittedCategory = cryptiBankPreview.category;
+
+    resetCryptiBank();
+    setSelectedCryptiCategory(submittedCategory);
+    setActivePanel(getCryptiSourcePanel(submittedSourceMode));
   }
 
   function resetCryptiBank() {
@@ -953,7 +1240,18 @@ export default function CryptiTerminal() {
       const data = (await response.json()) as { tickers?: CryptiTicker[] };
 
       if (isMounted) {
-        setTickers(data.tickers ?? []);
+        const loadedTickers = data.tickers ?? [];
+        setTickers(loadedTickers);
+
+        if (tickerSymbolParam) {
+          const linkedTicker = loadedTickers.find(
+            (ticker) => ticker.symbol === tickerSymbolParam,
+          );
+
+          if (linkedTicker) {
+            setSelectedTickerId(linkedTicker.id);
+          }
+        }
       }
     }
 
@@ -962,7 +1260,7 @@ export default function CryptiTerminal() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [tickerSymbolParam]);
 
   useEffect(() => {
     fetch("/api/members", { cache: "no-store" })
@@ -1002,13 +1300,19 @@ export default function CryptiTerminal() {
       }
 
       const data = (await response.json()) as {
-        member?: { member?: string; name?: string; refName?: string } | null;
+        member?: {
+          member?: string;
+          name?: string;
+          refName?: string;
+          title?: string;
+        } | null;
       };
 
       if (data.member?.member) {
         setCurrentMemberNumber(data.member.member);
         setCurrentMemberName(data.member.name ?? "");
         setCurrentMemberRefName(data.member.refName ?? "");
+        setCurrentMemberTitle(data.member.title ?? "");
 
         try {
           const savedSymbols = JSON.parse(
@@ -1041,6 +1345,22 @@ export default function CryptiTerminal() {
         } catch {
           setFollowedTickerSymbols([]);
           setOwnedTickerSymbols([]);
+        }
+
+        const ownedResponse = await fetch("/api/crypti/owned-tickers", {
+          cache: "no-store",
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (ownedResponse.ok) {
+          const ownedData = (await ownedResponse.json()) as {
+            symbols?: string[];
+          };
+
+          setOwnedTickerSymbols(ownedData.symbols ?? []);
         }
       }
     }
@@ -1139,6 +1459,49 @@ export default function CryptiTerminal() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!howToParam) {
+      return;
+    }
+
+    setSelectedCryptiCategory("");
+    setActivePanel("how-to");
+  }, [howToParam]);
+
+  useEffect(() => {
+    const memberNumber = cryptiProfileMemberNumber || currentMemberNumber;
+
+    if (!memberNumber) {
+      setCryptiProfilePageVisits(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    fetch(`/api/members/${encodeURIComponent(memberNumber)}/visit`, {
+      cache: "no-store",
+    })
+      .then((response) =>
+        response.ok ? response.json() : { pageVisits: 0 },
+      )
+      .then((data: { pageVisits?: number }) => {
+        if (isMounted) {
+          setCryptiProfilePageVisits(
+            typeof data.pageVisits === "number" ? data.pageVisits : 0,
+          );
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCryptiProfilePageVisits(0);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentMemberNumber, cryptiProfileMemberNumber]);
+
   const normalizedSearch = normalizeCryptiSymbol(search);
   const todayDateKey = getLosAngelesDateKey(new Date());
   const filteredTickers = useMemo(
@@ -1179,6 +1542,10 @@ export default function CryptiTerminal() {
   const activeSourceModeOption = activeSourceMode
     ? getCryptiSourceModeOption(activeSourceMode)
     : null;
+  const activeSourceModeCategories =
+    getCryptiCategoriesForSourceMode(activeSourceMode);
+  const cryptiPostSourceModeCategories =
+    getCryptiCategoriesForSourceMode(cryptiSourceMode);
   const selectedCategoryPosts = cryptiPosts.filter(
     (post) =>
       getCryptiPostCategory(post) === selectedCryptiCategory &&
@@ -1230,6 +1597,26 @@ export default function CryptiTerminal() {
         new Date(leftPost.createdAt).getTime()
       );
     });
+  const normalizedSmokeSearchTerms = smokeSearch
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  const smokeDisplayPosts = normalizedSmokeSearchTerms.length
+    ? [...cryptiPosts]
+        .filter((post) => {
+          const searchText = getCryptiSearchText(post);
+
+          return normalizedSmokeSearchTerms.every((term) =>
+            searchText.includes(term),
+          );
+        })
+        .sort(
+          (leftPost, rightPost) =>
+            new Date(rightPost.createdAt).getTime() -
+            new Date(leftPost.createdAt).getTime(),
+        )
+    : rankedSmokePosts;
   const favoriteDisplayPosts = [...cryptiPosts]
     .filter((post) => {
       if (favoriteSort === "favorite-authors") {
@@ -1285,6 +1672,24 @@ export default function CryptiTerminal() {
       : "") ||
     activeCryptiProfileMemberNumber ||
     "Username";
+  const cryptiProfileDisplayName =
+    activeCryptiProfileMember?.name ||
+    (activeCryptiProfileMemberNumber === currentMemberNumber
+      ? currentMemberName
+      : "") ||
+    cryptiProfileName;
+  const cryptiProfileRefName =
+    activeCryptiProfileMember?.refName ||
+    (activeCryptiProfileMemberNumber === currentMemberNumber
+      ? currentMemberRefName
+      : "") ||
+    "-----";
+  const cryptiProfileTitle =
+    activeCryptiProfileMember?.title ||
+    (activeCryptiProfileMemberNumber === currentMemberNumber
+      ? currentMemberTitle
+      : "") ||
+    "BAYO + CRYPTI";
   const profileRNewsPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "R",
   );
@@ -1294,6 +1699,39 @@ export default function CryptiTerminal() {
   const profileSBuzzPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "S",
   );
+  const profileScoredPosts = cryptiProfilePosts.filter((post) => {
+    const sourceMode = getCryptiPostSourceMode(post);
+
+    return sourceMode === "R" || sourceMode === "Q" || sourceMode === "S";
+  });
+  const profileTotalPostVisits = profileScoredPosts.reduce(
+    (total, post) => total + getPostVisitCount(post),
+    0,
+  );
+  const profileTotalFavoriteCount = profileScoredPosts.reduce(
+    (total, post) => total + (favoritePostCounts[post.id] ?? 0),
+    0,
+  );
+  const profileTotalTicketCount = profileScoredPosts.reduce(
+    (total, post) => total + getPostTicketCount(post),
+    0,
+  );
+  const profileTickerContributedCount = tickers.filter(
+    (ticker) => ticker.submittedBy === activeCryptiProfileMemberNumber,
+  ).length;
+  const profileDailySmokeWinnerCount = profileScoredPosts.filter(
+    (post) => post.meta?.dailySmokeWinner === "true",
+  ).length;
+  const profileOverallScoreTenths =
+    profileScoredPosts.reduce(
+      (total, post) => total + getCryptiProfilePostBasePoints(post) * 10,
+      0,
+    ) +
+    profileTotalPostVisits +
+    profileTotalFavoriteCount * 10 +
+    profileTotalTicketCount * 100 +
+    profileTickerContributedCount * 100 +
+    profileDailySmokeWinnerCount * 5000;
   const followedTickers = tickers
     .filter((ticker) => followedTickerSymbols.includes(ticker.symbol))
     .sort((leftTicker, rightTicker) => {
@@ -1354,7 +1792,7 @@ export default function CryptiTerminal() {
         new Date(leftTicker.createdAt).getTime(),
     );
   const selectedCryptiCategoryLabel =
-    cryptiCategories.find((category) => category.id === selectedCryptiCategory)
+    getCryptiCategory(selectedCryptiCategory)
       ?.label ?? activeSourceModeOption?.label ?? "Categories";
 
   async function searchTickers(event: FormEvent<HTMLFormElement>) {
@@ -1426,16 +1864,31 @@ export default function CryptiTerminal() {
         ? currentSymbols
         : [...currentSymbols, ticker.symbol],
     );
-    setTickerDetailNotice(`${ticker.symbol} added to tickers following`);
+    setTickerDetailNotice("");
   }
 
   function ownTicker(ticker: CryptiTicker) {
+    const normalizedSymbol = normalizeCryptiSymbol(ticker.symbol);
+
     setOwnedTickerSymbols((currentSymbols) =>
-      currentSymbols.includes(ticker.symbol)
+      currentSymbols.includes(normalizedSymbol)
         ? currentSymbols
-        : [...currentSymbols, ticker.symbol],
+        : [...currentSymbols, normalizedSymbol],
     );
-    setTickerDetailNotice(`${ticker.symbol} added to i have this ticker`);
+    setTickerDetailNotice("");
+
+    fetch("/api/crypti/owned-tickers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol: normalizedSymbol }),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { symbols?: string[] } | null) => {
+        if (data?.symbols) {
+          setOwnedTickerSymbols(data.symbols);
+        }
+      })
+      .catch(() => undefined);
   }
 
   async function submitTicker(event: FormEvent<HTMLFormElement>) {
@@ -1621,6 +2074,9 @@ export default function CryptiTerminal() {
           ]
             .map((source) => source.trim())
             .filter(Boolean);
+    const submittedTickersMentioned = parseCryptiTickersMentioned(
+      cryptiTickersMentioned,
+    );
 
     try {
       await saveBayPost({
@@ -1635,6 +2091,7 @@ export default function CryptiTerminal() {
           cryptiSourceMode,
           cryptiSourceStatus: sourceStatus,
           sources: submittedSources,
+          tickersMentioned: submittedTickersMentioned,
         },
         title: cryptiHeadline,
       });
@@ -1655,11 +2112,65 @@ export default function CryptiTerminal() {
     setActivePanel(getCryptiSourcePanel(cryptiSourceMode));
   }
 
-  function renderCryptiPostCard(post: BayPost, categoryLabel: string) {
-    const receiptLines = post.body
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+  function previewSecretPost(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSecretMessage("");
+
+    if (!secretHeadline.trim()) {
+      setSecretMessage("headline required");
+      return;
+    }
+
+    if (!secretWhisper.trim()) {
+      setSecretMessage("secret whisper required");
+      return;
+    }
+
+    setSecretPreview(encodeSecretWhisper(secretWhisper));
+  }
+
+  async function submitSecretPost() {
+    if (!secretPreview.trim()) {
+      setSecretMessage("review required");
+      return;
+    }
+
+    try {
+      await saveBayPost({
+        body: formatCryptiBuzzPostBody(secretPreview),
+        category: "theory",
+        anonymous: false,
+        author: "unknown",
+        incognito: false,
+        meta: {
+          cryptiCategory: "secrets",
+          cryptiPost: "true",
+          cryptiSourceMode: "S",
+          cryptiSourceStatus: getCryptiSourceStatus("S"),
+          sources: [],
+        },
+        title: secretHeadline.trim(),
+      });
+    } catch {
+      setSecretMessage("secret post not saved");
+      return;
+    }
+
+    await loadCryptiPosts();
+    setSecretHeadline("");
+    setSecretWhisper("");
+    setSecretPreview("");
+    setSecretMessage("");
+    setSelectedCryptiCategory("secrets");
+    setActivePanel("s-buzz");
+  }
+
+  function renderCryptiPostCard(
+    post: BayPost,
+    categoryLabel: string,
+    options: { headlineOnly?: boolean } = {},
+  ) {
+    const receiptLines = getCryptiPostDisplayLines(post);
 
     return (
       <article
@@ -1696,14 +2207,14 @@ export default function CryptiTerminal() {
               {...cryptiTicketVoteButtonDefaults}
             />
             <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
-              {getCryptiPostScore(post, favoritePostCounts)} pts
+              {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
             </span>
           </div>
         </div>
         <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
           {post.title}
         </h2>
-        {receiptLines.length ? (
+        {!options.headlineOnly && receiptLines.length ? (
           <div className="mt-4 grid gap-3 text-base leading-7 text-[#d7ffd0]">
             {receiptLines.map((line, index) => (
               <div key={`${post.id}-${line}-${index}`} className="flex items-start gap-3">
@@ -1715,12 +2226,12 @@ export default function CryptiTerminal() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : !options.headlineOnly ? (
           <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
             no receipts entered
           </p>
-        )}
-        {getPostSources(post).length ? (
+        ) : null}
+        {!options.headlineOnly && getPostSources(post).length ? (
           <section className="mt-5 border-t border-[#1d7f12] pt-3">
             <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
               SOURCES
@@ -1966,21 +2477,28 @@ export default function CryptiTerminal() {
               >
                 ✅💰
               </button>
+              <button
+                type="button"
+                onClick={openShareSecrets}
+                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                Share your secrets
+              </button>
             </div>
             <a
               href={lazyAssistantUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open Bayo Lazy Assistant"
-              title="Bayo Lazy Assistant"
+              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-3 py-1 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-label="Open Crypti Lazy Assistant"
+              title="Crypti Lazy Assistant"
             >
               <Image
-                src="/bay-space-logo-icon.png"
+                src="/plus-crypti-icon-photo-dupy.png"
                 alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 object-contain"
+                width={44}
+                height={44}
+                className="h-11 w-11 object-contain"
               />
               <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
                 Lazy Assistant
@@ -2043,6 +2561,93 @@ export default function CryptiTerminal() {
         </div>
       ) : null}
 
+      {activePanel === "how-to" ? (
+        <section className="grid gap-5 border-2 border-[#72d7ff] bg-black px-5 py-6 text-[#72d7ff] shadow-[0_0_22px_rgba(114,215,255,0.22)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em]">
+                +Crypti how to
+              </p>
+              <h2 className="mt-3 text-3xl font-black uppercase tracking-[0.14em] [text-shadow:0_0_14px_rgba(114,215,255,0.75)]">
+                carnival rules for signal hunters
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActivePanel("tickers")}
+              className="border border-[#72d7ff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              back
+            </button>
+          </div>
+
+          {[
+            {
+              title: "point system",
+              body: [
+                "🎪 Step right up: every fully opened R News, Q Degen, or S Buzz post is a tiny ticket punch worth 0.1 post points. Ten real opens make 1 full point, so a post can climb one click at a time without ticker views sneaking onto the board.",
+                "💎 Favorite diamonds are the shiny midway prizes: each favorite adds 10 full post points. If the diamond is removed, those 10 points come right back off the board.",
+                "🎟️ Tickets are the big-ring toss: each ticket adds 50 full post points. Unticketing pulls 50 points back. The top-right score is the live post total: visits x 0.1, plus favorites x 10, plus tickets x 50, shown with the tenth when it matters.",
+                "🏆 Profile score is its own prize booth. R News posts earn 10 profile points, Q Degen earns 1, S Buzz earns 5, ticker contributions earn 10, favorites received earn 1 each, tickets received earn 10 each, and total post visits add 0.1 each. Daily Smoke winners can add the 500-point jackpot when that award is recorded.",
+              ],
+            },
+            {
+              title: "how to use lazy assistant",
+              body: [
+                "🧠 Open Lazy Assistant when you want the booth operator to sort the tickets for you. Ask it to turn your rough idea into an R News, Q Degen, or S Buzz draft with a headline, category, receipts, sources, and tickers mentioned.",
+                "📋 Copy the finished Lazy Assistant output and paste it into ✅💰. You can also ask it for a ticker upload draft by giving it the ticker symbol, company or chain, asset type, market, and description. It should format the draft so the money-bag lane can read it cleanly.",
+                "🎯 Good prompt: Draft this for +Crypti as R News with receipts, sources, category, tickers mentioned, and a short headline. Keep it ready to paste into the checkmark money bag.",
+              ],
+            },
+            {
+              title: "how to use ✅💰",
+              body: [
+                "✅💰 is the easy counter. Paste the Lazy Assistant draft, a typed post draft, or a ticker draft into the box, then let the builder separate headline, category, receipts, links, tickers, and ticker metadata.",
+                "🪄 Lazy Assistant can do most of the prep work. You bring the rumor, receipt, ticker, or signal; Lazy Assistant shapes it; ✅💰 turns it into a review screen; then you submit from there.",
+                "💼 For ticker posts, ask Lazy Assistant to draft a ticker upload with ticker, company, chain / market, type, and asset description box. Paste that into ✅💰 and it can become a ticker contribution instead of a regular post.",
+              ],
+            },
+            {
+              title: "how to upload a new ticker",
+              body: [
+                "🔎 Go to the Tickers tab and use the search box first. If the ticker is not already listed, press add ticker.",
+                "🏷️ Enter the symbol, company or project name, chain / market, type, and a short description. Keep the symbol clean, uppercase, and direct.",
+                "📌 Submit ticker. Once accepted, the ticker becomes part of the Crypti ticker library and counts as a ticker contribution on your profile score.",
+              ],
+            },
+            {
+              title: "what anon really does",
+              body: [
+                "🕶️ Anon is profile-light, not magic invisibility. There is never a full anonymous mode in +Crypti because the system still needs member records, moderation, and platform integrity.",
+                "👤 People reading the article can still click anonymous and reach the author's profile path. The big practical effect is that anon posts are not automatically listed in the +Crypti profile post lanes the way regular posts are.",
+                "🔁 You can switch anon on or off later from My Posts. Use it when you want the article to live away from the automatic profile showcase, not when you need a total identity wipe.",
+              ],
+            },
+          ].map((section, index) => (
+            <details
+              key={section.title}
+              open={index === 0}
+              className="group border border-[#72d7ff] bg-[#020b10] px-4 py-4 shadow-[0_0_14px_rgba(114,215,255,0.14)]"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.2em] [&::-webkit-details-marker]:hidden">
+                <span>{section.title}</span>
+                <span
+                  aria-hidden="true"
+                  className="text-lg leading-none transition group-open:rotate-180"
+                >
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-4 grid gap-3 text-sm font-bold leading-6 tracking-[0.04em]">
+                {section.body.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            </details>
+          ))}
+        </section>
+      ) : null}
+
       {activePanel === "bank" ? (
         <section className="grid gap-5 border-2 border-dashed border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -2056,7 +2661,10 @@ export default function CryptiTerminal() {
             </div>
             <button
               type="button"
-              onClick={() => setActivePanel("tickers")}
+              onClick={() => {
+                resetCryptiBank();
+                setActivePanel("tickers");
+              }}
               aria-label="Close Crypti post builder"
               className="border border-[#ff3b3b] px-2 py-1 text-xs font-black uppercase text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
             >
@@ -2071,59 +2679,99 @@ export default function CryptiTerminal() {
                   review
                 </p>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                  {
-                    cryptiCategories.find(
-                      (category) => category.id === cryptiBankPreview.category,
-                    )?.label
-                  }
+                  {cryptiBankPreview.kind === "ticker"
+                    ? "TICKER UPLOAD"
+                    : `${getCryptiSourceModeOption(cryptiBankPreview.sourceMode).label} / ${
+                        getCryptiCategory(cryptiBankPreview.category)?.label
+                      }`}
                 </p>
               </div>
-              <div className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                  headline
-                </span>
-                <p className="text-xl font-black uppercase tracking-[0.1em] text-[#39ff14]">
-                  {cryptiBankPreview.headline}
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                  receipts
-                </span>
-                <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
-                  {cryptiBankPreview.receipts}
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                  links
-                </span>
-                {cryptiBankPreview.sources.length ? (
-                  <ol className="list-decimal space-y-2 pl-5 text-xs leading-5">
-                    {cryptiBankPreview.sources.map((source, index) => (
-                      <li key={`${source}-${index}`}>
-                        <a
-                          href={getSourceHref(source)}
-                          className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
-                        >
-                          {source}
-                        </a>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-                    no links detected
-                  </p>
-                )}
-              </div>
+              {cryptiBankPreview.kind === "ticker" ? (
+                <div className="grid gap-3 text-sm font-bold text-[#d7ffd0]">
+                  {[
+                    ["ticker", cryptiBankPreview.symbol],
+                    ["company", cryptiBankPreview.company],
+                    ["chain / market", cryptiBankPreview.chainMarket],
+                    ["type", cryptiBankPreview.assetType],
+                    ["asset description box", cryptiBankPreview.note],
+                  ].map(([label, value]) => (
+                    <div key={label} className="grid gap-1">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                        {label}
+                      </span>
+                      <p className="whitespace-pre-wrap text-[#d7ffd0]">
+                        {value || "not entered"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      headline
+                    </span>
+                    <p className="text-xl font-black uppercase tracking-[0.1em] text-[#39ff14]">
+                      {cryptiBankPreview.headline}
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      decoded post
+                    </span>
+                    <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
+                      {cryptiBankPreview.receipts}
+                    </p>
+                  </div>
+                  {cryptiBankPreview.tickersMentioned.length ? (
+                    <div className="grid gap-2">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                        tickers mentioned
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {cryptiBankPreview.tickersMentioned.map((ticker) => (
+                          <span
+                            key={ticker}
+                            className="border border-[#1d7f12] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]"
+                          >
+                            {ticker}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      links
+                    </span>
+                    {cryptiBankPreview.sources.length ? (
+                      <ol className="list-decimal space-y-2 pl-5 text-xs leading-5">
+                        {cryptiBankPreview.sources.map((source, index) => (
+                          <li key={`${source}-${index}`}>
+                            <a
+                              href={getSourceHref(source)}
+                              className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                            >
+                              {source}
+                            </a>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                        no links detected
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={loadCryptiBankPreview}
+                  onClick={submitCryptiBankPreview}
                   className="w-fit border border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 >
-                  load review
+                  submit post
                 </button>
                 <button
                   type="button"
@@ -2187,6 +2835,124 @@ export default function CryptiTerminal() {
         </section>
       ) : null}
 
+      {activePanel === "secrets" ? (
+        <section className="grid gap-5 border-2 border-dashed border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                share your secrets
+              </p>
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                S Buzz / Secrets / classified whisper draft
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActivePanel("tickers")}
+              aria-label="Close share your secrets"
+              className="border border-[#ff3b3b] px-2 py-1 text-xs font-black uppercase text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
+            >
+              x
+            </button>
+          </div>
+
+          {secretPreview ? (
+            <div className="grid gap-4 border border-[#39ff14] bg-[#001100] p-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                  review post
+                </p>
+                <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                  S Buzz / Secrets
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                  headline
+                </span>
+                <p className="text-xl font-black uppercase tracking-[0.1em] text-[#39ff14]">
+                  {secretHeadline}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                  whisper secrets here
+                </span>
+                <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
+                  {secretPreview}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={submitSecretPost}
+                  className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  aria-label="Submit secret Crypti post"
+                >
+                  🌀
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecretPreview("")}
+                  className="w-fit border border-[#1d7f12] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  edit whisper
+                </button>
+                {secretMessage ? (
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    {secretMessage}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={previewSecretPost} className="grid gap-4">
+              <label className="grid gap-2">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                  headline
+                </span>
+                <input
+                  value={secretHeadline}
+                  onChange={(event) =>
+                    setSecretHeadline(event.target.value.slice(0, 75))
+                  }
+                  className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  placeholder="classified headline"
+                />
+              </label>
+              <label className="grid gap-2">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                  whisper secrets here
+                </span>
+                <textarea
+                  value={secretWhisper}
+                  onChange={(event) =>
+                    setSecretWhisper(event.target.value.slice(0, 5000))
+                  }
+                  rows={8}
+                  className="min-h-48 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  placeholder="type the secret signal..."
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  aria-label="Preview secret Crypti post"
+                >
+                  🌀
+                </button>
+                {secretMessage ? (
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    {secretMessage}
+                  </p>
+                ) : null}
+              </div>
+            </form>
+          )}
+        </section>
+      ) : null}
+
       {activePanel === "post" ? (
         <form
           onSubmit={submitCryptiPost}
@@ -2223,6 +2989,12 @@ export default function CryptiTerminal() {
                 type="button"
                 onClick={() => {
                   setCryptiSourceMode(mode.value);
+                  if (
+                    mode.value !== "S" &&
+                    cryptiPostCategory === "secrets"
+                  ) {
+                    setCryptiPostCategory(defaultCryptiCategory);
+                  }
                   setCryptiPostMessage("");
                 }}
                 className={`flex min-h-14 items-center gap-4 border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
@@ -2260,7 +3032,7 @@ export default function CryptiTerminal() {
               onChange={(event) => setCryptiPostCategory(event.target.value)}
               className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
             >
-              {cryptiCategories.map((category) => (
+              {cryptiPostSourceModeCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.label}
                 </option>
@@ -2408,6 +3180,19 @@ export default function CryptiTerminal() {
               </div>
             </div>
           )}
+          <label className="grid gap-2 sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-center">
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+              TICKERS MENTIONED:
+            </span>
+            <input
+              value={cryptiTickersMentioned}
+              onChange={(event) =>
+                setCryptiTickersMentioned(event.target.value.slice(0, 500))
+              }
+              placeholder="optional"
+              className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+            />
+          </label>
           <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-[#001100] px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
             <input
               type="checkbox"
@@ -2470,10 +3255,8 @@ export default function CryptiTerminal() {
                 ) : selectedCategoryPosts.length ? (
                   <div className="grid gap-3">
                     {selectedCategoryPosts.map((post) => {
-                      const receiptLines = post.body
-                        .split(/\n+/)
-                        .map((line) => line.trim())
-                        .filter(Boolean);
+                      const receiptLines = getCryptiPostDisplayLines(post);
+                      const showPostDetails = activeSourceMode !== "R";
 
                       return (
                         <article
@@ -2516,14 +3299,14 @@ export default function CryptiTerminal() {
                                 {...cryptiTicketVoteButtonDefaults}
                               />
                               <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
-                                {getCryptiPostScore(post, favoritePostCounts)} pts
+                                {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
                               </span>
                             </div>
                           </div>
                           <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
                             {post.title}
                           </h2>
-                          {receiptLines.length ? (
+                          {showPostDetails && receiptLines.length ? (
                             <div className="mt-4 grid gap-3 text-base leading-7 text-[#d7ffd0]">
                               {receiptLines.map((line, index) => (
                                 <div
@@ -2538,12 +3321,12 @@ export default function CryptiTerminal() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
+                          ) : showPostDetails ? (
                             <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
                               no receipts entered
                             </p>
-                          )}
-                          {getPostSources(post).length ? (
+                          ) : null}
+                          {showPostDetails && getPostSources(post).length ? (
                             <section className="mt-5 border-t border-[#1d7f12] pt-3">
                               <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
                                 SOURCES
@@ -2606,7 +3389,7 @@ export default function CryptiTerminal() {
 
                 {isCategoryGridOpen ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {cryptiCategories.map((category) => {
+                    {activeSourceModeCategories.map((category) => {
                       const counts = getCryptiCategoryPostCounts(category.id);
 
                       return (
@@ -2639,10 +3422,9 @@ export default function CryptiTerminal() {
                     {activeSourceModePosts.map((post) =>
                       renderCryptiPostCard(
                         post,
-                        cryptiCategories.find(
-                          (category) =>
-                            category.id === getCryptiPostCategory(post),
-                        )?.label ?? activeSourceModeOption.label,
+                        getCryptiCategory(getCryptiPostCategory(post))?.label ??
+                          activeSourceModeOption.label,
+                        { headlineOnly: activeSourceMode === "R" },
                       ),
                     )}
                   </div>
@@ -2659,28 +3441,43 @@ export default function CryptiTerminal() {
 
       {activePanel === "smoke" ? (
         <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-              today&apos;s smoke
-            </p>
-            <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-              R News, Q Degen, and S Buzz ranked by points
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                today&apos;s smoke
+              </p>
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                R News, Q Degen, and S Buzz ranked by points
+              </p>
+            </div>
+            <label className="grid w-full max-w-xs gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+                search
+              </span>
+              <input
+                type="search"
+                value={smokeSearch}
+                onChange={(event) => setSmokeSearch(event.target.value)}
+                placeholder="search keywords"
+                className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              />
+            </label>
           </div>
-          {rankedSmokePosts.length ? (
+          {smokeDisplayPosts.length ? (
             <div className="grid gap-3">
-              {rankedSmokePosts.map((post) =>
+              {smokeDisplayPosts.map((post) =>
                 renderCryptiPostCard(
                   post,
-                  cryptiCategories.find(
-                    (category) => category.id === getCryptiPostCategory(post),
-                  )?.label ?? "Crypti",
+                  getCryptiCategory(getCryptiPostCategory(post))?.label ??
+                    "Crypti",
                 ),
               )}
             </div>
           ) : (
             <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-              no posts yet
+              {normalizedSmokeSearchTerms.length
+                ? "no matching crypti posts"
+                : "no posts yet"}
             </p>
           )}
         </div>
@@ -2709,9 +3506,8 @@ export default function CryptiTerminal() {
               {favoriteDisplayPosts.map((post) =>
                 renderCryptiPostCard(
                   post,
-                  cryptiCategories.find(
-                    (category) => category.id === getCryptiPostCategory(post),
-                  )?.label ?? "Crypti",
+                  getCryptiCategory(getCryptiPostCategory(post))?.label ??
+                    "Crypti",
                 ),
               )}
             </div>
@@ -2724,7 +3520,7 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "my-posts" ? (
-        <div className="grid min-h-[32rem] gap-5 border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <div className="grid min-h-[32rem] content-start gap-5 border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
@@ -2853,10 +3649,8 @@ export default function CryptiTerminal() {
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
                           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
-                            {cryptiCategories.find(
-                              (category) =>
-                                category.id === getCryptiPostCategory(post),
-                            )?.label ?? "Crypti"}
+                            {getCryptiCategory(getCryptiPostCategory(post))
+                              ?.label ?? "Crypti"}
                           </p>
                           <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.18em] text-[#39ff14]">
                             {post.title}
@@ -2866,7 +3660,7 @@ export default function CryptiTerminal() {
                           </p>
                         </div>
                         <div
-                          className="flex items-start gap-3"
+                          className="flex items-center gap-2"
                           onClick={(event) => event.stopPropagation()}
                         >
                           <button
@@ -2878,7 +3672,7 @@ export default function CryptiTerminal() {
                                 : "Make post anonymous"
                             }
                             title={post.anonymous ? "anonymous" : "public"}
-                            className={`grid size-12 place-items-center border border-dashed transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                            className={`grid size-8 place-items-center border border-dashed transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
                               post.anonymous
                                 ? "border-[#39ff14] text-[#39ff14]"
                                 : "border-[#1d7f12] text-[#7f9f78]"
@@ -2886,7 +3680,7 @@ export default function CryptiTerminal() {
                           >
                             <svg
                               viewBox="0 0 64 40"
-                              className="h-7 w-9"
+                              className="h-4 w-6"
                               aria-hidden="true"
                             >
                               <path
@@ -2912,11 +3706,11 @@ export default function CryptiTerminal() {
                             type="button"
                             onClick={() => deleteMyCryptiPost(post.id)}
                             aria-label={`Delete ${post.title}`}
-                            className="grid size-10 place-items-center border border-[#ff3b3b] text-xl font-black text-[#ff6b6b] transition hover:scale-110 hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
+                            className="grid size-8 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:scale-110 hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
                           >
                             x
                           </button>
-                          <span className="mt-8 text-sm font-black text-[#39ff14]">
+                          <span className="grid size-8 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14]">
                             {favoritePostCounts[post.id] ?? 0}
                           </span>
                         </div>
@@ -2945,23 +3739,70 @@ export default function CryptiTerminal() {
             </h2>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
-            <section className="border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
-              <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                ▸ID
-              </h3>
-              <p className="mt-5 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                Coming soon
-              </p>
-            </section>
-            <section className="border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
-              <h3 className="text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                Stats
-              </h3>
-              <p className="mt-5 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                Coming soon
-              </p>
-            </section>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
+            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+                <span>ID</span>
+                <span
+                  aria-hidden="true"
+                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+                >
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                <p>EXPLORER NUMBER - #{activeCryptiProfileMemberNumber}</p>
+                <p>TITLE: {cryptiProfileTitle}</p>
+                <p>NAME: {cryptiProfileDisplayName} +</p>
+                <p>(REFERENCE NAME): {cryptiProfileRefName}</p>
+              </div>
+            </details>
+            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+                <span>Stats</span>
+                <span
+                  aria-hidden="true"
+                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+                >
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-5 overflow-hidden border border-[#1d7f12]">
+                <div className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] bg-[#001100] text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                  <span className="border-r border-[#1d7f12] px-3 py-2">
+                    metric
+                  </span>
+                  <span className="px-3 py-2 text-right">count</span>
+                </div>
+                {[
+                  [
+                    "OVERALL TOTAL SCORE",
+                    formatPointTenths(profileOverallScoreTenths),
+                  ],
+                  ["PROFILE PAGE VISITS", cryptiProfilePageVisits],
+                  ["TOTAL VISITS ALL POSTS", profileTotalPostVisits],
+                  [
+                    "TOTAL FAVORITES TOKENS RECIEVED",
+                    profileTotalFavoriteCount,
+                  ],
+                  ["TOTAL TICKETS RECEIVED", profileTotalTicketCount],
+                  ["Total # of posts", profileScoredPosts.length],
+                  ["Total tickers contributed", profileTickerContributedCount],
+                ].map(([metric, count]) => (
+                  <div
+                    key={metric}
+                    className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0] last:border-b-0"
+                  >
+                    <span className="border-r border-[#1d7f12] px-3 py-3">
+                      {metric}
+                    </span>
+                    <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -3282,6 +4123,12 @@ export default function CryptiTerminal() {
           <div className="grid gap-5 border-2 border-dashed border-[#39ff14] bg-[#020402] px-5 py-6 shadow-[0_0_24px_rgba(57,255,20,0.16)]">
             {(() => {
               const counts = getCounts(selectedTicker, voteRange);
+              const isSelectedTickerFollowed = followedTickerSymbols.includes(
+                selectedTicker.symbol,
+              );
+              const isSelectedTickerOwned = ownedTickerSymbols.includes(
+                normalizeCryptiSymbol(selectedTicker.symbol),
+              );
 
               return (
                 <>
@@ -3354,16 +4201,36 @@ export default function CryptiTerminal() {
                     <button
                       type="button"
                       onClick={() => followTicker(selectedTicker)}
-                      className="border border-dashed border-[#1d7f12] bg-black px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:scale-[1.01] hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      aria-pressed={isSelectedTickerFollowed}
+                      className={`border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        isSelectedTickerFollowed
+                          ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_14px_rgba(57,255,20,0.4)]"
+                          : "border-dashed border-[#1d7f12] bg-black text-[#39ff14] hover:scale-[1.01] hover:border-[#39ff14]"
+                      }`}
                     >
-                      📡 Follow this ticker
+                      📡 {isSelectedTickerFollowed ? "following" : "follow"}
                     </button>
                     <button
                       type="button"
                       onClick={() => ownTicker(selectedTicker)}
-                      className="border border-dashed border-[#1d7f12] bg-black px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:scale-[1.01] hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      aria-pressed={isSelectedTickerOwned}
+                      className={`border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        isSelectedTickerOwned
+                          ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_14px_rgba(57,255,20,0.4)]"
+                          : "border-dashed border-[#1d7f12] bg-black text-[#39ff14] hover:scale-[1.01] hover:border-[#39ff14]"
+                      }`}
                     >
-                      💼 I have this ticker
+                      <span className="block">
+                        💼{" "}
+                        {isSelectedTickerOwned
+                          ? "I have this ticker"
+                          : "I want this ticker"}
+                      </span>
+                      {isSelectedTickerOwned ? (
+                        <span className="mt-2 block text-[0.65rem] text-black/55">
+                          shown on profile
+                        </span>
+                      ) : null}
                     </button>
                   </div>
 

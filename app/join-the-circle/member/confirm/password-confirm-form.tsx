@@ -214,7 +214,7 @@ export default function PasswordConfirmForm({
             }`}
             onAnimationEnd={() => setIsBayoPlusAgreementAlert(false)}
           >
-            VIEW BAYO+ AGREEMENT
+            VIEW +CRYPTI USER AGREEMENT
           </a>
           <label className="mt-4 flex items-start gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
             <input
@@ -233,7 +233,7 @@ export default function PasswordConfirmForm({
               }}
               className="mt-0.5 h-4 w-4 accent-[#39ff14]"
             />
-            <span>I confirm I read and agree the Bayo+ user agreement.</span>
+            <span>I confirm I read and agree the +Crypti user agreement.</span>
           </label>
         </>
       ) : null}
