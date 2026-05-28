@@ -2,6 +2,7 @@ import {
   addMemberOwnedCryptiTickerSymbol,
   getStorageErrorMessage,
   listMemberOwnedCryptiTickerSymbols,
+  removeMemberOwnedCryptiTickerSymbol,
 } from "../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
 import { isCrypti } from "../../../../lib/bay-space-roles";
@@ -61,6 +62,29 @@ export async function POST(request: Request) {
 
     return Response.json({
       symbols: await addMemberOwnedCryptiTickerSymbol(member.member, symbol),
+    });
+  } catch (error) {
+    return ownedTickersErrorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const member = await requireCryptiMember();
+
+    if (!member) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json()) as { symbol?: string };
+    const symbol = normalizeCryptiSymbol(body.symbol ?? "");
+
+    if (!symbol) {
+      return Response.json({ message: "Ticker required" }, { status: 400 });
+    }
+
+    return Response.json({
+      symbols: await removeMemberOwnedCryptiTickerSymbol(member.member, symbol),
     });
   } catch (error) {
     return ownedTickersErrorResponse(error);

@@ -163,6 +163,8 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
   >({});
   const [libraryTickerSymbols, setLibraryTickerSymbols] = useState<string[]>([]);
   const [shakingTicker, setShakingTicker] = useState("");
+  const [isInvestigateShaking, setIsInvestigateShaking] = useState(false);
+  const [investigateMessage, setInvestigateMessage] = useState("");
 
   useEffect(() => {
     function syncPosts() {
@@ -290,6 +292,13 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
     setShakingTicker("");
     window.setTimeout(() => setShakingTicker(ticker), 0);
     window.setTimeout(() => setShakingTicker(""), 220);
+  }
+
+  function showInvestigateMode() {
+    setInvestigateMessage("investigate mode - Coming Soon!");
+    setIsInvestigateShaking(false);
+    window.setTimeout(() => setIsInvestigateShaking(true), 0);
+    window.setTimeout(() => setIsInvestigateShaking(false), 220);
   }
 
   if (!post) {
@@ -457,6 +466,22 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
           path={`/crypti/post?id=${post.id}`}
           visitCount={getPostVisitCount(post)}
         />
+      </div>
+      <div className="mt-5 grid justify-items-end gap-3">
+        <button
+          type="button"
+          onClick={showInvestigateMode}
+          className={`border border-dashed border-[#1d7f12] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+            isInvestigateShaking ? "animate-[option-shake_180ms_linear]" : ""
+          }`}
+        >
+          investigate mode
+        </button>
+        {investigateMessage ? (
+          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            {investigateMessage}
+          </p>
+        ) : null}
       </div>
       </article>
     </>

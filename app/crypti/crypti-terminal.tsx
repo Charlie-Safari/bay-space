@@ -162,10 +162,10 @@ const cryptiMyPostsLanes: Array<{
   label: string;
   value: CryptiMyPostsLane;
 }> = [
-  { label: "TICKERS", value: "tickers" },
   { label: "R NEWS", value: "R" },
   { label: "Q DEGEN", value: "Q" },
   { label: "S BUZZ", value: "S" },
+  { label: "TICKERS", value: "tickers" },
 ];
 
 function getCryptiSourceStatus(sourceMode: CryptiSourceMode) {
@@ -1861,7 +1861,7 @@ export default function CryptiTerminal() {
   function followTicker(ticker: CryptiTicker) {
     setFollowedTickerSymbols((currentSymbols) =>
       currentSymbols.includes(ticker.symbol)
-        ? currentSymbols
+        ? currentSymbols.filter((symbol) => symbol !== ticker.symbol)
         : [...currentSymbols, ticker.symbol],
     );
     setTickerDetailNotice("");
@@ -1869,16 +1869,17 @@ export default function CryptiTerminal() {
 
   function ownTicker(ticker: CryptiTicker) {
     const normalizedSymbol = normalizeCryptiSymbol(ticker.symbol);
+    const isOwned = ownedTickerSymbols.includes(normalizedSymbol);
 
     setOwnedTickerSymbols((currentSymbols) =>
       currentSymbols.includes(normalizedSymbol)
-        ? currentSymbols
+        ? currentSymbols.filter((symbol) => symbol !== normalizedSymbol)
         : [...currentSymbols, normalizedSymbol],
     );
     setTickerDetailNotice("");
 
     fetch("/api/crypti/owned-tickers", {
-      method: "POST",
+      method: isOwned ? "DELETE" : "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ symbol: normalizedSymbol }),
     })
@@ -2022,6 +2023,13 @@ export default function CryptiTerminal() {
       event.preventDefault();
       openCryptiPostDetail(postId);
     }
+  }
+
+  function openTickerFrame(ticker: CryptiTicker) {
+    setSearch("");
+    setSelectedTickerId(ticker.id);
+    setTickerDetailNotice("");
+    setActivePanel("tickers");
   }
 
   async function submitCryptiPost(event: FormEvent<HTMLFormElement>) {
@@ -2489,16 +2497,16 @@ export default function CryptiTerminal() {
               href={lazyAssistantUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-3 py-1 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-3 py-0 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
               aria-label="Open Crypti Lazy Assistant"
               title="Crypti Lazy Assistant"
             >
               <Image
                 src="/plus-crypti-icon-photo-dupy.png"
                 alt=""
-                width={44}
-                height={44}
-                className="h-11 w-11 object-contain"
+                width={50}
+                height={50}
+                className="h-[50px] w-[50px] object-contain"
               />
               <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
                 Lazy Assistant
@@ -3256,7 +3264,7 @@ export default function CryptiTerminal() {
                   <div className="grid gap-3">
                     {selectedCategoryPosts.map((post) => {
                       const receiptLines = getCryptiPostDisplayLines(post);
-                      const showPostDetails = activeSourceMode !== "R";
+                      const showPostDetails = false;
 
                       return (
                         <article
@@ -3424,7 +3432,7 @@ export default function CryptiTerminal() {
                         post,
                         getCryptiCategory(getCryptiPostCategory(post))?.label ??
                           activeSourceModeOption.label,
-                        { headlineOnly: activeSourceMode === "R" },
+                        { headlineOnly: true },
                       ),
                     )}
                   </div>
@@ -3470,6 +3478,7 @@ export default function CryptiTerminal() {
                   post,
                   getCryptiCategory(getCryptiPostCategory(post))?.label ??
                     "Crypti",
+                  { headlineOnly: true },
                 ),
               )}
             </div>
@@ -3853,9 +3862,11 @@ export default function CryptiTerminal() {
                   const counts = getCounts(ticker, voteRange);
 
                   return (
-                    <article
+                    <button
                       key={ticker.id}
-                      className="grid gap-2 border border-dashed border-[#1d7f12] bg-black px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                      type="button"
+                      onClick={() => openTickerFrame(ticker)}
+                      className="grid gap-2 border border-dashed border-[#1d7f12] bg-black px-4 py-4 text-left transition hover:border-[#39ff14] hover:shadow-[0_0_14px_rgba(57,255,20,0.22)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:grid-cols-[1fr_auto] sm:items-center"
                     >
                       <div>
                         <h4 className="text-lg font-black uppercase tracking-[0.18em] text-[#39ff14]">
@@ -3868,7 +3879,7 @@ export default function CryptiTerminal() {
                       <p className="text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                         {formatScore(counts.score)} pts
                       </p>
-                    </article>
+                    </button>
                   );
                 })}
               </div>
@@ -3906,9 +3917,11 @@ export default function CryptiTerminal() {
                   const counts = getCounts(ticker, voteRange);
 
                   return (
-                    <article
+                    <button
                       key={ticker.id}
-                      className="grid gap-2 border border-dashed border-[#1d7f12] bg-black px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                      type="button"
+                      onClick={() => openTickerFrame(ticker)}
+                      className="grid gap-2 border border-dashed border-[#1d7f12] bg-black px-4 py-4 text-left transition hover:border-[#39ff14] hover:shadow-[0_0_14px_rgba(57,255,20,0.22)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:grid-cols-[1fr_auto] sm:items-center"
                     >
                       <div>
                         <h4 className="text-lg font-black uppercase tracking-[0.18em] text-[#39ff14]">
@@ -3921,7 +3934,7 @@ export default function CryptiTerminal() {
                       <p className="text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                         {formatScore(counts.score)} pts
                       </p>
-                    </article>
+                    </button>
                   );
                 })}
               </div>
@@ -4224,7 +4237,7 @@ export default function CryptiTerminal() {
                         💼{" "}
                         {isSelectedTickerOwned
                           ? "I have this ticker"
-                          : "I want this ticker"}
+                          : "getting this"}
                       </span>
                       {isSelectedTickerOwned ? (
                         <span className="mt-2 block text-[0.65rem] text-black/55">

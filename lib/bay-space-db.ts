@@ -683,6 +683,42 @@ export async function addMemberOwnedCryptiTickerSymbol(
     : ownedTickerSymbols;
 }
 
+export async function removeMemberOwnedCryptiTickerSymbol(
+  memberId: string,
+  symbol: string,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  const normalizedSymbol = normalizeCryptiOwnedTickerSymbols([symbol])[0] ?? "";
+  const ownedTickerSymbols = normalizeCryptiOwnedTickerSymbols(
+    member.links?._cryptiOwnedTickers,
+  ).filter((ownedSymbol) => ownedSymbol !== normalizedSymbol);
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _cryptiOwnedTickers: ownedTickerSymbols,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0]
+    ? normalizeCryptiOwnedTickerSymbols(rows[0].links?._cryptiOwnedTickers)
+    : ownedTickerSymbols;
+}
+
 export async function incrementMemberProfileVisitCount(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
