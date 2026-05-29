@@ -53,12 +53,17 @@ type MemberStats = {
   profileVisits?: number;
 };
 
+type MemberCryptiStats = {
+  profileVisits?: number;
+};
+
 type MemberTicketVote = {
   nextAt?: number;
   postIds?: string[];
 };
 
 type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
+  _cryptiStats?: MemberCryptiStats;
   _stats?: MemberStats;
   _cryptiTicketVote?: MemberTicketVote;
   _ticketVote?: MemberTicketVote;
@@ -291,6 +296,12 @@ function normalizeProfileVisitCount(value: unknown) {
 
 function getMemberProfileVisits(member: MemberRow) {
   return normalizeProfileVisitCount(member.links?._stats?.profileVisits);
+}
+
+function getMemberCryptiProfileVisits(member: MemberRow) {
+  return normalizeProfileVisitCount(
+    member.links?._cryptiStats?.profileVisits,
+  );
 }
 
 function normalizeTicketVoteNextAt(value: unknown) {
@@ -639,6 +650,12 @@ export async function getMemberProfileVisitCount(memberId: string) {
   return member ? getMemberProfileVisits(member) : 0;
 }
 
+export async function getMemberCryptiProfileVisitCount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberCryptiProfileVisits(member) : 0;
+}
+
 export async function listMemberOwnedCryptiTickerSymbols(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
@@ -747,6 +764,36 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
   });
 
   return rows[0] ? getMemberProfileVisits(rows[0]) : profileVisits;
+}
+
+export async function incrementMemberCryptiProfileVisitCount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const profileVisits = getMemberCryptiProfileVisits(member) + 1;
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _cryptiStats: {
+          ...(member.links?._cryptiStats ?? {}),
+          profileVisits,
+        },
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getMemberCryptiProfileVisits(rows[0]) : profileVisits;
 }
 
 export async function getMemberTicketVoteNextAt(memberId: string) {

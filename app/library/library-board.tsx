@@ -274,7 +274,7 @@ export default function LibraryBoard() {
             <div className="mt-5 grid gap-3">
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  How to - Lazy Post
+                  How to - LA Bay-Space
                 </summary>
                 <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <a
@@ -285,16 +285,16 @@ export default function LibraryBoard() {
                   >
                     Create
                   </a>
-                  <p>Lazy Post finds stories for you.</p>
+                  <p>LA Bay-Space finds stories for you.</p>
                   <p>
                     Just ask for: Daily Food, Top Story, or Conspiracy/Theory.
                   </p>
                   <p>
-                    Thiago searches, checks the story, and gives you a numbered list.
+                    LA Bay-Space searches, checks the story, and gives you a numbered list.
                   </p>
                   <p>You pick a number.</p>
                   <div>
-                    <p>Then Thiago turns it into a clean post with:</p>
+                    <p>Then LA Bay-Space turns it into a clean post with:</p>
                     <ul className="mt-2 list-disc space-y-2 pl-5">
                       <li>headline</li>
                       <li>body details</li>

@@ -18,10 +18,12 @@ export type CryptiTicker = {
   createdAt: string;
   id: string;
   note: string;
+  rugWarningVotes: number;
   submittedBy?: string;
   symbol: string;
   today: CryptiVoteCounts;
   userVote?: CryptiVoteValue;
+  userRugWarningVote?: boolean;
 };
 
 export function normalizeCryptiSymbol(symbol: string) {

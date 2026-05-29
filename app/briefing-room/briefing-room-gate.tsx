@@ -138,6 +138,7 @@ const activeMemberStorageKey = "bay-space-active-member";
 const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 const lazyPostGptUrl =
   "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
+const baySpaceLazyEngineLabel = "Thiago";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -381,7 +382,7 @@ function parseBankPostInput(
 
   if (requestedCategory && requestedCategory !== bankCategory) {
     return {
-      error: `bank lane only supports ${bankCategory.replace("-", " ")} for this account`,
+      error: `Thiago only supports ${bankCategory.replace("-", " ")} for this account`,
     };
   }
 
@@ -472,7 +473,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [postPreview, setPostPreview] = useState<PostPreviewDraft | null>(null);
   const [lazyMode, setLazyMode] = useState<LazyAssistantMode>("chat");
   const [lazyPrompt, setLazyPrompt] = useState("");
-  const [lazyResponse, setLazyResponse] = useState("Thiago: coming soon");
+  const [lazyResponse, setLazyResponse] = useState("LA Bay-Space: coming soon");
   const [lazyBankInput, setLazyBankInput] = useState("");
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyBankPostCategory, setLazyBankPostCategory] =
@@ -1146,7 +1147,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    setLazyResponse("Thiago: assistant offline");
+    setLazyResponse("LA Bay-Space: assistant offline");
     setLazyPrompt("");
   }
 
@@ -1157,7 +1158,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setActivePanel("lazy-assistant");
 
     if (!availableBankCategories.length) {
-      setLazyResponse("Thiago: bank lane unavailable");
+      setLazyResponse("LA Bay-Space: Thiago engine unavailable");
       shakeLazyButton("bank");
       return;
     }
@@ -1239,7 +1240,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
   function submitLazyBank() {
     if (!activeLazyBankCategory) {
-      setLazyBankError("bank lane unavailable");
+      setLazyBankError("Thiago engine unavailable");
       shakeLazyButton("bank-submit");
       return;
     }
@@ -1255,7 +1256,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     const nextPreview = buildLazyBankPost(parsedPost.post);
 
     if (!nextPreview) {
-      setLazyBankError("bank lane unavailable");
+      setLazyBankError("Thiago engine unavailable");
       shakeLazyButton("bank-submit");
       return;
     }
@@ -1275,7 +1276,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       setLazyPostPreview(null);
       setLazyBankInput("");
       setLazyBankError("");
-      setLazyResponse("Thiago: bank posted");
+      setLazyResponse("LA Bay-Space: bank posted");
       setLazyMode("chat");
     }
   }
@@ -1627,8 +1628,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 type="button"
                 onClick={openLazyBank}
                 className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xl font-black leading-none text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                aria-label="Open bank lane"
-                title="bank lane"
+                aria-label="Open BaySpace Thiago money-bag lane"
+                title="✅💰 Bay-Space - Thiago"
               >
                 ✅💰
               </button>
@@ -1638,8 +1639,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-[52px] items-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open Bay Space Intake Bureau"
-              title="Bay Space Intake Bureau"
+              aria-label="Open LA Bay-Space"
+              title="LA Bay-Space"
             >
               <Image
                 src="/bay-space-logo-icon.png"
@@ -1649,7 +1650,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 className="h-8 w-8 object-contain"
               />
               <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
-                Lazy Assistant
+                LA Bay-Space
               </span>
             </a>
           </div>
@@ -1679,7 +1680,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               onClick={restoreLazyAssistant}
               className="border-2 border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#39ff14]"
             >
-              LA 1 - [open]
+              LA Bay-Space - [open]
             </button>
           ) : null}
         </div>
@@ -1744,7 +1745,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               onClick={() => {
                 setActivePanel("lazy-assistant");
                 setIsLazyAssistantMinimized(false);
-                setLazyResponse((response) => response || "Thiago: coming soon");
+                setLazyResponse(
+                  (response) => response || "LA Bay-Space: coming soon",
+                );
                 setLazyBankError("");
               }}
               className={`border px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
@@ -1753,7 +1756,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              Lazy Assistant
+              LA Bay-Space
             </button>
             <Link
               href={`/profile/${resolvedMember}`}
@@ -2636,14 +2639,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             <div>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                  Lazy Assistant
+                  LA Bay-Space
                 </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={minimizeLazyAssistant}
                     className="grid h-7 w-7 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Minimize Lazy Assistant"
+                    aria-label="Minimize LA Bay-Space"
                     title="Minimize"
                   >
                     -
@@ -2652,7 +2655,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     type="button"
                     onClick={wipeLazyAssistant}
                     className="grid h-7 w-7 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
-                    aria-label="Wipe Lazy Assistant"
+                    aria-label="Wipe LA Bay-Space"
                     title="Wipe"
                   >
                     x
@@ -2735,10 +2738,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                      bank lane:{" "}
+                      ✅💰 Bay-Space engine:{" "}
                       <span className="text-[#39ff14]">
                         {activeLazyBankCategory
-                          ? activeLazyBankCategory.replace("-", " ")
+                          ? `${baySpaceLazyEngineLabel} / ${activeLazyBankCategory.replace("-", " ")}`
                           : "unavailable"}
                       </span>
                     </p>
@@ -2776,7 +2779,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     </label>
                   ) : null}
                   <textarea
-                    aria-label="Bank post intake"
+                    aria-label="BaySpace Thiago money-bag intake"
                     value={lazyBankInput}
                     onChange={(event) => {
                       setLazyBankInput(event.target.value);
@@ -2808,7 +2811,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                         ? "animate-[option-shake_180ms_linear]"
                         : ""
                     }`}
-                    aria-label="Submit bank lane post"
+                    aria-label="Submit BaySpace Thiago money-bag post"
                   >
                     ✅💰
                   </button>
@@ -2822,7 +2825,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     {lazyResponse || "\u00a0"}
                   </div>
                   <textarea
-                    aria-label="Lazy Assistant message"
+                    aria-label="LA Bay-Space message"
                     value={lazyPrompt}
                     onChange={(event) => setLazyPrompt(event.target.value)}
                     onKeyDown={(event) => {
@@ -2844,7 +2847,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                           ? "animate-[option-shake_180ms_linear]"
                           : ""
                       }`}
-                      aria-label="Send to Lazy Assistant"
+                      aria-label="Send to LA Bay-Space"
                     >
                       🌀
                     </button>
@@ -2853,7 +2856,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                      aria-label="Open Lazy Post GPT"
+                      aria-label="Open LA Bay-Space GPT"
                     >
                       <Image
                         src="/bay-space-logo-icon.png"
@@ -2872,7 +2875,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                           ? "animate-[option-shake_180ms_linear]"
                           : ""
                       }`}
-                      aria-label="Open bank lane"
+                      aria-label="Open BaySpace Thiago money-bag lane"
                     >
                       ✅💰
                     </button>

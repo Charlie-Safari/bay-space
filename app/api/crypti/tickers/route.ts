@@ -1,6 +1,8 @@
 import {
   createCryptiTicker,
   deleteCryptiTicker,
+  DuplicateCryptiTickerError,
+  getCryptiTicker,
   listCryptiTickers,
 } from "../../../../lib/crypti-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
@@ -44,8 +46,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let member: Awaited<ReturnType<typeof requireCryptiMember>> = null;
+
   try {
-    const member = await requireCryptiMember();
+    member = await requireCryptiMember();
 
     if (!member) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
@@ -74,6 +78,18 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof DuplicateCryptiTickerError) {
+      return Response.json(
+        {
+          message: error.message,
+          ticker: member
+            ? await getCryptiTicker(member, error.symbol).catch(() => null)
+            : null,
+        },
+        { status: 409 },
+      );
+    }
+
     return cryptiErrorResponse(error, "Unable to save Crypti ticker");
   }
 }

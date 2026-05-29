@@ -58,6 +58,10 @@ function getSourceHref(source: string) {
     : `https://${source}`;
 }
 
+function isCryptiPost(post: BayPost) {
+  return post.meta?.cryptiPost === "true";
+}
+
 function formatPostTimestamp(createdAt: string) {
   return new Date(createdAt).toLocaleString("en-US", {
     month: "short",
@@ -83,7 +87,9 @@ export default function TheoryBoard() {
   useEffect(() => {
     function syncPosts() {
       getBayPostsByCategory("theory").then((savedPosts) => {
-        setPosts(savedPosts.filter((post) => !post.incognito));
+        setPosts(
+          savedPosts.filter((post) => !post.incognito && !isCryptiPost(post)),
+        );
       });
     }
 

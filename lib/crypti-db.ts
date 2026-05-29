@@ -46,6 +46,14 @@ type CryptiVoteRow = {
   vote_value: CryptiVoteValue;
 };
 
+type CryptiRugWarningVoteRow = {
+  created_at: string;
+  id: string;
+  member_id: string;
+  ticker_id: string;
+  updated_at: string;
+};
+
 type NewTickerInput = {
   assetType?: string;
   category: string;
@@ -56,6 +64,16 @@ type NewTickerInput = {
 };
 
 const tickerSymbolPattern = /^[A-Z0-9.-]{1,12}$/;
+
+export class DuplicateCryptiTickerError extends Error {
+  symbol: string;
+
+  constructor(symbol: string) {
+    super(`${symbol} is already in Crypti. Can't make a duplicate ticker.`);
+    this.name = "DuplicateCryptiTickerError";
+    this.symbol = symbol;
+  }
+}
 
 export function isValidCryptiSymbol(symbol: string) {
   return tickerSymbolPattern.test(normalizeCryptiSymbol(symbol));
@@ -143,6 +161,8 @@ function publicTicker(
   allTime: CryptiVoteCounts,
   userVote?: CryptiVoteValue,
   submittedBy?: string,
+  rugWarningVotes = 0,
+  userRugWarningVote = false,
 ): CryptiTicker {
   return {
     allTime,
@@ -153,10 +173,12 @@ function publicTicker(
     createdAt: ticker.created_at,
     id: ticker.id,
     note: ticker.note,
+    rugWarningVotes,
     submittedBy,
     symbol: ticker.symbol,
     today,
     userVote,
+    userRugWarningVote,
   };
 }
 
@@ -194,19 +216,6 @@ async function getTickerRow(symbol: string) {
   return rows[0] ?? null;
 }
 
-async function getMemberNumberById(memberId: string) {
-  const rows = await supabaseRequest<MemberRow[]>("members", {
-    query: {
-      deleted_at: "is.null",
-      id: `eq.${memberId}`,
-      select: "id,member_number",
-    },
-  });
-  const member = rows[0];
-
-  return member ? member.member_number.toString().padStart(5, "0") : undefined;
-}
-
 async function getMemberNumbersByIds(memberIds: string[]) {
   const uniqueMemberIds = Array.from(new Set(memberIds.filter(Boolean)));
 
@@ -231,6 +240,15 @@ function isUniqueViolation(error: unknown) {
   return (
     error instanceof SupabaseServerError &&
     /duplicate key value|unique constraint|crypti_tickers_symbol_key/i.test(
+      error.message,
+    )
+  );
+}
+
+export function isMissingRugWarningVoteTable(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    /crypti_ticker_rug_warning_votes|schema cache|relation .* does not exist/i.test(
       error.message,
     )
   );
@@ -266,6 +284,24 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
     },
   });
   const memberRow = member ? await getMemberRow(member.member) : null;
+  let rugWarningVotes: CryptiRugWarningVoteRow[] = [];
+
+  try {
+    rugWarningVotes = await supabaseRequest<CryptiRugWarningVoteRow[]>(
+      "crypti_ticker_rug_warning_votes",
+      {
+        query: {
+          order: "created_at.desc",
+          select: "*",
+          ticker_id: `in.(${tickerIds.join(",")})`,
+        },
+      },
+    );
+  } catch (error) {
+    if (!isMissingRugWarningVoteTable(error)) {
+      throw error;
+    }
+  }
   const submittedByMemberNumbers = await getMemberNumbersByIds(
     tickers
       .map((ticker) => ticker.submitted_by_member_id ?? "")
@@ -276,6 +312,8 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
     const today = emptyVoteCounts();
     const allTime = emptyVoteCounts();
     let userVote: CryptiVoteValue | undefined;
+    let rugWarningVoteCount = 0;
+    let userRugWarningVote = false;
 
     votes
       .filter((vote) => vote.ticker_id === ticker.id)
@@ -290,6 +328,15 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
           }
         }
       });
+    rugWarningVotes
+      .filter((vote) => vote.ticker_id === ticker.id)
+      .forEach((vote) => {
+        rugWarningVoteCount += 1;
+
+        if (memberRow?.id === vote.member_id) {
+          userRugWarningVote = true;
+        }
+      });
 
     return publicTicker(
       ticker,
@@ -299,8 +346,14 @@ export async function listCryptiTickers(member?: BayMember, search = "") {
       ticker.submitted_by_member_id
         ? submittedByMemberNumbers.get(ticker.submitted_by_member_id)
         : undefined,
+      rugWarningVoteCount,
+      userRugWarningVote,
     );
   });
+}
+
+export async function getCryptiTicker(member: BayMember, symbol: string) {
+  return (await listCryptiTickers(member, normalizeCryptiSymbol(symbol)))[0] ?? null;
 }
 
 export async function createCryptiTicker(
@@ -316,15 +369,7 @@ export async function createCryptiTicker(
   const existing = await getTickerRow(symbol);
 
   if (existing) {
-    return publicTicker(
-      existing,
-      emptyVoteCounts(),
-      emptyVoteCounts(),
-      undefined,
-      existing.submitted_by_member_id
-        ? await getMemberNumberById(existing.submitted_by_member_id)
-        : undefined,
-    );
+    throw new DuplicateCryptiTickerError(symbol);
   }
 
   const memberRow = await getMemberRow(member.member);
@@ -361,15 +406,7 @@ export async function createCryptiTicker(
       const ticker = await getTickerRow(symbol);
 
       if (ticker) {
-        return publicTicker(
-          ticker,
-          emptyVoteCounts(),
-          emptyVoteCounts(),
-          undefined,
-          ticker.submitted_by_member_id
-            ? await getMemberNumberById(ticker.submitted_by_member_id)
-            : undefined,
-        );
+        throw new DuplicateCryptiTickerError(symbol);
       }
     }
 
@@ -441,6 +478,55 @@ export async function voteCryptiTicker(
       method: "POST",
       prefer: "return=minimal",
     });
+  }
+
+  return (await listCryptiTickers(member, ticker.symbol))[0] ?? null;
+}
+
+export async function toggleCryptiTickerRugWarningVote(
+  member: BayMember,
+  symbol: string,
+) {
+  const ticker = await getTickerRow(symbol);
+  const memberRow = await getMemberRow(member.member);
+
+  if (!ticker || !memberRow) {
+    return null;
+  }
+
+  const existingVotes = await supabaseRequest<CryptiRugWarningVoteRow[]>(
+    "crypti_ticker_rug_warning_votes",
+    {
+      query: {
+        member_id: `eq.${memberRow.id}`,
+        select: "*",
+        ticker_id: `eq.${ticker.id}`,
+      },
+    },
+  );
+  const existingVote = existingVotes[0];
+
+  if (existingVote) {
+    await supabaseRequest<CryptiRugWarningVoteRow[]>(
+      "crypti_ticker_rug_warning_votes",
+      {
+        method: "DELETE",
+        prefer: "return=minimal",
+        query: { id: `eq.${existingVote.id}` },
+      },
+    );
+  } else {
+    await supabaseRequest<CryptiRugWarningVoteRow[]>(
+      "crypti_ticker_rug_warning_votes",
+      {
+        body: {
+          member_id: memberRow.id,
+          ticker_id: ticker.id,
+        },
+        method: "POST",
+        prefer: "return=minimal",
+      },
+    );
   }
 
   return (await listCryptiTickers(member, ticker.symbol))[0] ?? null;
