@@ -139,6 +139,7 @@ export default function DfHeadlineTerminal({
 }: DfHeadlineTerminalProps) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const listRef = useRef<HTMLDivElement>(null);
+  const hasSetLoggedInRevealDefault = useRef(false);
   const [activeDate, setActiveDate] = useState(today);
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
@@ -216,9 +217,20 @@ export default function DfHeadlineTerminal({
       const data = response.ok
         ? ((await response.json()) as { member?: SavedMember | null })
         : { member: null };
+      const member = data.member ?? null;
 
-      setActiveMember(data.member ?? null);
-      setIsLoggedIn(Boolean(data.member));
+      setActiveMember(member);
+      setIsLoggedIn(Boolean(member));
+
+      if (member && !hasSetLoggedInRevealDefault.current) {
+        setRevealAll(true);
+        hasSetLoggedInRevealDefault.current = true;
+      }
+
+      if (!member) {
+        setRevealAll(false);
+        hasSetLoggedInRevealDefault.current = false;
+      }
     }
 
     function syncMembers() {

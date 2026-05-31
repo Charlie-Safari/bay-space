@@ -1031,6 +1031,21 @@ export async function listPostsByAuthor(memberId: string) {
   return posts.map(publicPost);
 }
 
+export async function listPostsByAuthorForStats(memberId: string) {
+  const memberNumber = getMemberNumber(memberId);
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      author_member_number: `eq.${memberNumber}`,
+      deleted_at: "is.null",
+      moderation_status: "eq.active",
+      order: "created_at.desc",
+      select: "*",
+    },
+  });
+
+  return posts.map(publicPost);
+}
+
 export async function createPost(input: NewPostInput, authorMember: BayMember) {
   const author = await getMemberRowByNumber(authorMember.member);
 

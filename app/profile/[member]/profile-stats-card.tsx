@@ -26,8 +26,8 @@ export default function ProfileStatsCard({
     { label: "overall total score", value: `${overallTotalScore} pts` },
     { label: "profile page visits", value: pageVisits },
     { label: "total visits all posts", value: totalPostVisitCount },
-    { label: "total favorite tokens received", value: totalFavoriteCount },
-    { label: "total tickets received", value: totalTicketCount },
+    { label: "favorite diamonds received ◆", value: totalFavoriteCount },
+    { label: "tickets received 🎟️", value: totalTicketCount },
     { label: "total # of posts", value: totalPostCount },
   ];
 

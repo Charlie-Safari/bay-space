@@ -8,6 +8,7 @@ import {
   getMemberProfileVisitCount,
   listSavedPostsByMember,
   listPostsByAuthor,
+  listPostsByAuthorForStats,
 } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
 import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
@@ -90,7 +91,9 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const favoritePosts = (await listSavedPostsByMember(memberId)).filter(
     (post) => !isCryptiPost(post),
   );
-  const statsPosts = posts.filter(isBaySpaceProfileScorePost);
+  const statsPosts = (await listPostsByAuthorForStats(memberId)).filter(
+    isBaySpaceProfileScorePost,
+  );
   const favoriteCounts = await countSavedPosts(
     statsPosts.map((post) => post.id),
   );
@@ -106,10 +109,10 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
     (total, post) => total + getPostVisitCount(post),
     0,
   );
-  const overallTotalScore = formatPointTenths(
-    getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts),
-  );
   const pageVisits = await getMemberProfileVisitCount(memberId);
+  const overallTotalScore = formatPointTenths(
+    getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts, pageVisits),
+  );
   const isBayoClubMember = isBayoClub(member?.roles ?? "");
   const isCryptiMember = isCrypti(member?.roles ?? "");
 

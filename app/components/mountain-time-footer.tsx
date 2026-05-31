@@ -23,6 +23,8 @@ const formatter = new Intl.DateTimeFormat("en-US", {
   timeZoneName: "short",
 });
 
+export const baySpaceHowToOpenEvent = "bay-space-open-how-to";
+
 function getMountainStandardTime() {
   return formatter.format(new Date());
 }
@@ -83,6 +85,9 @@ export default function MountainTimeFooter() {
           </Link>
           <Link
             href="/library#how-to"
+            onClick={() => {
+              window.dispatchEvent(new Event(baySpaceHowToOpenEvent));
+            }}
             className="footer-how-to-link text-left text-[#39ff14] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
           >
             ▶ how to ◀
@@ -98,7 +103,7 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                1.18
+                1.20
               </span>
             ) : null}
           </span>

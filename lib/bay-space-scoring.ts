@@ -124,12 +124,16 @@ export function getBaySpaceProfilePostBasePoints(
 export function getBaySpaceProfileScoreTenths(
   posts: Array<Pick<BayPost, "category" | "id" | "meta">>,
   favoriteCounts: Record<string, number>,
+  profileVisits = 0,
 ) {
-  return posts.reduce(
-    (total, post) =>
-      total +
-      getBaySpaceProfilePostBasePoints(post) * 10 +
-      getBaySpacePostPointTenths(post, favoriteCounts),
-    0,
+  return (
+    getPositiveInteger(profileVisits) * postVisitPointTenths +
+    posts.reduce(
+      (total, post) =>
+        total +
+        getBaySpaceProfilePostBasePoints(post) * 10 +
+        getBaySpacePostPointTenths(post, favoriteCounts),
+      0,
+    )
   );
 }

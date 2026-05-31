@@ -9,6 +9,7 @@ import {
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import { baySpaceHowToOpenEvent } from "../components/mountain-time-footer";
 import {
   countFavoritePosts,
   favoriteStoreEvent,
@@ -20,6 +21,7 @@ import {
   getBaySpacePostPointTenths,
   isCryptiPost,
 } from "../../lib/bay-space-scoring";
+import { theoryCategories } from "../../lib/theory-categories";
 
 type SavedMember = {
   member: string;
@@ -134,15 +136,19 @@ export default function LibraryBoard() {
   }
 
   useEffect(() => {
+    function openHowTo() {
+      setIsHowToOpen(true);
+      window.requestAnimationFrame(() => {
+        document.getElementById("how-to")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+
     function openFromHash() {
       if (window.location.hash === "#how-to") {
-        setIsHowToOpen(true);
-        window.requestAnimationFrame(() => {
-          document.getElementById("how-to")?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        });
+        openHowTo();
         return;
       }
 
@@ -156,9 +162,11 @@ export default function LibraryBoard() {
     }
 
     openFromHash();
+    window.addEventListener(baySpaceHowToOpenEvent, openHowTo);
     window.addEventListener("hashchange", openFromHash);
 
     return () => {
+      window.removeEventListener(baySpaceHowToOpenEvent, openHowTo);
       window.removeEventListener("hashchange", openFromHash);
     };
   }, []);
@@ -360,7 +368,7 @@ export default function LibraryBoard() {
               how to
             </h2>
             <div className="mt-5 grid gap-3">
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                   How to - LA Bay-Space
                 </summary>
@@ -396,7 +404,7 @@ export default function LibraryBoard() {
                 </div>
               </details>
 
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3" open>
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                   how to log in
                 </summary>
@@ -451,6 +459,30 @@ export default function LibraryBoard() {
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  point structure
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>✨ Profile score only tracks:</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>🍽️ Daily Food post → +10</li>
+                    <li>🧠 Theories post → +1</li>
+                    <li>📚 Library post → +5</li>
+                    <li>👤 Profile visit → +0.1</li>
+                    <li>🔍 Fully opened post? 🍽️ 🧠 📚 → +0.1 post points</li>
+                  </ul>
+                  <p>🎁 Bonus drops:</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>💎 Diamond received → +10</li>
+                    <li>💎 Diamond removed → -10</li>
+                    <li>🎟️ Ticket received → +50</li>
+                    <li>🎟️ Ticket removed → -50</li>
+                  </ul>
+                  <p>🗑️ Deleted post? Its points disappear too: base points + visits + 💎 + 🎟️</p>
+                </div>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                   types of accounts
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
@@ -481,9 +513,28 @@ export default function LibraryBoard() {
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
                   theories
                 </summary>
-                <p className="mt-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
-                  coming soon
-                </p>
+                <div className="mt-3 grid gap-3 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>
+                    Theories can be filed as conspiracy, declassified,
+                    dreams/visions, fact based, hypothesis, misc, occult,
+                    psychic, or psychedelic/download.
+                  </p>
+                  <div className="grid gap-2">
+                    {theoryCategories.map((category) => (
+                      <div
+                        key={category.label}
+                        className="border border-[#1d7f12] bg-black/40 px-3 py-3"
+                      >
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                          {category.label}
+                        </p>
+                        <p className="mt-2 text-sm font-bold leading-6 text-[#d7ffd0]">
+                          {category.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </details>
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">

@@ -34,6 +34,7 @@ import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
+import { theoryCategories } from "../../lib/theory-categories";
 import {
   bayoPlusAgreementHref,
   baySpaceAgreementHref,
@@ -104,6 +105,7 @@ type PostDraft = {
   dailyFoodSource3: string;
   dailyFoodSourceOpen3: boolean;
   dailyFoodCategory: string;
+  theoryCategory: string;
   theoryHeadline: string;
   theoryPost: string;
   theorySources: string[];
@@ -118,9 +120,11 @@ type PostDraft = {
 
 type ParsedBankPost = {
   body: string;
+  category: BankPostCategory;
   dailyFoodCategory: string;
   sources: string[];
   tags: string[];
+  theoryCategory: string;
   title: string;
 };
 
@@ -139,6 +143,7 @@ const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 const lazyPostGptUrl =
   "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
 const baySpaceLazyEngineLabel = "Thiago";
+const defaultTheoryCategory = "MISC";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -240,19 +245,83 @@ function normalizeBankCategory(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function extractBankDailyFoodCategory(value: string) {
-  const categoryMatch = value.match(
-    /(?:^|\n)\s*category\s*:\s*([^\n]+)/i,
-  );
-  const categoryLine = categoryMatch?.[1] ?? "";
-  const normalizedCategoryLine = normalizeBankCategory(categoryLine);
-  const matchedCategory = dailyFoodCategories.find(
-    (category) =>
-      category !== defaultDailyFoodCategory &&
-      normalizedCategoryLine.includes(normalizeBankCategory(category)),
-  );
+function findBankCategoryLabel(value: string, labels: readonly string[]) {
+  const normalizedValue = normalizeBankCategory(value);
 
-  return matchedCategory ?? defaultDailyFoodCategory;
+  return (
+    labels.find((label) => normalizedValue.includes(normalizeBankCategory(label))) ??
+    ""
+  );
+}
+
+function extractBankDailyFoodCategory(value: string) {
+  const categoryMatch = value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i);
+  const categoryLine = categoryMatch?.[1] ?? "";
+  const matchedCategory =
+    findBankCategoryLabel(categoryLine, dailyFoodCategories) ||
+    findBankCategoryLabel(value, dailyFoodCategories);
+
+  return matchedCategory || defaultDailyFoodCategory;
+}
+
+function extractBankTheoryCategory(value: string) {
+  const categoryMatch = value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i);
+  const categoryLine = categoryMatch?.[1] ?? "";
+
+  return (
+    findBankCategoryLabel(categoryLine, theoryCategories.map((category) => category.label)) ||
+    findBankCategoryLabel(value, theoryCategories.map((category) => category.label))
+  );
+}
+
+function detectBankPostCategory(value: string, allowedCategories: BankPostCategory[]) {
+  const normalizedValue = value.toLowerCase();
+  const dailyFoodCategory = extractBankDailyFoodCategory(value);
+  const theoryCategory = extractBankTheoryCategory(value);
+  const dailyFoodSignals = [
+    /\bdaily\s*food\b/.test(normalizedValue),
+    dailyFoodCategory !== defaultDailyFoodCategory,
+  ].filter(Boolean).length;
+  const theorySignals = [
+    /\b(?:conspiracy|theor(?:y|ies))\b/.test(normalizedValue),
+    Boolean(theoryCategory),
+  ].filter(Boolean).length;
+  const hasDailyFoodAccess = allowedCategories.includes("daily-food");
+  const hasTheoryAccess = allowedCategories.includes("theory");
+
+  if (dailyFoodSignals && !theorySignals) {
+    return hasDailyFoodAccess
+      ? { category: "daily-food" as const, dailyFoodCategory, theoryCategory }
+      : { error: "daily food route unavailable for this account" };
+  }
+
+  if (theorySignals && !dailyFoodSignals) {
+    return hasTheoryAccess
+      ? { category: "theory" as const, dailyFoodCategory, theoryCategory }
+      : { error: "theory route unavailable for this account" };
+  }
+
+  if (dailyFoodSignals && theorySignals) {
+    if (!hasDailyFoodAccess && hasTheoryAccess) {
+      return { category: "theory" as const, dailyFoodCategory, theoryCategory };
+    }
+
+    if (hasDailyFoodAccess && !hasTheoryAccess) {
+      return { category: "daily-food" as const, dailyFoodCategory, theoryCategory };
+    }
+
+    return { error: "post route unclear: daily food and theory signals found" };
+  }
+
+  if (allowedCategories.length === 1) {
+    return {
+      category: allowedCategories[0],
+      dailyFoodCategory,
+      theoryCategory,
+    };
+  }
+
+  return { error: "post route missing: include Daily Food or a theory category" };
 }
 
 function extractBankHeadline(value: string) {
@@ -361,7 +430,7 @@ function stripBankSourceLines(value: string) {
 
 function parseBankPostInput(
   value: string,
-  bankCategory: BankPostCategory,
+  allowedCategories: BankPostCategory[],
 ): { error?: string; post?: ParsedBankPost } {
   const trimmedValue = value.trim();
 
@@ -369,21 +438,13 @@ function parseBankPostInput(
     return { error: "bank box empty" };
   }
 
-  const normalizedValue = trimmedValue.toLowerCase();
-  const requestedCategory = /\btop\s*story\b/.test(normalizedValue)
-    ? "top-story"
-    : /\blibrary\b/.test(normalizedValue)
-      ? "library-submission"
-      : /\bdaily\s*food\b/.test(normalizedValue)
-        ? "daily-food"
-        : /\b(?:conspiracy|theor(?:y|ies))\b/.test(normalizedValue)
-          ? "theory"
-          : "";
+  const detectedCategory = detectBankPostCategory(
+    trimmedValue,
+    allowedCategories,
+  );
 
-  if (requestedCategory && requestedCategory !== bankCategory) {
-    return {
-      error: `Thiago only supports ${bankCategory.replace("-", " ")} for this account`,
-    };
+  if (detectedCategory.error || !detectedCategory.category) {
+    return { error: detectedCategory.error ?? "post route missing" };
   }
 
   const title = extractBankHeadline(trimmedValue).slice(0, 75);
@@ -392,7 +453,6 @@ function parseBankPostInput(
   const detailLines = tagBlocks.length ? tagBlocks : extractBankDetailLines(trimmedValue);
   const tags = detailLines.map((tag) => tag.slice(0, 150)).slice(0, 3);
   const bodySection = extractBankSection(trimmedValue, ["body", "theory", "post"]);
-  const dailyFoodCategory = extractBankDailyFoodCategory(trimmedValue);
   const fallbackBody = tags.length
     ? tags.join("\n")
     : stripBankSourceLines(
@@ -401,7 +461,7 @@ function parseBankPostInput(
           .replace(/(?:headline|title)[\s\S]{0,120}?(?:with|:|-)\s*[\s\S]*?(?=\s+Confirm\b|\n|$)/i, ""),
       );
   const body =
-    bankCategory === "daily-food"
+    detectedCategory.category === "daily-food"
       ? tags.join("\n")
       : stripBankSourceLines(bodySection || fallbackBody).slice(0, 50000);
 
@@ -409,20 +469,26 @@ function parseBankPostInput(
     return { error: "headline missing" };
   }
 
-  if (bankCategory === "daily-food" && !tags.length) {
+  if (detectedCategory.category === "daily-food" && !tags.length) {
     return { error: "daily food details missing" };
   }
 
-  if (bankCategory === "theory" && !body) {
+  if (detectedCategory.category === "theory" && !body) {
     return { error: "theory body missing" };
+  }
+
+  if (detectedCategory.category === "theory" && !detectedCategory.theoryCategory) {
+    return { error: "theory category label missing" };
   }
 
   return {
     post: {
       body,
-      dailyFoodCategory,
+      category: detectedCategory.category,
+      dailyFoodCategory: detectedCategory.dailyFoodCategory,
       sources,
       tags,
+      theoryCategory: detectedCategory.theoryCategory,
       title,
     },
   };
@@ -440,14 +506,6 @@ function getBankPostCategories(allowedCategories: PostCategory[]) {
   }
 
   return bankCategories;
-}
-
-function getBankCategoryLabel(category: BankPostCategory) {
-  if (category === "daily-food") {
-    return "daily-food";
-  }
-
-  return "theory";
 }
 
 export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
@@ -476,8 +534,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [lazyResponse, setLazyResponse] = useState("LA Bay-Space: coming soon");
   const [lazyBankInput, setLazyBankInput] = useState("");
   const [lazyBankError, setLazyBankError] = useState("");
-  const [lazyBankPostCategory, setLazyBankPostCategory] =
-    useState<BankPostCategory>("daily-food");
   const [lazyPostPreview, setLazyPostPreview] =
     useState<PostPreviewDraft | null>(null);
   const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
@@ -523,6 +579,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [dailyFoodCategory, setDailyFoodCategory] = useState(
     defaultDailyFoodCategory,
   );
+  const [theoryCategory, setTheoryCategory] = useState(defaultTheoryCategory);
   const [theoryHeadline, setTheoryHeadline] = useState("");
   const [theoryPost, setTheoryPost] = useState("");
   const [theorySources, setTheorySources] = useState(["", ""]);
@@ -546,9 +603,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isBayoClubMember = isBayoClub(savedMember?.roles ?? "");
   const isCryptiMember = isCrypti(savedMember?.roles ?? "");
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
-  const activeLazyBankCategory = availableBankCategories.includes(lazyBankPostCategory)
-    ? lazyBankPostCategory
-    : availableBankCategories[0] ?? null;
   const openDrafts = [
     ...minimizedDrafts,
     ...(isPostOpen && activeDraftId
@@ -572,6 +626,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             dailyFoodSource3,
             dailyFoodSourceOpen3,
             dailyFoodCategory,
+            theoryCategory,
             theoryHeadline,
             theoryPost,
             theorySources,
@@ -613,6 +668,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       dailyFoodSource3: "",
       dailyFoodSourceOpen3: false,
       dailyFoodCategory: defaultDailyFoodCategory,
+      theoryCategory: defaultTheoryCategory,
       theoryHeadline: "",
       theoryPost: "",
       theorySources: ["", ""],
@@ -650,6 +706,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       dailyFoodSource3,
       dailyFoodSourceOpen3,
       dailyFoodCategory,
+      theoryCategory,
       theoryHeadline,
       theoryPost,
       theorySources,
@@ -682,6 +739,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodSource3(draft.dailyFoodSource3);
     setDailyFoodSourceOpen3(draft.dailyFoodSourceOpen3);
     setDailyFoodCategory(draft.dailyFoodCategory || defaultDailyFoodCategory);
+    setTheoryCategory(draft.theoryCategory || defaultTheoryCategory);
     setTheoryHeadline(draft.theoryHeadline);
     setTheoryPost(draft.theoryPost);
     setTheorySources(
@@ -1105,6 +1163,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           : undefined,
         meta: {
           sources: theorySources.map((source) => source.trim()).filter(Boolean),
+          theoryCategory,
         },
       };
     }
@@ -1163,7 +1222,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       return;
     }
 
-    setLazyBankPostCategory(availableBankCategories[0]);
     setLazyMode("bank");
     setLazyPrompt("");
     setLazyResponse("");
@@ -1192,13 +1250,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function buildLazyBankPost(parsedPost: ParsedBankPost): PostPreviewDraft | null {
-    if (!activeLazyBankCategory) {
+    if (!availableBankCategories.includes(parsedPost.category)) {
       return null;
     }
 
     const author = resolvedMember || "unknown";
 
-    if (activeLazyBankCategory === "daily-food") {
+    if (parsedPost.category === "daily-food") {
       const dateKey = getDateKey();
       const dailyFoodOrder =
         allPosts.filter(
@@ -1234,18 +1292,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       author,
       meta: {
         sources: parsedPost.sources.filter(Boolean),
+        theoryCategory: parsedPost.theoryCategory,
       },
     };
   }
 
   function submitLazyBank() {
-    if (!activeLazyBankCategory) {
+    if (!availableBankCategories.length) {
       setLazyBankError("Thiago engine unavailable");
       shakeLazyButton("bank-submit");
       return;
     }
 
-    const parsedPost = parseBankPostInput(lazyBankInput, activeLazyBankCategory);
+    const parsedPost = parseBankPostInput(lazyBankInput, availableBankCategories);
 
     if (parsedPost.error || !parsedPost.post) {
       setLazyBankError(parsedPost.error ?? "bank parse failed");
@@ -1359,6 +1418,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodSource3("");
     setDailyFoodSourceOpen3(false);
     setDailyFoodCategory(defaultDailyFoodCategory);
+    setTheoryCategory(defaultTheoryCategory);
     setTheoryHeadline("");
     setTheoryPost("");
     setTheorySources(["", ""]);
@@ -2200,6 +2260,22 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
               {activePostCategory === "theory" ? (
                 <div className="mt-6 grid gap-5">
+                  <label className="grid max-w-sm gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      categories
+                    </span>
+                    <select
+                      value={theoryCategory}
+                      onChange={(event) => setTheoryCategory(event.target.value)}
+                      className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    >
+                      {theoryCategories.map((category) => (
+                        <option key={category.label} value={category.label}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                       headline{" "}
@@ -2690,6 +2766,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                         {lazyPostPreview.meta.dailyFoodCode}
                       </p>
                     ) : null}
+                    {lazyPostPreview.category === "daily-food" &&
+                    typeof lazyPostPreview.meta?.dailyFoodCategory === "string" ? (
+                      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                        Daily Food - {lazyPostPreview.meta.dailyFoodCategory}
+                      </p>
+                    ) : null}
+                    {lazyPostPreview.category === "theory" &&
+                    typeof lazyPostPreview.meta?.theoryCategory === "string" &&
+                    lazyPostPreview.meta.theoryCategory ? (
+                      <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                        Theories - {lazyPostPreview.meta.theoryCategory}
+                      </p>
+                    ) : null}
                     <h2 className="mt-3 text-xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
                       {lazyPostPreview.title}
                     </h2>
@@ -2740,8 +2829,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
                       ✅💰 Bay-Space engine:{" "}
                       <span className="text-[#39ff14]">
-                        {activeLazyBankCategory
-                          ? `${baySpaceLazyEngineLabel} / ${activeLazyBankCategory.replace("-", " ")}`
+                        {availableBankCategories.length
+                          ? `${baySpaceLazyEngineLabel} / auto route`
                           : "unavailable"}
                       </span>
                     </p>
@@ -2756,28 +2845,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       back
                     </button>
                   </div>
-                  {availableBankCategories.length > 1 ? (
-                    <label className="mt-4 grid max-w-xs gap-2">
-                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                        post route
-                      </span>
-                      <select
-                        value={activeLazyBankCategory ?? "daily-food"}
-                        onChange={(event) =>
-                          setLazyBankPostCategory(
-                            event.target.value as BankPostCategory,
-                          )
-                        }
-                        className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                      >
-                        {availableBankCategories.map((category) => (
-                          <option key={category} value={category}>
-                            {getBankCategoryLabel(category)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : null}
+                  <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
+                    Paste a Daily Food or Theories draft. Thiago routes it from
+                    the post type, category label, and required fields before
+                    loading preview.
+                  </p>
                   <textarea
                     aria-label="BaySpace Thiago money-bag intake"
                     value={lazyBankInput}
