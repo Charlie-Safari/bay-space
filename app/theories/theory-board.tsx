@@ -10,14 +10,20 @@ import {
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import {
+  countFavoritePosts,
   favoriteStoreEvent,
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
+import { recordPostVisit } from "../components/post-visit-client";
 import {
   hasCreatorAccess,
   isBayoClub,
   isGhostRole,
 } from "../../lib/bay-space-roles";
+import {
+  formatPointTenths,
+  getBaySpacePostPointTenths,
+} from "../../lib/bay-space-scoring";
 
 type SortMode = "az" | "date";
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
@@ -79,6 +85,9 @@ export default function TheoryBoard() {
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
+  const [favoritePostCounts, setFavoritePostCounts] = useState<
+    Record<string, number>
+  >({});
   const [openPostId, setOpenPostId] = useState(getPostHashId);
   const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -135,6 +144,28 @@ export default function TheoryBoard() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function syncFavoriteCounts() {
+      const counts = await countFavoritePosts(posts.map((post) => post.id));
+
+      if (isMounted) {
+        setFavoritePostCounts(counts);
+      }
+    }
+
+    syncFavoriteCounts();
+    window.addEventListener(favoriteStoreEvent, syncFavoriteCounts);
+    window.addEventListener(postStoreEvent, syncFavoriteCounts);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(favoriteStoreEvent, syncFavoriteCounts);
+      window.removeEventListener(postStoreEvent, syncFavoriteCounts);
+    };
+  }, [posts]);
+
+  useEffect(() => {
     function syncPostHash() {
       const postId = getPostHashId();
 
@@ -149,6 +180,40 @@ export default function TheoryBoard() {
       window.removeEventListener("hashchange", syncPostHash);
     };
   }, []);
+
+  useEffect(() => {
+    if (!openPostId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    recordPostVisit(openPostId)
+      .then((postVisits) => {
+        if (!isMounted || typeof postVisits !== "number") {
+          return;
+        }
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) =>
+            post.id === openPostId
+              ? {
+                  ...post,
+                  meta: {
+                    ...(post.meta ?? {}),
+                    postVisits: String(postVisits),
+                  },
+                }
+              : post,
+          ),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [openPostId]);
 
   useEffect(() => {
     if (!openPostId) {
@@ -317,7 +382,12 @@ export default function TheoryBoard() {
 
       {sortedPosts.length ? (
         <div className="grid gap-3">
-          {sortedPosts.map((post) => (
+          {sortedPosts.map((post) => {
+            const postScore = formatPointTenths(
+              getBaySpacePostPointTenths(post, favoritePostCounts),
+            );
+
+            return (
             <article
               key={post.id}
               id={`post-${post.id}`}
@@ -329,8 +399,19 @@ export default function TheoryBoard() {
             >
               {openPostId === post.id ? (
                 <>
-                  <div className="absolute right-4 top-3">
-                    <FavoriteButton postId={post.id} />
+                  <div className="absolute right-4 top-3 flex items-center gap-3">
+                    <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      {postScore} pts
+                    </p>
+                    <FavoriteButton
+                      onCountChange={(count) =>
+                        setFavoritePostCounts((counts) => ({
+                          ...counts,
+                          [post.id]: count,
+                        }))
+                      }
+                      postId={post.id}
+                    />
                   </div>
                   <button
                     type="button"
@@ -423,7 +504,8 @@ export default function TheoryBoard() {
                 </button>
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#d7ffd0]">

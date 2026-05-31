@@ -9,7 +9,17 @@ import {
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import {
+  countFavoritePosts,
+  favoriteStoreEvent,
+} from "../components/favorite-store";
+import { recordPostVisit } from "../components/post-visit-client";
 import { isBayoClub } from "../../lib/bay-space-roles";
+import {
+  formatPointTenths,
+  getBaySpacePostPointTenths,
+  isCryptiPost,
+} from "../../lib/bay-space-scoring";
 
 type SavedMember = {
   member: string;
@@ -49,6 +59,9 @@ export default function LibraryBoard() {
   const [query, setQuery] = useState("");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
+  const [favoritePostCounts, setFavoritePostCounts] = useState<
+    Record<string, number>
+  >({});
   const [isHowToOpen, setIsHowToOpen] = useState(false);
   const [openPostId, setOpenPostId] = useState(getLibraryHashId);
 
@@ -57,7 +70,9 @@ export default function LibraryBoard() {
       getBayPosts().then((savedPosts) => {
         setPosts(
           savedPosts.filter(
-          (post) => post.category === "library-submission" || post.shelfCode,
+            (post) =>
+              !isCryptiPost(post) &&
+              (post.category === "library-submission" || post.shelfCode),
           ),
         );
       });
@@ -77,6 +92,28 @@ export default function LibraryBoard() {
       window.removeEventListener(postStoreEvent, syncPosts);
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncFavoriteCounts() {
+      const counts = await countFavoritePosts(posts.map((post) => post.id));
+
+      if (isMounted) {
+        setFavoritePostCounts(counts);
+      }
+    }
+
+    syncFavoriteCounts();
+    window.addEventListener(favoriteStoreEvent, syncFavoriteCounts);
+    window.addEventListener(postStoreEvent, syncFavoriteCounts);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(favoriteStoreEvent, syncFavoriteCounts);
+      window.removeEventListener(postStoreEvent, syncFavoriteCounts);
+    };
+  }, [posts]);
 
   function getAuthorName(post: BayPost) {
     return members.find((member) => member.member === post.author)?.name.trim() ?? "";
@@ -139,6 +176,40 @@ export default function LibraryBoard() {
     });
   }, [openPostId, posts]);
 
+  useEffect(() => {
+    if (!openPostId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    recordPostVisit(openPostId)
+      .then((postVisits) => {
+        if (!isMounted || typeof postVisits !== "number") {
+          return;
+        }
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) =>
+            post.id === openPostId
+              ? {
+                  ...post,
+                  meta: {
+                    ...(post.meta ?? {}),
+                    postVisits: String(postVisits),
+                  },
+                }
+              : post,
+          ),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [openPostId]);
+
   const visiblePosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -185,7 +256,12 @@ export default function LibraryBoard() {
 
       {visiblePosts.length ? (
         <div className="grid gap-3">
-          {visiblePosts.map((post) => (
+          {visiblePosts.map((post) => {
+            const postScore = formatPointTenths(
+              getBaySpacePostPointTenths(post, favoritePostCounts),
+            );
+
+            return (
             <article
               key={post.id}
               id={`library-${post.id}`}
@@ -209,8 +285,19 @@ export default function LibraryBoard() {
               </button>
               {openPostId === post.id ? (
                 <>
-                  <div className="mt-3">
-                    <FavoriteButton postId={post.id} />
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      {postScore} pts
+                    </p>
+                    <FavoriteButton
+                      onCountChange={(count) =>
+                        setFavoritePostCounts((counts) => ({
+                          ...counts,
+                          [post.id]: count,
+                        }))
+                      }
+                      postId={post.id}
+                    />
                   </div>
                   <div className="mt-3">
                     <CopyPostLinkButton path={`/library#library-${post.id}`} />
@@ -249,7 +336,8 @@ export default function LibraryBoard() {
                 </>
               ) : null}
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#d7ffd0]">

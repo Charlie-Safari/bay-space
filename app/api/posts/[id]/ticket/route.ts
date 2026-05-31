@@ -1,8 +1,9 @@
 import {
   getMemberTicketVoteNextAt,
   getStorageErrorMessage,
-  incrementPostTicketVoteCount,
+  listMemberTicketedPostIds,
   startMemberTicketVoteCooldown,
+  togglePostTicketVote,
 } from "../../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../../lib/bay-space-session";
 import { revalidatePath } from "next/cache";
@@ -18,44 +19,53 @@ export async function POST(request: Request, context: TicketVoteContext) {
     void request;
     const { id } = await context.params;
     const member = await getCurrentMember();
-    const now = Date.now();
 
-    if (member) {
-      const nextTicketVoteAt = await getMemberTicketVoteNextAt(member.member);
-
-      if (nextTicketVoteAt > now) {
-        return Response.json(
-          {
-            canVote: false,
-            member: member.member,
-            nextTicketVoteAt,
-            remainingMs: nextTicketVoteAt - now,
-          },
-          { status: 429 },
-        );
-      }
+    if (!member) {
+      return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await incrementPostTicketVoteCount(id);
+    const now = Date.now();
+    const nextTicketVoteAt = await getMemberTicketVoteNextAt(member.member);
+    const isTicketed = (await listMemberTicketedPostIds(member.member)).includes(
+      id,
+    );
+
+    if (!isTicketed && nextTicketVoteAt > now) {
+      return Response.json(
+        {
+          canVote: false,
+          member: member.member,
+          nextTicketVoteAt,
+          remainingMs: nextTicketVoteAt - now,
+        },
+        { status: 429 },
+      );
+    }
+
+    const result = await togglePostTicketVote(member.member, id);
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
     }
 
-    const nextTicketVoteAt = member
+    const updatedNextTicketVoteAt = result.ticketed
       ? await startMemberTicketVoteCooldown(
           member.member,
           now + ticketVoteCooldownMs,
         )
-      : now + ticketVoteCooldownMs;
+      : nextTicketVoteAt;
 
     revalidatePath("/daily-food");
+    revalidatePath("/theories");
+    revalidatePath("/library");
     revalidatePath("/news");
+    revalidatePath("/profile/[member]", "page");
 
     return Response.json({
-      member: member?.member,
-      nextTicketVoteAt,
+      member: member.member,
+      nextTicketVoteAt: updatedNextTicketVoteAt,
       post: result.post,
+      ticketed: result.ticketed,
       ticketVotes: result.ticketVotes,
     });
   } catch (error) {

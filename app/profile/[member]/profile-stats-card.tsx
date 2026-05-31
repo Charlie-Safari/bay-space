@@ -5,17 +5,31 @@ import { useEffect, useState } from "react";
 type ProfileStatsCardProps = {
   initialPageVisits: number;
   member: string;
+  overallTotalScore: string;
   totalFavoriteCount: number;
+  totalPostCount: number;
+  totalPostVisitCount: number;
   totalTicketCount: number;
 };
 
 export default function ProfileStatsCard({
   initialPageVisits,
   member,
+  overallTotalScore,
   totalFavoriteCount,
+  totalPostCount,
+  totalPostVisitCount,
   totalTicketCount,
 }: ProfileStatsCardProps) {
   const [pageVisits, setPageVisits] = useState(initialPageVisits);
+  const stats = [
+    { label: "overall total score", value: `${overallTotalScore} pts` },
+    { label: "profile page visits", value: pageVisits },
+    { label: "total visits all posts", value: totalPostVisitCount },
+    { label: "total favorite tokens received", value: totalFavoriteCount },
+    { label: "total tickets received", value: totalTicketCount },
+    { label: "total # of posts", value: totalPostCount },
+  ];
 
   useEffect(() => {
     let isMounted = true;
@@ -53,30 +67,21 @@ export default function ProfileStatsCard({
             <span className="border-r border-[#1d7f12] px-3 py-2">metric</span>
             <span className="px-3 py-2 text-right">count</span>
           </div>
-          <div className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-            <span className="border-r border-[#1d7f12] px-3 py-3">
-              page visits
-            </span>
-            <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
-              {pageVisits}
-            </span>
-          </div>
-          <div className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-            <span className="border-r border-[#1d7f12] px-3 py-3">
-              total favorites
-            </span>
-            <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
-              {totalFavoriteCount}
-            </span>
-          </div>
-          <div className="grid grid-cols-[1fr_auto] text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-            <span className="border-r border-[#1d7f12] px-3 py-3">
-              total tickets received
-            </span>
-            <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
-              {totalTicketCount}
-            </span>
-          </div>
+          {stats.map((stat, index) => (
+            <div
+              key={stat.label}
+              className={`grid grid-cols-[1fr_auto] text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0] ${
+                index === stats.length - 1 ? "" : "border-b border-[#1d7f12]"
+              }`}
+            >
+              <span className="border-r border-[#1d7f12] px-3 py-3">
+                {stat.label}
+              </span>
+              <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
+                {stat.value}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </details>

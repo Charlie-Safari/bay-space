@@ -56,15 +56,22 @@ export default function TicketVoteButton({
       const response = await fetch(availabilityPath, { cache: "no-store" });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          setCanVote(false);
+        }
         return;
       }
 
       const data = (await response.json()) as {
         member?: string;
         nextAt?: number;
+        postIds?: string[];
       };
 
       if (typeof data.nextAt === "number") {
+        if (Array.isArray(data.postIds)) {
+          setTicketedOverride(data.postIds.includes(postId));
+        }
         setNextTicketVoteAt(
           data.nextAt,
           data.member,
@@ -90,7 +97,7 @@ export default function TicketVoteButton({
       window.removeEventListener("storage", syncAvailability);
       window.removeEventListener(ticketVoteStoreEvent, syncAvailability);
     };
-  }, [availabilityPath, isTicketed, resolvedCooldownStoragePrefix]);
+  }, [availabilityPath, isTicketed, postId, resolvedCooldownStoragePrefix]);
 
   async function voteTicket() {
     if (!canVote || isSaving) {

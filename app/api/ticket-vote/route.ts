@@ -1,6 +1,7 @@
 import {
   getMemberTicketVoteNextAt,
   getStorageErrorMessage,
+  listMemberTicketedPostIds,
 } from "../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../lib/bay-space-session";
 
@@ -23,6 +24,7 @@ export async function GET() {
     return Response.json({
       ...getAvailability(await getMemberTicketVoteNextAt(member.member)),
       member: member.member,
+      postIds: await listMemberTicketedPostIds(member.member),
     });
   } catch (error) {
     const storageMessage = getStorageErrorMessage(error);

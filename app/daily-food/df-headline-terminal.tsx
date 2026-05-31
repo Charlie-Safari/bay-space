@@ -14,15 +14,22 @@ import {
   postStoreEvent,
 } from "../components/post-store";
 import {
+  countFavoritePosts,
   favoriteStoreEvent,
   getFavoriteAuthorIds,
   getFavoritePostIds,
 } from "../components/favorite-store";
+import { recordPostVisit } from "../components/post-visit-client";
 import {
   hasCreatorAccess,
   isBayoClub,
   isGhostRole,
 } from "../../lib/bay-space-roles";
+import {
+  formatPointTenths,
+  getBaySpacePostPointTenths,
+  getBaySpacePostTicketCount,
+} from "../../lib/bay-space-scoring";
 import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
@@ -136,6 +143,9 @@ export default function DfHeadlineTerminal({
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
+  const [favoritePostCounts, setFavoritePostCounts] = useState<
+    Record<string, number>
+  >({});
   const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
   const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [expandedPostId, setExpandedPostId] = useState("");
@@ -174,6 +184,12 @@ export default function DfHeadlineTerminal({
   const hashPost =
     posts.find((post) => post.id === hashPostId && !post.incognito) ?? null;
   const displayedPost = matchedReferencePost ?? hashPost ?? expandedPost;
+  const displayedPostId = displayedPost?.id ?? "";
+  const displayedPostScore = displayedPost
+    ? formatPointTenths(
+        getBaySpacePostPointTenths(displayedPost, favoritePostCounts),
+      )
+    : "0";
   const categoryPosts = selectedDailyFoodCategory
     ? filterPostsByAuthorMode(posts)
         .filter(
@@ -242,6 +258,28 @@ export default function DfHeadlineTerminal({
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function syncFavoriteCounts() {
+      const counts = await countFavoritePosts(posts.map((post) => post.id));
+
+      if (isMounted) {
+        setFavoritePostCounts(counts);
+      }
+    }
+
+    syncFavoriteCounts();
+    window.addEventListener(favoriteStoreEvent, syncFavoriteCounts);
+    window.addEventListener(postStoreEvent, syncFavoriteCounts);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(favoriteStoreEvent, syncFavoriteCounts);
+      window.removeEventListener(postStoreEvent, syncFavoriteCounts);
+    };
+  }, [posts]);
+
+  useEffect(() => {
     function syncPostHash() {
       setHashPostId(getPostHashId());
     }
@@ -252,6 +290,40 @@ export default function DfHeadlineTerminal({
       window.removeEventListener("hashchange", syncPostHash);
     };
   }, []);
+
+  useEffect(() => {
+    if (!displayedPostId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    recordPostVisit(displayedPostId)
+      .then((postVisits) => {
+        if (!isMounted || typeof postVisits !== "number") {
+          return;
+        }
+
+        setPosts((currentPosts) =>
+          currentPosts.map((post) =>
+            post.id === displayedPostId
+              ? {
+                  ...post,
+                  meta: {
+                    ...(post.meta ?? {}),
+                    postVisits: String(postVisits),
+                  },
+                }
+              : post,
+          ),
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [displayedPostId]);
 
   function moveDate(days: number) {
     setActiveDate((currentDate) => {
@@ -366,9 +438,7 @@ export default function DfHeadlineTerminal({
   }
 
   function getTicketVoteCount(post: BayPost) {
-    const count = Number(post.meta?.ticketVotes ?? 0);
-
-    return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+    return getBaySpacePostTicketCount(post);
   }
 
   function getDailyFoodTags(post: BayPost): DailyFoodTag[] {
@@ -617,9 +687,35 @@ export default function DfHeadlineTerminal({
         {displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
             <div className="absolute right-4 top-3 flex items-center gap-3">
-              <FavoriteButton postId={displayedPost.id} />
+              <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                {displayedPostScore} pts
+              </p>
+              <FavoriteButton
+                onCountChange={(count) =>
+                  setFavoritePostCounts((counts) => ({
+                    ...counts,
+                    [displayedPost.id]: count,
+                  }))
+                }
+                postId={displayedPost.id}
+              />
               <TicketVoteButton
                 initialCount={getTicketVoteCount(displayedPost)}
+                onCountChange={(ticketVotes) =>
+                  setPosts((currentPosts) =>
+                    currentPosts.map((post) =>
+                      post.id === displayedPost.id
+                        ? {
+                            ...post,
+                            meta: {
+                              ...(post.meta ?? {}),
+                              ticketVotes: String(ticketVotes),
+                            },
+                          }
+                        : post,
+                    ),
+                  )
+                }
                 postId={displayedPost.id}
               />
             </div>

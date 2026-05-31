@@ -18,6 +18,9 @@ export async function POST(request: Request, context: PostVisitContext) {
       return Response.json({ message: "Post not found" }, { status: 404 });
     }
 
+    revalidatePath("/daily-food");
+    revalidatePath("/theories");
+    revalidatePath("/library");
     revalidatePath("/crypti");
     revalidatePath("/news");
     revalidatePath("/profile/[member]", "page");

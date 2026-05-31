@@ -11,6 +11,14 @@ import {
 } from "../../../lib/bay-space-db";
 import { BayPost } from "../../../lib/bay-space-types";
 import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
+import {
+  formatPointTenths,
+  getBaySpacePostTicketCount,
+  getBaySpaceProfileScoreTenths,
+  getPostVisitCount,
+  isBaySpaceProfileScorePost,
+  isCryptiPost,
+} from "../../../lib/bay-space-scoring";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -40,16 +48,6 @@ function getExternalHref(url: string) {
   }
 
   return `https://${url}`;
-}
-
-function getPostTicketCount(post: BayPost) {
-  const count = Number(post.meta?.ticketVotes ?? 0);
-
-  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
-}
-
-function isCryptiPost(post: BayPost) {
-  return post.meta?.cryptiPost === "true";
 }
 
 function PostList({ posts }: { posts: BayPost[] }) {
@@ -92,14 +90,24 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const favoritePosts = (await listSavedPostsByMember(memberId)).filter(
     (post) => !isCryptiPost(post),
   );
-  const favoriteCounts = await countSavedPosts(posts.map((post) => post.id));
+  const statsPosts = posts.filter(isBaySpaceProfileScorePost);
+  const favoriteCounts = await countSavedPosts(
+    statsPosts.map((post) => post.id),
+  );
   const totalFavoriteCount = Object.values(favoriteCounts).reduce(
     (total, count) => total + count,
     0,
   );
-  const totalTicketCount = posts.reduce(
-    (total, post) => total + getPostTicketCount(post),
+  const totalTicketCount = statsPosts.reduce(
+    (total, post) => total + getBaySpacePostTicketCount(post),
     0,
+  );
+  const totalPostVisitCount = statsPosts.reduce(
+    (total, post) => total + getPostVisitCount(post),
+    0,
+  );
+  const overallTotalScore = formatPointTenths(
+    getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts),
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
   const isBayoClubMember = isBayoClub(member?.roles ?? "");
@@ -155,7 +163,10 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
               <ProfileStatsCard
                 initialPageVisits={pageVisits}
                 member={member.member}
+                overallTotalScore={overallTotalScore}
                 totalFavoriteCount={totalFavoriteCount}
+                totalPostCount={statsPosts.length}
+                totalPostVisitCount={totalPostVisitCount}
                 totalTicketCount={totalTicketCount}
               />
             </div>
