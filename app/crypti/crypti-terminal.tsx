@@ -539,6 +539,27 @@ function getSignalLabel(score: number) {
   return "flat";
 }
 
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function formatTimelineMonth(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+}
+
+function formatTimelineDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
 function getLosAngelesDateKey(date: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
@@ -779,6 +800,7 @@ export default function CryptiTerminal() {
     sourceModeParam === "S"
       ? getCryptiSourcePanel(sourceModeParam)
       : null;
+  const today = useMemo(() => startOfDay(new Date()), []);
   const [activePanel, setActivePanel] = useState<CryptiPanel>(
     howToParam
       ? "how-to"
@@ -834,6 +856,7 @@ export default function CryptiTerminal() {
   const [favoriteSort, setFavoriteSort] =
     useState<CryptiFavoriteSort>("favorite-posts");
   const [smokeSearch, setSmokeSearch] = useState("");
+  const [activeRNewsDate, setActiveRNewsDate] = useState(today);
   const [cryptiPostCategory, setCryptiPostCategory] = useState(
     defaultCryptiCategory,
   );
@@ -1541,6 +1564,9 @@ export default function CryptiTerminal() {
 
   const normalizedSearch = normalizeCryptiSymbol(search);
   const todayDateKey = getLosAngelesDateKey(new Date());
+  const activeRNewsDateKey = getLosAngelesDateKey(activeRNewsDate);
+  const canMoveRNewsDateForward = activeRNewsDate < today;
+  const previousRNewsDate = addDays(activeRNewsDate, -1);
   const filteredTickers = useMemo(
     () => {
       const searchedTickers = tickers.filter((ticker) => {
@@ -1593,7 +1619,11 @@ export default function CryptiTerminal() {
       new Date(leftPost.createdAt).getTime(),
   );
   const activeSourceModePosts = cryptiPosts.filter(
-    (post) => activeSourceMode && getCryptiPostSourceMode(post) === activeSourceMode,
+    (post) =>
+      activeSourceMode &&
+      getCryptiPostSourceMode(post) === activeSourceMode &&
+      (activeSourceMode !== "R" ||
+        getLosAngelesDateKey(new Date(post.createdAt)) === activeRNewsDateKey),
   ).sort(
     (leftPost, rightPost) =>
       new Date(rightPost.createdAt).getTime() -
@@ -2199,6 +2229,62 @@ export default function CryptiTerminal() {
     setActivePanel("s-buzz");
   }
 
+  function moveRNewsDate(days: number) {
+    setActiveRNewsDate((currentDate) => {
+      const nextDate = addDays(currentDate, days);
+
+      return nextDate > today ? today : nextDate;
+    });
+  }
+
+  function renderRNewsDateNavigator() {
+    return (
+      <aside aria-label="R News date navigator" className="justify-self-start">
+        <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">
+          <div className="flex h-24 flex-col items-center justify-center gap-3">
+            {canMoveRNewsDateForward ? (
+              <button
+                type="button"
+                onClick={() => moveRNewsDate(1)}
+                className="border-2 border-[#1d7f12] px-5 py-2 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                aria-label="Move R News date forward one day"
+              >
+                ^
+              </button>
+            ) : (
+              <span className="text-xs font-black uppercase tracking-[0.3em] text-[#7f9f78]">
+                current
+              </span>
+            )}
+            <span className="h-16 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+              {formatTimelineMonth(activeRNewsDate)}
+            </div>
+            <div className="mt-1 text-6xl font-black leading-none [text-shadow:0_0_14px_#39ff14] sm:text-7xl">
+              {activeRNewsDate.getDate()}
+            </div>
+          </div>
+          <div className="flex h-24 flex-col items-center justify-center gap-3">
+            <span className="h-16 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+              {formatTimelineDate(previousRNewsDate)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => moveRNewsDate(-1)}
+            className="border-2 border-[#1d7f12] px-5 py-2 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            aria-label="Move R News date back one day"
+          >
+            v
+          </button>
+        </div>
+      </aside>
+    );
+  }
+
   function renderCryptiPostCard(
     post: BayPost,
     categoryLabel: string,
@@ -2681,10 +2767,19 @@ export default function CryptiTerminal() {
               ],
             },
             {
+              title: 'how to use "Share Your Secrets"',
+              body: [
+                "🔐 Use Share Your Secrets when the signal is more whisper than article: a classified S Buzz item, a quiet rumor, or something you want shaped as a secret post instead of standard R News or Q Degen.",
+                "🌀 Add a headline, write the secret in the whisper box, then press the spiral to review it. The review screen lets you check the encoded secret before it goes live.",
+                "📡 Submitting files it under S Buzz / Secrets so readers can find it in the secret lane without it pretending to be sourced news.",
+              ],
+            },
+            {
               title: "how to upload a new ticker",
               body: [
                 "🔎 Go to the Tickers tab and use the search box first. If the ticker is not already listed, press add ticker.",
                 "🏷️ Enter the symbol, company or project name, chain / market, type, and a short description. Keep the symbol clean, uppercase, and direct.",
+                "🗂️ OR, declassified shortcut: open LA +Crypti and request: format ticker intake. Copy the finished dossier into ✅💰 and press enter. The money-bag lane will auto-shape it into the ticker post style, so you do not have to enter every field by hand.",
                 "📌 Submit ticker. Once accepted, the ticker becomes part of the Crypti ticker library and counts as a ticker contribution on your profile score.",
               ],
             },
@@ -2696,10 +2791,9 @@ export default function CryptiTerminal() {
                 "🔁 You can switch anon on or off later from My Posts. Use it when you want the article to live away from the automatic profile showcase, not when you need a total identity wipe.",
               ],
             },
-          ].map((section, index) => (
+          ].map((section) => (
             <details
               key={section.title}
-              open={index === 0}
               className="group border border-[#72d7ff] bg-[#020b10] px-4 py-4 shadow-[0_0_14px_rgba(114,215,255,0.14)]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.2em] [&::-webkit-details-marker]:hidden">
@@ -3440,7 +3534,7 @@ export default function CryptiTerminal() {
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-5">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
                       {activeSourceModeOption.label}
@@ -3449,24 +3543,27 @@ export default function CryptiTerminal() {
                       {activeSourceModeOption.description} · {activeSourceModeOption.status}
                     </p>
                   </div>
-                  <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
-                    <span aria-hidden="true">🔑</span>
-                    <input
-                      type="checkbox"
-                      checked={isCategoryGridOpen}
-                      onChange={(event) => {
-                        const isOpen = event.target.checked;
+                  <div className="flex flex-wrap items-start justify-end gap-5">
+                    {activeSourceMode === "R" ? renderRNewsDateNavigator() : null}
+                    <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
+                      <span aria-hidden="true">🔑</span>
+                      <input
+                        type="checkbox"
+                        checked={isCategoryGridOpen}
+                        onChange={(event) => {
+                          const isOpen = event.target.checked;
 
-                        setIsCategoryGridOpen(isOpen);
-                        if (!isOpen) {
-                          setSelectedCryptiCategory("");
-                        }
-                      }}
-                      className="peer sr-only"
-                      aria-label="Toggle Crypti category grid"
-                    />
-                    <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
-                  </label>
+                          setIsCategoryGridOpen(isOpen);
+                          if (!isOpen) {
+                            setSelectedCryptiCategory("");
+                          }
+                        }}
+                        className="peer sr-only"
+                        aria-label="Toggle Crypti category grid"
+                      />
+                      <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
+                    </label>
+                  </div>
                 </div>
 
                 {isCategoryGridOpen ? (
@@ -3512,7 +3609,10 @@ export default function CryptiTerminal() {
                   </div>
                 ) : (
                   <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                    no {activeSourceModeOption.label} posts yet
+                    no {activeSourceModeOption.label} posts
+                    {activeSourceMode === "R"
+                      ? ` for ${formatTimelineDate(activeRNewsDate)}`
+                      : " yet"}
                   </p>
                 )}
               </>

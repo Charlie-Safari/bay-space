@@ -366,16 +366,25 @@ export default function TheoryBoard() {
               <option value="date">Date</option>
             </select>
           </label>
-          <label className="grid w-52 gap-2">
-            <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              search
-            </span>
+          <form
+            onSubmit={(event) => event.preventDefault()}
+            className="flex w-fit flex-wrap items-center gap-3 border-2 border-[#1d7f12] bg-black px-3 py-2 shadow-[0_0_14px_rgba(57,255,20,0.14)]"
+          >
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              placeholder="search"
+              className="w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              aria-label="Search Theories"
             />
-          </label>
+            <button
+              type="submit"
+              className="grid h-10 w-10 place-items-center border border-[#39ff14] text-xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-label="Search Theories"
+            >
+              🌀
+            </button>
+          </form>
           {isLoggedIn ? (
             <label className="grid w-fit gap-2">
               <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
