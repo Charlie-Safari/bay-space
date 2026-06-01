@@ -2653,7 +2653,7 @@ export default function CryptiTerminal() {
               title="LA +Crypti"
             >
               <Image
-                src="/plus-crypti-icon-photo-dupy.png"
+                src="/brand/crypti-green-logo.png"
                 alt=""
                 width={50}
                 height={50}
