@@ -1703,7 +1703,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               title="LA Bay-Space"
             >
               <Image
-                src="/bay-space-logo-icon.png"
+                src="/brand/bay-space-logo.png"
                 alt=""
                 width={32}
                 height={32}
@@ -2931,7 +2931,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       aria-label="Open LA Bay-Space GPT"
                     >
                       <Image
-                        src="/bay-space-logo-icon.png"
+                        src="/brand/bay-space-logo.png"
                         alt=""
                         width={40}
                         height={40}
