@@ -1,12 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import MountainTimeFooter from "./components/mountain-time-footer";
 import { getSiteUrl } from "../lib/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
+  applicationName: "BaySpace",
   title: "bay-space",
   description: "A DOS-inspired bay-space website.",
+  appleWebApp: {
+    capable: true,
+    title: "BaySpace",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "bay-space",
     description: "A DOS-inspired bay-space website.",
@@ -14,6 +23,11 @@ export const metadata: Metadata = {
     siteName: "bay-space",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#020402",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
