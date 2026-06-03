@@ -1,14 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 type CopyPostLinkButtonProps = {
   path: string;
+  shareClickCount?: number;
+  shareCountPath?: string;
   visitCount?: number;
 };
 
 export default function CopyPostLinkButton({
   path,
+  shareClickCount,
+  shareCountPath,
   visitCount,
 }: CopyPostLinkButtonProps) {
+  const [currentShareClickCount, setCurrentShareClickCount] = useState(
+    shareClickCount,
+  );
+
+  useEffect(() => {
+    setCurrentShareClickCount(shareClickCount);
+  }, [shareClickCount]);
+
   async function copyLink() {
     const url = `${window.location.origin}${path}`;
 
@@ -24,6 +38,17 @@ export default function CopyPostLinkButton({
       textArea.select();
       document.execCommand("copy");
       textArea.remove();
+    }
+
+    if (shareCountPath) {
+      fetch(shareCountPath, { method: "POST" })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data: { shareLinkClicks?: number } | null) => {
+          if (typeof data?.shareLinkClicks === "number") {
+            setCurrentShareClickCount(data.shareLinkClicks);
+          }
+        })
+        .catch(() => undefined);
     }
   }
 
@@ -50,7 +75,11 @@ export default function CopyPostLinkButton({
           <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19.07" />
         </svg>
       </button>
-      {typeof visitCount === "number" ? (
+      {typeof currentShareClickCount === "number" ? (
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-[#39ff14]">
+          {currentShareClickCount}
+        </span>
+      ) : typeof visitCount === "number" ? (
         <span className="text-xs font-black uppercase tracking-[0.14em] text-[#39ff14]">
           {visitCount}
         </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChangeEvent,
@@ -55,6 +56,7 @@ type VoteRange = "today" | "all-time";
 type CryptiPanel =
   | "tickers"
   | "smoke"
+  | "signal-room"
   | "r-news"
   | "q-degen"
   | "s-buzz"
@@ -110,7 +112,7 @@ type CryptiPostDraft = {
 
 const lazyAssistantUrl =
   "https://chatgpt.com/g/g-6a12c2df32c88191aa719319e0aa557d-crypti";
-const cryptiLazyEngineLabel = "generic shell GPT";
+const cryptiLazyEngineLabel = "+Crypti / auto route";
 
 const voteOptions: Array<{
   emoji: string;
@@ -808,7 +810,7 @@ export default function CryptiTerminal() {
       ? "crypti-profile"
       : tickerSymbolParam
         ? "tickers"
-        : initialSourcePanel ?? "tickers",
+        : initialSourcePanel ?? "smoke",
   );
   const [isCategoryGridOpen, setIsCategoryGridOpen] = useState(false);
   const [selectedCryptiCategory, setSelectedCryptiCategory] = useState("");
@@ -855,6 +857,8 @@ export default function CryptiTerminal() {
   const [cryptiTicketPostIds, setCryptiTicketPostIds] = useState<string[]>([]);
   const [favoriteSort, setFavoriteSort] =
     useState<CryptiFavoriteSort>("favorite-posts");
+  const [favoriteSearch, setFavoriteSearch] = useState("");
+  const [favoriteSearchInput, setFavoriteSearchInput] = useState("");
   const [smokeSearch, setSmokeSearch] = useState("");
   const [activeRNewsDate, setActiveRNewsDate] = useState(today);
   const [cryptiPostCategory, setCryptiPostCategory] = useState(
@@ -1024,6 +1028,26 @@ export default function CryptiTerminal() {
     setActiveCryptiDraftId(null);
     setCryptiPostMessage("");
     setActivePanel("tickers");
+  }
+
+  function openSignalRoom() {
+    setSelectedCryptiCategory("");
+
+    if (activePanel === "post") {
+      const currentDraft = getCurrentCryptiDraft();
+
+      if (currentDraft) {
+        setMinimizedCryptiDrafts((drafts) => [
+          ...drafts.filter((draft) => draft.id !== currentDraft.id),
+          currentDraft,
+        ]);
+      }
+
+      setActiveCryptiDraftId(null);
+      setCryptiPostMessage("");
+    }
+
+    setActivePanel("signal-room");
   }
 
   function openCryptiPost() {
@@ -1516,6 +1540,15 @@ export default function CryptiTerminal() {
   }, [howToParam]);
 
   useEffect(() => {
+    if (activePanel === "tickers" || !selectedTickerId) {
+      return;
+    }
+
+    setSelectedTickerId("");
+    setTickerDetailNotice("");
+  }, [activePanel, selectedTickerId]);
+
+  useEffect(() => {
     const memberNumber = cryptiProfileMemberNumber || currentMemberNumber;
 
     if (activePanel !== "crypti-profile") {
@@ -1684,6 +1717,7 @@ export default function CryptiTerminal() {
             new Date(leftPost.createdAt).getTime(),
         )
     : rankedSmokePosts;
+  const normalizedFavoriteSearch = favoriteSearch.trim().toLowerCase();
   const favoriteDisplayPosts = [...cryptiPosts]
     .filter((post) => {
       if (favoriteSort === "favorite-authors") {
@@ -1696,6 +1730,11 @@ export default function CryptiTerminal() {
 
       return favoritePostIds.includes(post.id);
     })
+    .filter(
+      (post) =>
+        !normalizedFavoriteSearch ||
+        getCryptiSearchText(post).includes(normalizedFavoriteSearch),
+    )
     .sort((leftPost, rightPost) => {
       if (favoriteSort === "ticket-posts") {
         const ticketDifference =
@@ -1786,8 +1825,12 @@ export default function CryptiTerminal() {
   const profileTickerContributedCount = tickers.filter(
     (ticker) => ticker.submittedBy === activeCryptiProfileMemberNumber,
   ).length;
-  const profileContributedTickers = [...tickers]
-    .filter((ticker) => ticker.submittedBy === activeCryptiProfileMemberNumber)
+  const profileFollowedTickerSymbols =
+    activeCryptiProfileMemberNumber === currentMemberNumber
+      ? followedTickerSymbols
+      : [];
+  const profileFollowedTickers = [...tickers]
+    .filter((ticker) => profileFollowedTickerSymbols.includes(ticker.symbol))
     .sort(
       (leftTicker, rightTicker) =>
         new Date(rightTicker.createdAt).getTime() -
@@ -1847,6 +1890,11 @@ export default function CryptiTerminal() {
   function searchMyPosts(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMyPostsSearch(myPostsSearchInput);
+  }
+
+  function searchFavoritePosts(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFavoriteSearch(favoriteSearchInput);
   }
 
   async function deleteMyCryptiPost(postId: string) {
@@ -2590,113 +2638,106 @@ export default function CryptiTerminal() {
     );
   }
 
+  const isCryptiPostWindowOpen = activePanel === "post";
+  const cryptiTerminalPathLabel: Record<CryptiPanel, string> = {
+    bank: "LA +CRYPTI",
+    "crypti-profile": "+CRYPTI PROFILE",
+    favorites: "FAVORITES",
+    "how-to": "HOW TO",
+    "my-posts": "MY POSTS",
+    post: "NEW POST",
+    "q-degen": "Q DEGEN",
+    "r-news": "R NEWS",
+    secrets: "SHARE YOUR SECRETS",
+    "s-buzz": "S BUZZ",
+    "signal-room": "SIGNAL-ROOM",
+    smoke: "TODAYS SMOKE",
+    tickers: "TICKERS",
+  };
+
   return (
     <div className="grid gap-6">
       <header className="w-full">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-              c:\bay-space\crypti&gt; signal-room
+            <p className="mb-4 flex flex-wrap items-center gap-x-1 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
+              <span>C:\</span>
+              <Link
+                href="/"
+                className="text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                BAY-SPACE
+              </Link>
+              <span>\</span>
+              <button
+                type="button"
+                onClick={openSignalRoom}
+                className="border-0 bg-transparent p-0 text-left uppercase text-[#d7ffd0] [font:inherit] [letter-spacing:inherit] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                +CRYPTI
+              </button>
+              <span>&gt;</span>
+              <span>{cryptiTerminalPathLabel[activePanel]}</span>
             </p>
             <div className="flex flex-wrap items-end gap-5">
-              <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
-                +CRYPTI
+              <h1 className="text-5xl font-black uppercase tracking-[0.2em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
+                <button
+                  type="button"
+                  onClick={openSignalRoom}
+                  className="border-0 bg-transparent p-0 text-left uppercase text-[#d7ffd0] [font:inherit] [letter-spacing:inherit] [text-shadow:inherit] transition hover:text-[#39ff14] hover:[text-shadow:0_0_16px_#39ff14] focus:outline-none focus:text-[#39ff14] focus:ring-2 focus:ring-[#d7ffd0] focus:[text-shadow:0_0_16px_#39ff14] active:text-[#39ff14] active:[text-shadow:0_0_16px_#39ff14]"
+                  aria-label="Open +CRYPTI Signal Room"
+                >
+                  +CRYPTI
+                </button>
               </h1>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCryptiCategory("");
-                  setActivePanel("smoke");
-                }}
-                className={`mb-2 border-2 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                  activePanel === "smoke"
-                    ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
-                    : "border-[#39ff14] bg-black text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.2)] hover:bg-[#39ff14] hover:text-black"
-                }`}
-              >
-                Today&apos;s Smoke
-              </button>
+              {!isCryptiPostWindowOpen ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCryptiCategory("");
+                    setActivePanel("smoke");
+                  }}
+                  className={`mb-2 border-2 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                    activePanel === "smoke"
+                      ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
+                      : "border-[#39ff14] bg-black text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.2)] hover:bg-[#39ff14] hover:text-black"
+                  }`}
+                >
+                  Today&apos;s Smoke
+                </button>
+              ) : null}
             </div>
-          </div>
-          <div className="grid w-fit gap-3">
-            <div className="flex w-fit flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={openCryptiPost}
-                className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                new post
-              </button>
-              <button
-                type="button"
-                onClick={openCryptiBank}
-                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xl font-black leading-none text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                aria-label="Open +Crypti generic shell GPT money-bag lane"
-                title="✅💰 +Crypti - generic shell GPT"
-              >
-                ✅💰
-              </button>
-              <button
-                type="button"
-                onClick={openShareSecrets}
-                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                Share your secrets
-              </button>
-            </div>
-            <a
-              href={lazyAssistantUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-3 py-0 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open LA +Crypti"
-              title="LA +Crypti"
-            >
-              <Image
-                src="/brand/crypti-green-logo.png"
-                alt=""
-                width={50}
-                height={50}
-                className="h-[50px] w-[50px] object-contain"
-              />
-              <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
-                LA +Crypti
-              </span>
-            </a>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-3">
-        {[
-          { id: "tickers", label: "Tickers" },
-          { id: "r-news", label: "R News" },
-          { id: "q-degen", label: "Q Degen" },
-          { id: "s-buzz", label: "S Buzz" },
-          { id: "favorites", label: "Favorites" },
-          { id: "my-posts", label: "My Posts" },
-          { id: "crypti-profile", label: "+CRYPTI - Profile" },
-        ].map((panel) => (
-          <button
-            key={panel.id}
-            type="button"
-            onClick={() => {
-              setSelectedCryptiCategory("");
-              if (panel.id === "crypti-profile") {
-                setCryptiProfileMemberNumber(currentMemberNumber);
-              }
-              setActivePanel(panel.id as CryptiPanel);
-            }}
-            className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-              activePanel === panel.id
-                ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
-                : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-            }`}
-          >
-            {panel.label}
-          </button>
-        ))}
-      </div>
+      {!isCryptiPostWindowOpen ? (
+        <div className="flex flex-wrap gap-3">
+          {[
+            { id: "signal-room", label: "Signal Room" },
+            { id: "tickers", label: "Tickers" },
+            { id: "r-news", label: "R News" },
+            { id: "q-degen", label: "Q Degen" },
+            { id: "s-buzz", label: "S Buzz" },
+          ].map((panel) => (
+            <button
+              key={panel.id}
+              type="button"
+              onClick={() => {
+                setSelectedCryptiCategory("");
+                setActivePanel(panel.id as CryptiPanel);
+              }}
+              className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                activePanel === panel.id
+                  ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
+                  : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+              }`}
+            >
+              {panel.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {minimizedCryptiDrafts.length ? (
         <div className="flex flex-wrap gap-2 border border-dashed border-[#1d7f12] bg-black px-3 py-3">
@@ -2718,6 +2759,96 @@ export default function CryptiTerminal() {
               </button>
             ))}
         </div>
+      ) : null}
+
+      {activePanel === "signal-room" ? (
+        <section className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)] lg:grid-cols-[minmax(12rem,16rem)_1fr]">
+          <div className="order-2 grid content-start gap-3 border border-dashed border-[#1d7f12] bg-[#001100] p-3 lg:order-1">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCryptiCategory("");
+                setCryptiProfileMemberNumber(currentMemberNumber);
+                setActivePanel("crypti-profile");
+              }}
+              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              +CRYPTI - Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCryptiCategory("");
+                setMyPostsOpenLane(null);
+                setActivePanel("my-posts");
+              }}
+              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              My Posts
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCryptiCategory("");
+                setActivePanel("favorites");
+              }}
+              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              Favorites
+            </button>
+            <button
+              type="button"
+              onClick={openCryptiBank}
+              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              LA + CRYPTI ✅💰
+            </button>
+          </div>
+
+          <div className="order-1 grid content-center gap-4 sm:grid-cols-2 lg:order-2">
+            <button
+              type="button"
+              onClick={openCryptiBank}
+              className="min-h-24 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-label="Open Lazy Assistant money-bag lane"
+            >
+              Lazy Assistant ✅💰
+            </button>
+            <a
+              href={lazyAssistantUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-24 items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              aria-label="Open Find A Story"
+              title="Find A Story"
+            >
+              <Image
+                src="/brand/crypti-green-logo.png"
+                alt=""
+                width={50}
+                height={50}
+                className="h-[50px] w-[50px] object-contain"
+              />
+              <span className="text-left text-sm font-black uppercase tracking-[0.18em]">
+                Find A Story
+              </span>
+            </a>
+            <button
+              type="button"
+              onClick={openShareSecrets}
+              className="min-h-24 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              Share Your Secrets
+            </button>
+            <button
+              type="button"
+              onClick={openCryptiPost}
+              className="min-h-24 border-2 border-[#39ff14] bg-[#031403] px-5 py-4 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              New Post
+            </button>
+          </div>
+        </section>
       ) : null}
 
       {activePanel === "how-to" ? (
@@ -2820,7 +2951,7 @@ export default function CryptiTerminal() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                +CRYPTI POST BUILDER
+                LA +CRYPTI
               </p>
               <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
                 ✅💰 +Crypti engine: {cryptiLazyEngineLabel}
@@ -2830,7 +2961,7 @@ export default function CryptiTerminal() {
               type="button"
               onClick={() => {
                 resetCryptiBank();
-                setActivePanel("tickers");
+                setActivePanel("signal-room");
               }}
               aria-label="Close Crypti post builder"
               className="border border-[#ff3b3b] px-2 py-1 text-xs font-black uppercase text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
@@ -2960,7 +3091,7 @@ export default function CryptiTerminal() {
             <div className="grid gap-4">
               <label className="grid gap-2">
                 <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                  draft context
+                  Paste draft. Press ✅💰 or hit Enter; wait for preview 😎𝌗
                 </span>
                 <textarea
                   value={cryptiBankInput}
@@ -2979,7 +3110,7 @@ export default function CryptiTerminal() {
                     type="button"
                     onClick={submitCryptiBank}
                     className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Build +Crypti post from generic shell GPT draft context"
+                    aria-label="Build +Crypti post from pasted draft"
                   >
                     ✅💰
                   </button>
@@ -3402,9 +3533,25 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activeSourceMode && activeSourceModeOption ? (
-        <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#1d7f12] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <div
+          className={
+            activeSourceMode === "R" && !selectedCryptiCategory
+              ? "grid gap-4 lg:grid-cols-[auto_1fr] lg:items-start"
+              : ""
+          }
+        >
+          {activeSourceMode === "R" && !selectedCryptiCategory
+            ? renderRNewsDateNavigator()
+            : null}
+          <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#1d7f12] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
           <div className="daily-food-categories-grid" aria-hidden="true" />
-          <div className="relative z-10 grid gap-4">
+          <div
+            className={`relative z-10 grid ${
+              activeSourceMode === "R" && !isCategoryGridOpen
+                ? "gap-3"
+                : "gap-4"
+            }`}
+          >
             {isCategoryGridOpen && selectedCryptiCategory ? (
               <div className="grid gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3539,12 +3686,13 @@ export default function CryptiTerminal() {
                     <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
                       {activeSourceModeOption.label}
                     </p>
-                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-                      {activeSourceModeOption.description} · {activeSourceModeOption.status}
-                    </p>
+                    {activeSourceMode === "R" ? null : (
+                      <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                        {activeSourceModeOption.description} · {activeSourceModeOption.status}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-start justify-end gap-5">
-                    {activeSourceMode === "R" ? renderRNewsDateNavigator() : null}
                     <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
                       <span aria-hidden="true">🔑</span>
                       <input
@@ -3618,6 +3766,7 @@ export default function CryptiTerminal() {
               </>
             )}
           </div>
+          </div>
         </div>
       ) : null}
 
@@ -3668,22 +3817,56 @@ export default function CryptiTerminal() {
 
       {activePanel === "favorites" ? (
         <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
-          <label className="grid w-fit gap-2">
-            <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              sort
-            </span>
-            <select
-              value={favoriteSort}
-              onChange={(event) =>
-                setFavoriteSort(event.target.value as CryptiFavoriteSort)
-              }
-              className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-            >
-              <option value="favorite-posts">Favorite posts</option>
-              <option value="favorite-authors">Favorite authors</option>
-              <option value="ticket-posts">Ticket posts</option>
-            </select>
-          </label>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <label className="grid w-fit gap-2">
+              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+                sort
+              </span>
+              <select
+                value={favoriteSort}
+                onChange={(event) =>
+                  setFavoriteSort(event.target.value as CryptiFavoriteSort)
+                }
+                className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+              >
+                <option value="favorite-posts">Favorite posts</option>
+                <option value="favorite-authors">Favorite authors</option>
+                <option value="ticket-posts">Ticket posts</option>
+              </select>
+            </label>
+            <div className="flex min-w-60 max-w-full items-center gap-2">
+              <form
+                onSubmit={searchFavoritePosts}
+                className="flex min-w-0 flex-1 items-center border border-[#1d7f12] bg-[#001100] focus-within:ring-2 focus-within:ring-[#39ff14]"
+              >
+                <span
+                  className="grid size-10 place-items-center text-lg text-[#39ff14]"
+                  aria-hidden="true"
+                >
+                  🌀
+                </span>
+                <input
+                  value={favoriteSearchInput}
+                  onChange={(event) => setFavoriteSearchInput(event.target.value)}
+                  className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:text-[#7f9f78]"
+                  placeholder="search"
+                  aria-label="Search favorite Crypti posts"
+                />
+              </form>
+              <button
+                type="button"
+                onClick={openSignalRoom}
+                className="min-h-10 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                back
+              </button>
+            </div>
+          </div>
+          {favoriteSearch ? (
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+              search: {favoriteSearch}
+            </p>
+          ) : null}
           {favoriteDisplayPosts.length ? (
             <div className="grid gap-3">
               {favoriteDisplayPosts.map((post) =>
@@ -3722,13 +3905,35 @@ export default function CryptiTerminal() {
               ) : null}
             </div>
             {myPostsOpenLane ? (
-              <button
-                type="button"
-                onClick={() => setMyPostsOpenLane(null)}
-                className="border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                back
-              </button>
+              <div className="flex min-w-60 max-w-full items-center gap-2">
+                <form
+                  onSubmit={searchMyPosts}
+                  className="flex min-w-0 flex-1 items-center border border-[#1d7f12] bg-[#001100] focus-within:ring-2 focus-within:ring-[#39ff14]"
+                >
+                  <span
+                    className="grid size-10 place-items-center text-lg text-[#39ff14]"
+                    aria-hidden="true"
+                  >
+                    🌀
+                  </span>
+                  <input
+                    value={myPostsSearchInput}
+                    onChange={(event) =>
+                      setMyPostsSearchInput(event.target.value)
+                    }
+                    className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:text-[#7f9f78]"
+                    placeholder="search"
+                    aria-label="Search my Crypti posts"
+                  />
+                </form>
+                <button
+                  type="button"
+                  onClick={openSignalRoom}
+                  className="min-h-10 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  back
+                </button>
+              </div>
             ) : (
               <form
                 onSubmit={searchMyPosts}
@@ -3922,7 +4127,7 @@ export default function CryptiTerminal() {
             </h2>
           </div>
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
+          <div className="grid items-start gap-4 lg:grid-cols-3">
             <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
                 <span>ID</span>
@@ -3970,7 +4175,7 @@ export default function CryptiTerminal() {
                   ],
                   ["TOTAL TICKETS RECEIVED", profileTotalTicketCount],
                   ["Total # of posts", profileScoredPosts.length],
-                  ["Total tickers contributed", profileTickerContributedCount],
+                  ["TOTAL TICKERS FOLLOWING", profileFollowedTickers.length],
                 ].map(([metric, count]) => (
                   <div
                     key={metric}
@@ -3986,14 +4191,28 @@ export default function CryptiTerminal() {
                 ))}
               </div>
             </details>
+            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+                <span>Circles</span>
+                <span
+                  aria-hidden="true"
+                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+                >
+                  ▾
+                </span>
+              </summary>
+              <p className="mt-5 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                coming soon
+              </p>
+            </details>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-4">
             <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                Tickers
+                Tickers Following
               </h3>
-              {renderCryptiProfileTickerList(profileContributedTickers)}
+              {renderCryptiProfileTickerList(profileFollowedTickers)}
             </section>
             <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
               <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
@@ -4087,7 +4306,7 @@ export default function CryptiTerminal() {
             add ticker
           </button>
           <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#7f9f78]">
-            no duplicate tickers
+            no duplicate tickers - don&apos;t forget to vote
           </p>
         </div>
 

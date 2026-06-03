@@ -11,6 +11,7 @@ import TicketVoteButton, {
 import {
   formatPointTenths,
   getPostPointTenths,
+  getPostShareLinkClickCount,
   getPostVisitCount,
 } from "../../../lib/bay-space-scoring";
 import { countFavoritePosts } from "../../components/favorite-store";
@@ -464,7 +465,8 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
         />
         <CopyPostLinkButton
           path={`/crypti/post?id=${post.id}`}
-          visitCount={getPostVisitCount(post)}
+          shareClickCount={getPostShareLinkClickCount(post)}
+          shareCountPath={`/api/posts/${encodeURIComponent(post.id)}/share-link`}
         />
       </div>
       <div className="mt-5 grid justify-items-end gap-3">

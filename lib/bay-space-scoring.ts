@@ -26,6 +26,12 @@ export function getPostVisitCount(post: Pick<BayPost, "meta"> | null) {
   return getPositiveInteger(post?.meta?.postVisits);
 }
 
+export function getPostShareLinkClickCount(
+  post: Pick<BayPost, "meta"> | null,
+) {
+  return getPositiveInteger(post?.meta?.shareLinkClicks);
+}
+
 export function getPostFavoriteCount(
   postId: string,
   favoriteCounts: Record<string, number>,
