@@ -1760,7 +1760,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           }`}
         >
         {isPostOpen && activePanel === "post" ? null : (
-        <aside className="border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+        <aside className="order-2 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] md:order-1">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
           </p>
@@ -1850,7 +1850,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         )}
         <section
           className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
-            isPostOpen && activePanel === "post" ? "order-1" : ""
+            isPostOpen && activePanel === "post" ? "order-1" : "order-1 md:order-2"
           }`}
         >
           {activePanel === "post" && isPostOpen ? (

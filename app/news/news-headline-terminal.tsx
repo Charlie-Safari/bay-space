@@ -14,9 +14,12 @@ import {
   countFavoritePosts,
   favoriteStoreEvent,
 } from "../components/favorite-store";
+import {
+  formatPointTenths,
+  getBaySpacePostPointTenths,
+} from "../../lib/bay-space-scoring";
 
 type TotalPointsWindow = "today" | "week" | "all";
-const ticketVoteWeight = 50;
 
 function addDays(date: Date, days: number) {
   const nextDate = new Date(date);
@@ -32,14 +35,11 @@ function formatDateLine(date: Date) {
   }).format(date);
 }
 
-function getTicketVoteCount(post: BayPost) {
-  const count = Number(post.meta?.ticketVotes ?? 0);
-
-  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
-}
-
-function getTopStoryScore(post: BayPost, favoriteCounts: Record<string, number>) {
-  return (favoriteCounts[post.id] ?? 0) + getTicketVoteCount(post) * ticketVoteWeight;
+function getTopStoryScoreTenths(
+  post: BayPost,
+  favoriteCounts: Record<string, number>,
+) {
+  return getBaySpacePostPointTenths(post, favoriteCounts);
 }
 
 export default function NewsHeadlineTerminal() {
@@ -64,8 +64,8 @@ export default function NewsHeadlineTerminal() {
 
     return [...windowedPosts].sort((leftPost, rightPost) => {
       const scoreDifference =
-        getTopStoryScore(rightPost, favoriteCounts) -
-        getTopStoryScore(leftPost, favoriteCounts);
+        getTopStoryScoreTenths(rightPost, favoriteCounts) -
+        getTopStoryScoreTenths(leftPost, favoriteCounts);
 
       if (scoreDifference !== 0) {
         return scoreDifference;
@@ -137,7 +137,9 @@ export default function NewsHeadlineTerminal() {
           <span className="block text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
             {activePost
               ? `${formatDateLine(new Date(activePost.createdAt))} - ${
-                  getTopStoryScore(activePost, favoriteCounts)
+                  formatPointTenths(
+                    getTopStoryScoreTenths(activePost, favoriteCounts),
+                  )
                 } priority`
               : "total points waiting"}
           </span>
@@ -169,7 +171,7 @@ export default function NewsHeadlineTerminal() {
               {post.title}
             </span>
             <span className="text-sm font-black text-[#39ff14]">
-              {getTopStoryScore(post, favoriteCounts)} pts
+              {formatPointTenths(getTopStoryScoreTenths(post, favoriteCounts))} pts
             </span>
           </Link>
         ))}
