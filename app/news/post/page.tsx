@@ -24,13 +24,13 @@ export default async function TopStoryPostPage({
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           top story
         </h1>
-        <TopStoryPost postId={id} />
         <Link
           href="/news"
-          className="mt-8 w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          className="mb-8 mt-6 w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
         >
           back to banner
         </Link>
+        <TopStoryPost postId={id} />
       </section>
     </main>
   );

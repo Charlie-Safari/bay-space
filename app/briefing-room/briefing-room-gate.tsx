@@ -1687,11 +1687,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               <button
                 type="button"
                 onClick={openLazyBank}
-                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-5 py-3 text-xl font-black leading-none text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                aria-label="Open BaySpace Thiago money-bag lane"
-                title="✅💰 Bay-Space - Thiago"
+                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black uppercase leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5"
+                aria-label="Open Lazy Assistant money-bag lane"
+                title="Lazy Assistant ✅💰"
               >
-                ✅💰
+                Lazy Assistant ✅💰
               </button>
             ) : null}
             <a
@@ -1699,8 +1699,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-[52px] items-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open LA Bay-Space"
-              title="LA Bay-Space"
+              aria-label="Open Find A Story"
+              title="Find A Story"
             >
               <Image
                 src="/brand/bay-space-logo.png"
@@ -1710,7 +1710,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 className="h-8 w-8 object-contain"
               />
               <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
-                LA Bay-Space
+                Find A Story
               </span>
             </a>
           </div>
@@ -2846,9 +2846,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     </button>
                   </div>
                   <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
-                    Paste a Daily Food or Theories draft. Thiago routes it from
-                    the post type, category label, and required fields before
-                    loading preview.
+                    Paste draft. Press ✅💰 or hit Enter; Thiago does the rest 😎𝌗
                   </p>
                   <textarea
                     aria-label="BaySpace Thiago money-bag intake"

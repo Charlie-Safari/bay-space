@@ -15,7 +15,7 @@ import {
   favoriteStoreEvent,
 } from "../components/favorite-store";
 
-type DiamondWindow = "today" | "week" | "all";
+type TotalPointsWindow = "today" | "week" | "all";
 const ticketVoteWeight = 50;
 
 function addDays(date: Date, days: number) {
@@ -45,17 +45,17 @@ function getTopStoryScore(post: BayPost, favoriteCounts: Record<string, number>)
 export default function NewsHeadlineTerminal() {
   const todayKey = useMemo(() => getDateKey(), []);
   const weekStartKey = useMemo(() => getDateKey(addDays(new Date(), -6)), []);
-  const [diamondWindow, setDiamondWindow] =
-    useState<DiamondWindow>("today");
+  const [totalPointsWindow, setTotalPointsWindow] =
+    useState<TotalPointsWindow>("all");
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [favoriteCounts, setFavoriteCounts] = useState<Record<string, number>>({});
   const rankedPosts = useMemo(() => {
     const windowedPosts = posts.filter((post) => {
-      if (diamondWindow === "today") {
+      if (totalPointsWindow === "today") {
         return post.dateKey === todayKey;
       }
 
-      if (diamondWindow === "week") {
+      if (totalPointsWindow === "week") {
         return post.dateKey >= weekStartKey;
       }
 
@@ -76,7 +76,7 @@ export default function NewsHeadlineTerminal() {
         new Date(leftPost.createdAt).getTime()
       );
     });
-  }, [diamondWindow, favoriteCounts, posts, todayKey, weekStartKey]);
+  }, [favoriteCounts, posts, todayKey, totalPointsWindow, weekStartKey]);
   const activePost = rankedPosts[0] ?? null;
 
   useEffect(() => {
@@ -115,18 +115,18 @@ export default function NewsHeadlineTerminal() {
     <div className="grid w-full max-w-5xl gap-6">
       <label className="grid w-fit gap-2 justify-self-end">
         <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-          diamonds <span className="text-[#39ff14]">◆</span>
+          total points
         </span>
         <select
-          value={diamondWindow}
+          value={totalPointsWindow}
           onChange={(event) =>
-            setDiamondWindow(event.target.value as DiamondWindow)
+            setTotalPointsWindow(event.target.value as TotalPointsWindow)
           }
           className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
         >
+          <option value="all">All Time</option>
           <option value="today">today</option>
           <option value="week">this week</option>
-          <option value="all">all time</option>
         </select>
       </label>
       <Link
@@ -139,7 +139,7 @@ export default function NewsHeadlineTerminal() {
               ? `${formatDateLine(new Date(activePost.createdAt))} - ${
                   getTopStoryScore(activePost, favoriteCounts)
                 } priority`
-              : "diamond ranking waiting"}
+              : "total points waiting"}
           </span>
           <span className="mt-4 block overflow-hidden text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14] sm:text-4xl">
             <span className="top-story-banner-track">

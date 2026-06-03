@@ -261,6 +261,10 @@ function getPostVisitCount(post: PostRow) {
   return getPositiveInteger(post.meta?.postVisits);
 }
 
+function getPostShareLinkClickCount(post: PostRow) {
+  return getPositiveInteger(post.meta?.shareLinkClicks);
+}
+
 function normalizePublicLink(link?: PublicLink) {
   return {
     url: link?.url.trim().slice(0, 240) ?? "",
@@ -1293,6 +1297,44 @@ export async function incrementPostVisitCount(postId: string) {
   return {
     post: publicPost(updatedPosts[0]),
     postVisits,
+  };
+}
+
+export async function incrementPostShareLinkClickCount(postId: string) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const post = posts[0];
+
+  if (!post) {
+    return null;
+  }
+
+  const shareLinkClicks = getPostShareLinkClickCount(post) + 1;
+  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      meta: {
+        ...(post.meta ?? {}),
+        shareLinkClicks: String(shareLinkClicks),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+
+  return {
+    post: publicPost(updatedPosts[0]),
+    shareLinkClicks,
   };
 }
 

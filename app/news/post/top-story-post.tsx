@@ -9,6 +9,7 @@ import { isBayoClub } from "../../../lib/bay-space-roles";
 import {
   formatPointTenths,
   getPostPointTenths,
+  getPostShareLinkClickCount,
   getPostVisitCount,
 } from "../../../lib/bay-space-scoring";
 import { countFavoritePosts } from "../../components/favorite-store";
@@ -182,7 +183,8 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
       <div className="mt-3">
         <CopyPostLinkButton
           path={`/news/post?id=${post.id}`}
-          visitCount={getPostVisitCount(post)}
+          shareClickCount={getPostShareLinkClickCount(post)}
+          shareCountPath={`/api/posts/${encodeURIComponent(post.id)}/share-link`}
         />
       </div>
     </article>
