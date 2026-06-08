@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type CopyPostLinkButtonProps = {
   path: string;
@@ -15,13 +15,15 @@ export default function CopyPostLinkButton({
   shareCountPath,
   visitCount,
 }: CopyPostLinkButtonProps) {
-  const [currentShareClickCount, setCurrentShareClickCount] = useState(
-    shareClickCount,
-  );
-
-  useEffect(() => {
-    setCurrentShareClickCount(shareClickCount);
-  }, [shareClickCount]);
+  const [shareClickCountOverride, setShareClickCountOverride] = useState<{
+    count: number;
+    path: string;
+  } | null>(null);
+  const shareOverride = shareClickCountOverride;
+  const currentShareClickCount =
+    shareOverride && shareOverride.path === shareCountPath
+      ? shareOverride.count
+      : shareClickCount;
 
   async function copyLink() {
     const url = `${window.location.origin}${path}`;
@@ -45,7 +47,10 @@ export default function CopyPostLinkButton({
         .then((response) => (response.ok ? response.json() : null))
         .then((data: { shareLinkClicks?: number } | null) => {
           if (typeof data?.shareLinkClicks === "number") {
-            setCurrentShareClickCount(data.shareLinkClicks);
+            setShareClickCountOverride({
+              count: data.shareLinkClicks,
+              path: shareCountPath,
+            });
           }
         })
         .catch(() => undefined);

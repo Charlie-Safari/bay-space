@@ -1512,8 +1512,12 @@ export default function CryptiTerminal() {
       return;
     }
 
-    setSelectedTickerId("");
-    setTickerDetailNotice("");
+    const frameId = window.requestAnimationFrame(() => {
+      setSelectedTickerId("");
+      setTickerDetailNotice("");
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
   }, [activePanel, selectedTickerId]);
 
   useEffect(() => {
@@ -4176,185 +4180,189 @@ export default function CryptiTerminal() {
 
       {activePanel === "tickers" ? (
       <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <form onSubmit={searchTickers} className="grid min-w-64 flex-1 gap-2">
-            <label
-              htmlFor="crypti-search"
-              className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]"
-            >
-              ticker search
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="crypti-search"
-                value={search}
-                onChange={(event) => {
-                  const nextSearch = normalizeCryptiSymbol(event.target.value);
-                  setSearch(nextSearch);
-                  setMessage("");
-                  void loadTickers(nextSearch);
-                }}
-                className="min-h-11 flex-1 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-lg font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                placeholder=""
-              />
-              <button
-                type="submit"
-                className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                search
-              </button>
-            </div>
-          </form>
+        {!selectedTicker ? (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <form onSubmit={searchTickers} className="grid min-w-64 flex-1 gap-2">
+                <label
+                  htmlFor="crypti-search"
+                  className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]"
+                >
+                  ticker search
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="crypti-search"
+                    value={search}
+                    onChange={(event) => {
+                      const nextSearch = normalizeCryptiSymbol(event.target.value);
+                      setSearch(nextSearch);
+                      setMessage("");
+                      void loadTickers(nextSearch);
+                    }}
+                    className="min-h-11 flex-1 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-lg font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    placeholder=""
+                  />
+                  <button
+                    type="submit"
+                    className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    search
+                  </button>
+                </div>
+              </form>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { id: "today", label: "Today" },
-              { id: "all-time", label: "All Time" },
-            ].map((range) => (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: "today", label: "Today" },
+                  { id: "all-time", label: "All Time" },
+                ].map((range) => (
+                  <button
+                    key={range.id}
+                    type="button"
+                    onClick={() => setVoteRange(range.id as VoteRange)}
+                    className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                      voteRange === range.id
+                        ? "border-[#39ff14] bg-[#39ff14] text-black"
+                        : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14]"
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                key={range.id}
                 type="button"
-                onClick={() => setVoteRange(range.id as VoteRange)}
-                className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                  voteRange === range.id
+                onClick={() => {
+                  setIsAddTickerOpen((currentValue) => !currentValue);
+                  setDraftSymbol(normalizedSearch);
+                  setMessage("");
+                }}
+                className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                  isAddTickerOpen
                     ? "border-[#39ff14] bg-[#39ff14] text-black"
-                    : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14]"
+                    : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
                 }`}
               >
-                {range.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setIsAddTickerOpen((currentValue) => !currentValue);
-              setDraftSymbol(normalizedSearch);
-              setMessage("");
-            }}
-            className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-              isAddTickerOpen
-                ? "border-[#39ff14] bg-[#39ff14] text-black"
-                : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-            }`}
-          >
-            add ticker
-          </button>
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#7f9f78]">
-            no duplicate tickers - don&apos;t forget to vote
-          </p>
-        </div>
-
-        {isAddTickerOpen ? (
-          <form
-            onSubmit={submitTicker}
-            className="relative grid gap-3 border border-[#1d7f12] bg-[#001100] p-4"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
                 add ticker
-              </p>
-              <button
-                type="button"
-                onClick={closeAddTicker}
-                aria-label="Close add ticker"
-                className="border border-[#ff3b3b] px-2 py-1 text-xs font-black uppercase text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
-              >
-                x
               </button>
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#7f9f78]">
+                no duplicate tickers - don&apos;t forget to vote
+              </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  ticker
-                </span>
+
+            {isAddTickerOpen ? (
+              <form
+                onSubmit={submitTicker}
+                className="relative grid gap-3 border border-[#1d7f12] bg-[#001100] p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    add ticker
+                  </p>
+                  <button
+                    type="button"
+                    onClick={closeAddTicker}
+                    aria-label="Close add ticker"
+                    className="border border-[#ff3b3b] px-2 py-1 text-xs font-black uppercase text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
+                  >
+                    x
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      ticker
+                    </span>
+                    <input
+                      value={draftSymbol}
+                      onChange={(event) => {
+                        setDraftSymbol(normalizeCryptiSymbol(event.target.value));
+                        setMessage("");
+                      }}
+                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      company
+                    </span>
+                    <input
+                      value={draftCompany}
+                      onChange={(event) =>
+                        setDraftCompany(event.target.value.slice(0, 120))
+                      }
+                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      chain / market
+                    </span>
+                    <input
+                      value={draftChainMarket}
+                      onChange={(event) =>
+                        setDraftChainMarket(event.target.value.slice(0, 80))
+                      }
+                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      type
+                    </span>
+                    <select
+                      value={draftAssetType}
+                      onChange={(event) => setDraftAssetType(event.target.value)}
+                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    >
+                      {tickerTypes.map((tickerType) => (
+                        <option key={tickerType} value={tickerType}>
+                          {tickerType}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <input
-                  value={draftSymbol}
-                  onChange={(event) => {
-                    setDraftSymbol(normalizeCryptiSymbol(event.target.value));
-                    setMessage("");
-                  }}
-                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  value={draftNote}
+                  onChange={(event) => setDraftNote(event.target.value.slice(0, 240))}
+                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  placeholder="description"
                 />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  company
-                </span>
-                <input
-                  value={draftCompany}
-                  onChange={(event) =>
-                    setDraftCompany(event.target.value.slice(0, 120))
-                  }
-                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  chain / market
-                </span>
-                <input
-                  value={draftChainMarket}
-                  onChange={(event) =>
-                    setDraftChainMarket(event.target.value.slice(0, 80))
-                  }
-                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  type
-                </span>
-                <select
-                  value={draftAssetType}
-                  onChange={(event) => setDraftAssetType(event.target.value)}
-                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                >
-                  {tickerTypes.map((tickerType) => (
-                    <option key={tickerType} value={tickerType}>
-                      {tickerType}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <input
-              value={draftNote}
-              onChange={(event) => setDraftNote(event.target.value.slice(0, 240))}
-              className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-              placeholder="description"
-            />
-            {normalizedDraftSymbol && draftTickerExists ? (
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                {normalizedDraftSymbol} already exists
+                {normalizedDraftSymbol && draftTickerExists ? (
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    {normalizedDraftSymbol} already exists
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={!normalizedDraftSymbol || draftTickerExists}
+                    className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+                  >
+                    submit ticker
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeAddTicker}
+                    className="w-fit border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
+                  >
+                    never mind
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {message ? (
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                {message}
               </p>
             ) : null}
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={!normalizedDraftSymbol || draftTickerExists}
-                className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
-              >
-                submit ticker
-              </button>
-              <button
-                type="button"
-                onClick={closeAddTicker}
-                className="w-fit border border-[#ff3b3b] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#ff3b3b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ffb3b3]"
-              >
-                never mind
-              </button>
-            </div>
-          </form>
-        ) : null}
-
-        {message ? (
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
-            {message}
-          </p>
+          </>
         ) : null}
 
         {isLoading ? (
@@ -4471,6 +4479,7 @@ export default function CryptiTerminal() {
                 <article
                   key={ticker.id}
                   onClick={() => {
+                    setIsAddTickerOpen(false);
                     setSelectedTickerId(ticker.id);
                     setTickerDetailNotice("");
                   }}

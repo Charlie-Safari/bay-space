@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import TicketVoteButton from "../components/ticket-vote-button";
+import TerminalLoadingShell from "../components/terminal-loading-shell";
 import {
   BayPost,
   getBayPostsByCategory,
@@ -140,6 +141,7 @@ export default function DfHeadlineTerminal({
   const hasSetLoggedInRevealDefault = useRef(false);
   const [activeDate, setActiveDate] = useState(today);
   const [posts, setPosts] = useState<BayPost[]>([]);
+  const [hasSyncedPosts, setHasSyncedPosts] = useState(false);
   const [members, setMembers] = useState<SavedMember[]>([]);
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
   const [favoritePostCounts, setFavoritePostCounts] = useState<
@@ -207,7 +209,10 @@ export default function DfHeadlineTerminal({
 
   useEffect(() => {
     function syncPosts() {
-      getBayPostsByCategory("daily-food").then(setPosts);
+      getBayPostsByCategory("daily-food").then((nextPosts) => {
+        setPosts(nextPosts);
+        setHasSyncedPosts(true);
+      });
     }
 
     async function syncLogin() {
@@ -698,7 +703,12 @@ export default function DfHeadlineTerminal({
             </div>
           </div>
         ) : null}
-        {displayedPost ? (
+        {!hasSyncedPosts ? (
+          <TerminalLoadingShell
+            label="c:\\bay-space\\daily-food> syncing-feed"
+            title="daily food"
+          />
+        ) : displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
             <div className="absolute right-4 top-3 flex items-center gap-3">
               <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">

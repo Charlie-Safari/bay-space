@@ -12,7 +12,6 @@ import {
   formatPointTenths,
   getPostPointTenths,
   getPostShareLinkClickCount,
-  getPostVisitCount,
 } from "../../../lib/bay-space-scoring";
 import { countFavoritePosts } from "../../components/favorite-store";
 import { claimPostVisit } from "../../components/post-visit-client";
