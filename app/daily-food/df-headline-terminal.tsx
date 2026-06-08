@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import CodeAccessDock from "../components/code-access-dock";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
 import TicketVoteButton from "../components/ticket-vote-button";
-import DosCodeBox from "../components/dos-code-box";
 import {
   BayPost,
   getBayPostsByCategory,
@@ -167,7 +165,7 @@ export default function DfHeadlineTerminal({
     ? posts.find(
         (post) =>
           post.incognito &&
-          post.shelfCode?.toLowerCase() === normalizedReferenceQuery,
+          normalizeLookupText(post.shelfCode ?? "") === normalizedReferenceQuery,
       ) ?? null
     : null;
   const matchedReferenceMember = normalizedReferenceQuery
@@ -922,7 +920,7 @@ export default function DfHeadlineTerminal({
                     className="block w-full origin-left text-left transition duration-150 group-hover:scale-[1.015] group-hover:bg-[#031403] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
                     <span
-                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-right text-xl font-black uppercase tracking-[0.12em] transition ${
+                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-right text-base font-black uppercase leading-6 tracking-[0.12em] transition sm:text-xl sm:leading-7 ${
                         isPostRevealed(post)
                           ? "daily-food-headline-revealed"
                           : ""
@@ -1036,19 +1034,6 @@ export default function DfHeadlineTerminal({
           </button>
         </div>
       </aside>
-
-      <CodeAccessDock>
-        {(mode) => (
-          <DosCodeBox
-            ariaLabel={`Activate ${mode} Daily Food code`}
-            autoFocus
-            id={`daily-food-${mode}-code`}
-            label={mode === "rc" ? "RC code" : "classified code"}
-            maxLength={7}
-            onSubmitCode={() => undefined}
-          />
-        )}
-      </CodeAccessDock>
     </div>
   );
 }

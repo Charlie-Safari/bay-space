@@ -242,7 +242,7 @@ body {
   display: block;
   width: max-content;
   max-width: none;
-  animation: headline-drift 8s linear infinite;
+  animation: headline-drift 18s linear infinite;
   will-change: transform;
 }
 
@@ -275,6 +275,31 @@ body {
 .daily-food-card:hover .daily-food-date-redacted::after,
 .daily-food-date-redacted.daily-food-headline-revealed::after {
   transform: translateX(-100%);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .daily-food-headline-scroll {
+    white-space: normal;
+  }
+
+  .daily-food-headline-static {
+    display: block;
+    overflow: visible;
+    text-align: left;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .daily-food-card:hover .daily-food-headline-static {
+    display: block;
+  }
+
+  .daily-food-card:hover .daily-food-headline-marquee,
+  .daily-food-headline-marquee {
+    display: none;
+  }
 }
 
 .daily-food-categories-overlay {
