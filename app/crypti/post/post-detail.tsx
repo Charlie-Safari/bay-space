@@ -348,7 +348,7 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
         </Link>
       </div>
       <article className="mt-10 max-w-3xl border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
           {new Date(post.createdAt).toLocaleDateString("en-US", {
             month: "short",
@@ -356,9 +356,29 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
             year: "numeric",
           })}
         </p>
-        <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-          {postPoints} pts
-        </p>
+        <div className="flex items-center gap-4">
+          <FavoriteButton
+            onCountChange={(count) =>
+              setFavoritePostCounts((counts) => ({
+                ...counts,
+                [post.id]: count,
+              }))
+            }
+            postId={post.id}
+          />
+          <TicketVoteButton
+            availabilityPath="/api/crypti/ticket-vote"
+            initialCount={getCryptiTicketVoteCount(post)}
+            isActive={cryptiTicketPostIds.includes(post.id)}
+            onCountChange={updateCryptiTicketState}
+            postId={post.id}
+            votePath={`/api/posts/${post.id}/crypti-ticket`}
+            {...cryptiTicketVoteButtonDefaults}
+          />
+          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+            {postPoints} pts
+          </p>
+        </div>
       </div>
       {post.author !== "unknown" && (authorDisplayName || post.author) ? (
         <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
@@ -445,24 +465,6 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
         </section>
       ) : null}
       <div className="mt-5 flex flex-wrap items-center gap-4">
-        <FavoriteButton
-          onCountChange={(count) =>
-            setFavoritePostCounts((counts) => ({
-              ...counts,
-              [post.id]: count,
-            }))
-          }
-          postId={post.id}
-        />
-        <TicketVoteButton
-          availabilityPath="/api/crypti/ticket-vote"
-          initialCount={getCryptiTicketVoteCount(post)}
-          isActive={cryptiTicketPostIds.includes(post.id)}
-          onCountChange={updateCryptiTicketState}
-          postId={post.id}
-          votePath={`/api/posts/${post.id}/crypti-ticket`}
-          {...cryptiTicketVoteButtonDefaults}
-        />
         <CopyPostLinkButton
           path={`/crypti/post?id=${post.id}`}
           shareClickCount={getPostShareLinkClickCount(post)}

@@ -31,13 +31,6 @@ import {
   postStoreEvent,
   saveBayPost,
 } from "../components/post-store";
-import FavoriteButton from "../components/favorite-button";
-import TicketVoteButton, {
-  cryptiTicketVoteButtonDefaults,
-} from "../components/ticket-vote-button";
-import {
-  ticketVoteStoreEvent,
-} from "../components/ticket-vote-store";
 import {
   countFavoritePosts,
   favoriteStoreEvent,
@@ -857,7 +850,6 @@ export default function CryptiTerminal() {
     Record<string, number>
   >({});
   const [favoritePostIds, setFavoritePostIds] = useState<string[]>([]);
-  const [cryptiTicketPostIds, setCryptiTicketPostIds] = useState<string[]>([]);
   const [favoriteSort, setFavoriteSort] =
     useState<CryptiFavoriteSort>("favorite-posts");
   const [favoriteSearch, setFavoriteSearch] = useState("");
@@ -1503,33 +1495,6 @@ export default function CryptiTerminal() {
   }, [cryptiPosts]);
 
   useEffect(() => {
-    async function syncCryptiTickets() {
-      const response = await fetch("/api/crypti/ticket-vote", {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        setCryptiTicketPostIds([]);
-        return;
-      }
-
-      const data = (await response.json()) as { postIds?: string[] };
-      setCryptiTicketPostIds(data.postIds ?? []);
-    }
-
-    syncCryptiTickets();
-    window.addEventListener("storage", syncCryptiTickets);
-    window.addEventListener("bay-space-auth", syncCryptiTickets);
-    window.addEventListener(ticketVoteStoreEvent, syncCryptiTickets);
-
-    return () => {
-      window.removeEventListener("storage", syncCryptiTickets);
-      window.removeEventListener("bay-space-auth", syncCryptiTickets);
-      window.removeEventListener(ticketVoteStoreEvent, syncCryptiTickets);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!howToParam) {
       return;
     }
@@ -2103,31 +2068,6 @@ export default function CryptiTerminal() {
     );
   }
 
-  function updateCryptiTicketState(
-    postId: string,
-    ticketVotes: number,
-    isTicketed: boolean,
-  ) {
-    setCryptiPosts((posts) =>
-      posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              meta: {
-                ...(post.meta ?? {}),
-                cryptiTicketVotes: String(ticketVotes),
-              },
-            }
-          : post,
-      ),
-    );
-    setCryptiTicketPostIds((postIds) =>
-      isTicketed
-        ? Array.from(new Set([...postIds, postId]))
-        : postIds.filter((ticketedPostId) => ticketedPostId !== postId),
-    );
-  }
-
   function openCryptiPostDetail(postId: string) {
     router.push(`/crypti/post?id=${encodeURIComponent(postId)}`);
   }
@@ -2298,9 +2238,12 @@ export default function CryptiTerminal() {
     });
   }
 
-  function renderRNewsDateNavigator() {
+  function renderRNewsDateNavigator(className = "") {
     return (
-      <aside aria-label="R News date navigator" className="justify-self-start">
+      <aside
+        aria-label="R News date navigator"
+        className={`justify-self-start ${className}`}
+      >
         <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">
           <div className="flex h-24 flex-col items-center justify-center gap-3">
             {canMoveRNewsDateForward ? (
@@ -2371,22 +2314,7 @@ export default function CryptiTerminal() {
               {formatPostTimestamp(post.createdAt)}
             </p>
           </div>
-          <div
-            className="flex items-center gap-3"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <FavoriteButton postId={post.id} />
-            <TicketVoteButton
-              availabilityPath="/api/crypti/ticket-vote"
-              initialCount={getCryptiTicketVoteCount(post)}
-              isActive={cryptiTicketPostIds.includes(post.id)}
-              onCountChange={(ticketVotes, isTicketed) =>
-                updateCryptiTicketState(post.id, ticketVotes, isTicketed)
-              }
-              postId={post.id}
-              votePath={`/api/posts/${post.id}/crypti-ticket`}
-              {...cryptiTicketVoteButtonDefaults}
-            />
+          <div className="flex items-center gap-3">
             <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
               {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
             </span>
@@ -3580,7 +3508,7 @@ export default function CryptiTerminal() {
           }
         >
           {activeSourceMode === "R" && !selectedCryptiCategory
-            ? renderRNewsDateNavigator()
+            ? renderRNewsDateNavigator("hidden lg:block")
             : null}
           <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#1d7f12] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
           <div className="daily-food-categories-grid" aria-hidden="true" />
@@ -3640,26 +3568,7 @@ export default function CryptiTerminal() {
                                 {formatPostTimestamp(post.createdAt)}
                               </p>
                             </div>
-                            <div
-                              className="flex items-center gap-3"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <FavoriteButton postId={post.id} />
-                              <TicketVoteButton
-                                availabilityPath="/api/crypti/ticket-vote"
-                                initialCount={getCryptiTicketVoteCount(post)}
-                                isActive={cryptiTicketPostIds.includes(post.id)}
-                                onCountChange={(ticketVotes, isTicketed) =>
-                                  updateCryptiTicketState(
-                                    post.id,
-                                    ticketVotes,
-                                    isTicketed,
-                                  )
-                                }
-                                postId={post.id}
-                                votePath={`/api/posts/${post.id}/crypti-ticket`}
-                                {...cryptiTicketVoteButtonDefaults}
-                              />
+                            <div className="flex items-center gap-3">
                               <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
                                 {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
                               </span>
@@ -3806,6 +3715,9 @@ export default function CryptiTerminal() {
             )}
           </div>
           </div>
+          {activeSourceMode === "R" && !selectedCryptiCategory
+            ? renderRNewsDateNavigator("lg:hidden")
+            : null}
         </div>
       ) : null}
 
@@ -4137,9 +4049,6 @@ export default function CryptiTerminal() {
                           >
                             x
                           </button>
-                          <span className="grid size-8 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14]">
-                            {favoritePostCounts[post.id] ?? 0}
-                          </span>
                         </div>
                       </div>
                     </article>
