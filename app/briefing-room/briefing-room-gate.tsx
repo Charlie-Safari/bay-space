@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import CirclesPanel from "./circles-panel";
 import {
   FormEvent,
   useCallback,
@@ -1825,6 +1826,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               profile
             </Link>
             <button
+              onClick={() => setActivePanel("circles")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "circles"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              circles
+            </button>
+            <button
               onClick={() => {
                 setActivePanel("settings");
                 setSettingsMessage("");
@@ -2953,6 +2964,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               )}
             </div>
+          ) : activePanel === "circles" && savedMember ? (
+            <CirclesPanel
+              member={{
+                member: savedMember.member,
+                name: savedMember.name,
+              }}
+            />
           ) : activePanel === "settings" ? (
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">

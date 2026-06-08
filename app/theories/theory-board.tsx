@@ -269,6 +269,10 @@ export default function TheoryBoard() {
     );
   }
 
+  function canShowOracleAnonProfile(post: BayPost) {
+    return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
+  }
+
   function closePost() {
     setOpenPostId("");
     window.history.replaceState(
@@ -542,7 +546,14 @@ export default function TheoryBoard() {
                     </p>
                   ) : post.anonymous ? (
                     <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-                      {canBayoOpenClassifiedAuthor(post) ? (
+                      {canShowOracleAnonProfile(post) ? (
+                        <Link
+                          href={`/profile/${post.author}`}
+                          className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                        >
+                          anon
+                        </Link>
+                      ) : canBayoOpenClassifiedAuthor(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
                           className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"

@@ -4,7 +4,7 @@ import {
   getAccountTitle,
   getRoleDescription,
   getRoleReviewLabel,
-  needsAdminCode,
+  isCrypti,
   needsBayoGate,
 } from "../../../../lib/bay-space-roles";
 
@@ -37,8 +37,8 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
   const selectedRole = selectedRoles[0] ?? "";
   const selectedDescription = getRoleDescription(selectedRole);
   const selectedRolesText = selectedRoles.join(",");
-  const requiresAdminCode = needsAdminCode(selectedRolesText);
   const requiresBayoGate = needsBayoGate(selectedRolesText);
+  const requiresCryptiGate = isCrypti(selectedRolesText);
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -84,19 +84,10 @@ export default async function CircleNext({ searchParams }: CircleNextProps) {
           {selectedDescription ? <p className="mt-3">{selectedDescription}</p> : null}
           {requiresBayoGate ? (
             <p className="mt-3">
-              you can not request this account, you must be selected. Have your
-              gatekey ready.
+              {requiresCryptiGate
+                ? "+CRYPTI requires the access code."
+                : "Oracle requires the access code."}
             </p>
-          ) : null}
-          {requiresAdminCode ? (
-            <>
-              <p className="mt-3">
-                influencer access requires the prescreen password: admin1.
-              </p>
-              <p className="mt-3">
-                your contributions may be flagged for removal
-              </p>
-            </>
           ) : null}
         </div>
 

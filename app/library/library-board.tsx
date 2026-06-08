@@ -135,6 +135,10 @@ export default function LibraryBoard() {
     return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
   }
 
+  function canShowOracleAnonProfile(post: BayPost) {
+    return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
+  }
+
   useEffect(() => {
     function openHowTo() {
       setIsHowToOpen(true);
@@ -321,7 +325,16 @@ export default function LibraryBoard() {
                     </p>
                   ) : post.anonymous ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-                      classified
+                      {canShowOracleAnonProfile(post) ? (
+                        <Link
+                          href={`/profile/${post.author}`}
+                          className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                        >
+                          anon
+                        </Link>
+                      ) : (
+                        "classified"
+                      )}
                     </p>
                   ) : null}
                   <span className="mt-3 block whitespace-pre-wrap text-sm font-bold leading-6">
@@ -487,11 +500,10 @@ export default function LibraryBoard() {
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>Curious Reader: read and reveal posts.</li>
-                  <li>Author - daily food: can only post in Daily Food. Anon and incog available.</li>
-                  <li>Author - theories: can only post in Theories. Anon and incog available.</li>
-                  <li>Influencer - daily food: can only post in Daily Food and Library. Anon and incog unavailable.</li>
-                  <li>Influencer - theories: can only post in Theories and Library. Anon and incog unavailable.</li>
-                  <li>BAYO CLUB: unrestricted posting access to Daily Food, Theories, and Library. Anon and incog available.</li>
+                  <li>Author/influencer - Daily Food: can only post in Daily Food and Library. Anon and incog unavailable.</li>
+                  <li>Author/influencer - Theories: can only post in Theories and Library. Anon and incog available.</li>
+                  <li>Oracle: can post in Daily Food, Theories, and Library. Anon posts link to the user profile.</li>
+                  <li>+CRYPTI: unrestricted posting access anywhere, including +CRYPTI.</li>
                 </ul>
               </details>
 
@@ -501,11 +513,10 @@ export default function LibraryBoard() {
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>Pick Curious Reader if you only want to read and reveal posts.</li>
-                  <li>Pick Author - daily food if you need Daily Food posting with anon and incog controls.</li>
-                  <li>Pick Author - theories if you need Theories posting with anon and incog controls.</li>
-                  <li>Pick Influencer - daily food if you post Daily Food and Library under your public name. Code: admin1.</li>
-                  <li>Pick Influencer - theories if you post Theories and Library under your public name. Code: admin1.</li>
-                  <li>BAYO CLUB cannot be requested. Have your gatekey ready.</li>
+                  <li>Pick Author/influencer - Daily Food if you post Daily Food and Library under your public name.</li>
+                  <li>Pick Author/influencer - Theories if you post Theories and Library under your public name.</li>
+                  <li>Pick Oracle if you need Daily Food, Theories, Library, and anon profile-linked posting. Access code required.</li>
+                  <li>Pick +CRYPTI if you need unrestricted BAY-SPACE access plus +CRYPTI viewing and posting. Access code required.</li>
                 </ul>
               </details>
 

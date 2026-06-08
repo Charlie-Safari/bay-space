@@ -51,6 +51,8 @@ import {
   getPostTicketCount,
   getPostVisitCount,
 } from "../../lib/bay-space-scoring";
+import CryptiCirclesPanel from "./crypti-circles-panel";
+import CryptiProfileCirclesCard from "./crypti-profile-circles-card";
 
 type VoteRange = "today" | "all-time";
 type CryptiPanel =
@@ -64,6 +66,7 @@ type CryptiPanel =
   | "favorites"
   | "my-posts"
   | "crypti-profile"
+  | "crypti-circles"
   | "how-to"
   | "bank"
   | "secrets";
@@ -1796,6 +1799,16 @@ export default function CryptiTerminal() {
       ? currentMemberTitle
       : "") ||
     "BAYO + CRYPTI";
+  const currentCryptiCircleMember = currentMemberNumber
+    ? {
+        member: currentMemberNumber,
+        name: currentMemberName || currentMemberRefName || currentMemberNumber,
+      }
+    : null;
+  const profileCryptiCircleMember = {
+    member: activeCryptiProfileMemberNumber,
+    name: cryptiProfileDisplayName || activeCryptiProfileMemberNumber,
+  };
   const profileRNewsPosts = cryptiProfilePosts.filter(
     (post) => getCryptiPostSourceMode(post) === "R",
   );
@@ -2641,6 +2654,7 @@ export default function CryptiTerminal() {
   const isCryptiPostWindowOpen = activePanel === "post";
   const cryptiTerminalPathLabel: Record<CryptiPanel, string> = {
     bank: "LA +CRYPTI",
+    "crypti-circles": "+CIRCLES",
     "crypti-profile": "+CRYPTI PROFILE",
     favorites: "FAVORITES",
     "how-to": "HOW TO",
@@ -2803,6 +2817,16 @@ export default function CryptiTerminal() {
             >
               LA + CRYPTI ✅💰
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCryptiCategory("");
+                setActivePanel("crypti-circles");
+              }}
+              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              +CIRCLES
+            </button>
           </div>
 
           <div className="order-1 grid content-center gap-4 sm:grid-cols-2 lg:order-2">
@@ -2849,6 +2873,21 @@ export default function CryptiTerminal() {
             </button>
           </div>
         </section>
+      ) : null}
+
+      {activePanel === "crypti-circles" ? (
+        currentCryptiCircleMember ? (
+          <CryptiCirclesPanel
+            favoriteTickerSymbols={followedTickerSymbols}
+            member={currentCryptiCircleMember}
+          />
+        ) : (
+          <section className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+            <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+              sign in required
+            </p>
+          </section>
+        )
       ) : null}
 
       {activePanel === "how-to" ? (
@@ -4191,20 +4230,10 @@ export default function CryptiTerminal() {
                 ))}
               </div>
             </details>
-            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
-                <span>Circles</span>
-                <span
-                  aria-hidden="true"
-                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
-                >
-                  ▾
-                </span>
-              </summary>
-              <p className="mt-5 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                coming soon
-              </p>
-            </details>
+            <CryptiProfileCirclesCard
+              activeMember={currentCryptiCircleMember}
+              profileMember={profileCryptiCircleMember}
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-4">
@@ -4435,10 +4464,7 @@ export default function CryptiTerminal() {
                 <>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
-                        ticker frame
-                      </p>
-                      <h2 className="mt-3 text-5xl font-black uppercase tracking-[0.18em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14]">
+                      <h2 className="text-5xl font-black uppercase tracking-[0.18em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14]">
                         {selectedTicker.symbol}
                       </h2>
                       <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HomeBar from "../../components/home-bar";
+import PublicCirclesCard from "./public-circles-card";
 import PublicIdCard from "./public-id-card";
 import ProfileStatsCard from "./profile-stats-card";
 import {
@@ -116,7 +117,6 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const isBayoClubMember = isBayoClub(member?.roles ?? "");
   const isCryptiMember = isCrypti(member?.roles ?? "");
 
-  const topStoryPosts = posts.filter((post) => post.category === "top-story");
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
   const theoryPosts = posts.filter((post) => post.category === "theory");
   const libraryPosts = posts
@@ -150,7 +150,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
 
         {member ? (
           <>
-            <div className="mt-10 grid w-full max-w-5xl gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)] lg:items-start">
+            <div className="mt-10 grid w-full gap-4 lg:grid-cols-3 lg:items-start">
               <PublicIdCard
                 favoriteAuthorId={member.member}
                 isBayoClubMember={isBayoClubMember}
@@ -172,15 +172,15 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 totalPostVisitCount={totalPostVisitCount}
                 totalTicketCount={totalTicketCount}
               />
+              <PublicCirclesCard
+                member={{
+                  member: member.member,
+                  name: member.name,
+                }}
+              />
             </div>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-4">
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
-                  briefing room / top story
-                </h2>
-                <PostList posts={topStoryPosts} />
-              </section>
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">
                 <h2 className="text-sm font-black uppercase tracking-[0.16em]">
                   Daily Food

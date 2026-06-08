@@ -33,6 +33,7 @@ export default function MountainTimeFooter() {
   const [time, setTime] = useState(getMountainStandardTime);
   const [showVersion, setShowVersion] = useState(false);
   const [hasCryptiAccess, setHasCryptiAccess] = useState(false);
+  const [isAtPageEnd, setIsAtPageEnd] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -73,6 +74,37 @@ export default function MountainTimeFooter() {
     };
   }, []);
 
+  useEffect(() => {
+    let frame = 0;
+
+    function syncFooterVisibility() {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const pageHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+        );
+        const viewportBottom = window.scrollY + window.innerHeight;
+
+        setIsAtPageEnd(viewportBottom >= pageHeight - 8);
+      });
+    }
+
+    syncFooterVisibility();
+    window.addEventListener("scroll", syncFooterVisibility, { passive: true });
+    window.addEventListener("resize", syncFooterVisibility);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", syncFooterVisibility);
+      window.removeEventListener("resize", syncFooterVisibility);
+    };
+  }, []);
+
+  if (!isAtPageEnd) {
+    return null;
+  }
+
   return (
     <footer className="fixed inset-x-0 bottom-3 z-50 border-y border-[#39ff14] bg-black px-4 py-3 font-[Courier_New,Courier,monospace] text-xs font-bold uppercase tracking-[0.18em] text-[#d7ffd0] shadow-[0_0_18px_rgba(57,255,20,0.22)]">
       <div className="mx-auto flex w-full max-w-6xl items-end justify-between gap-4">
@@ -103,7 +135,7 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                1.21
+                1.22
               </span>
             ) : null}
           </span>

@@ -521,6 +521,10 @@ export default function DfHeadlineTerminal({
     );
   }
 
+  function canShowOracleAnonProfile(post: BayPost) {
+    return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
+  }
+
   function getPostLinkPath(post: BayPost) {
     return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
   }
@@ -761,6 +765,13 @@ export default function DfHeadlineTerminal({
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                   >
                     {getAuthorDisplayName(displayedPost)}
+                  </Link>
+                ) : canShowOracleAnonProfile(displayedPost) ? (
+                  <Link
+                    href={`/profile/${displayedPost.author}`}
+                    className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                  >
+                    anon
                   </Link>
                 ) : canBayoOpenClassifiedAuthor(displayedPost) ? (
                   <Link

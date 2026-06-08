@@ -28,6 +28,7 @@ export default async function CreatorCodePage({
   const backHref = `/join-the-circle/member/pin?${query.toString()}`;
   const isBayoGate = needsBayoGate(params.roles ?? "");
   const isBayoPlusGate = isCrypti(params.roles ?? "");
+  const accessLabel = isBayoPlusGate ? "+CRYPTI" : "Oracle";
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -42,7 +43,7 @@ export default async function CreatorCodePage({
         </h1>
         <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
           {isBayoGate
-            ? "you can not request this account, you must be selected. Have your gatekey ready."
+            ? `${accessLabel} access requires the access code.`
             : "influencer access requires the prescreen password: admin1."}
         </p>
 
