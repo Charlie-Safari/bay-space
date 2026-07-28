@@ -1,5 +1,18 @@
 export function getExternalBrowserUrl(href: string) {
-  return new URL(href, window.location.origin).toString();
+  const externalUrl = new URL(href, window.location.origin);
+
+  if (
+    externalUrl.origin === window.location.origin &&
+    externalUrl.pathname.startsWith("/agreements/") &&
+    !externalUrl.searchParams.has("returnTo")
+  ) {
+    externalUrl.searchParams.set(
+      "returnTo",
+      `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    );
+  }
+
+  return externalUrl.toString();
 }
 
 export function openExternalBrowser(

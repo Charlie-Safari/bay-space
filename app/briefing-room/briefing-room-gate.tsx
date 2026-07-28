@@ -3655,14 +3655,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       incognito settings change public display only; they do
                       not hide records from BaySpace systems.
                     </p>
-                    <Link
+                    <a
                       href={baySpaceAgreementHref}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="external noopener noreferrer"
+                      onClick={(event) => {
+                        if (openExternalBrowser(baySpaceAgreementHref)) {
+                          event.preventDefault();
+                        }
+                      }}
                       className="mt-3 inline-flex border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                     >
                       privacy + user agreement
-                    </Link>
+                    </a>
                     {isCryptiMember ? (
                       <div
                         className={`mt-4 border p-4 ${
