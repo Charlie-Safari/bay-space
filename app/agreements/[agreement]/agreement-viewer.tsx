@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 type AgreementViewerProps = {
+  agreement: string;
   documentHref: string;
   fallbackHref: string;
   returnTo: string;
@@ -10,6 +11,7 @@ type AgreementViewerProps = {
 };
 
 export default function AgreementViewer({
+  agreement,
   documentHref,
   fallbackHref,
   returnTo,
@@ -17,13 +19,17 @@ export default function AgreementViewer({
 }: AgreementViewerProps) {
   const router = useRouter();
 
-  function goBack() {
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
+  function getReturnHref() {
+    const returnHref = returnTo || fallbackHref;
+    const url = new URL(returnHref, window.location.origin);
 
-    router.push(returnTo || fallbackHref);
+    url.searchParams.set("agreementRead", agreement);
+
+    return `${url.pathname}${url.search}${url.hash}`;
+  }
+
+  function goBack() {
+    router.push(getReturnHref());
   }
 
   return (

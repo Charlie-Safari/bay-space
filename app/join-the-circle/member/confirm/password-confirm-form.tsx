@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   bayoPlusAgreementHref,
@@ -18,6 +18,14 @@ type PasswordConfirmFormProps = {
   title: string;
 };
 
+function getAgreementReadParam() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return new URLSearchParams(window.location.search).get("agreementRead") ?? "";
+}
+
 export default function PasswordConfirmForm({
   member,
   name,
@@ -34,13 +42,29 @@ export default function PasswordConfirmForm({
   const [isAgreementError, setIsAgreementError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [hasOpenedAgreement, setHasOpenedAgreement] = useState(false);
+  const [initialAgreementRead] = useState(getAgreementReadParam);
+  const [hasOpenedAgreement, setHasOpenedAgreement] = useState(
+    initialAgreementRead === "bay-space",
+  );
   const [hasAcceptedAgreement, setHasAcceptedAgreement] = useState(false);
   const [hasOpenedBayoPlusAgreement, setHasOpenedBayoPlusAgreement] =
-    useState(false);
+    useState(initialAgreementRead === "crypti");
   const [hasAcceptedBayoPlusAgreement, setHasAcceptedBayoPlusAgreement] =
     useState(false);
   const needsBayoPlusAgreement = isCrypti(roles);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const agreementRead = searchParams.get("agreementRead");
+
+    if (agreementRead) {
+      searchParams.delete("agreementRead");
+      const nextUrl = `${window.location.pathname}${
+        searchParams.toString() ? `?${searchParams.toString()}` : ""
+      }${window.location.hash}`;
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, []);
 
   function flashError(message: string) {
     setErrorMessage("");

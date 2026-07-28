@@ -41,6 +41,7 @@ export default async function AgreementPage({
 
   return (
     <AgreementViewer
+      agreement={agreement}
       documentHref={agreementConfig.documentHref}
       fallbackHref={agreementConfig.fallbackHref}
       returnTo={returnTo}
