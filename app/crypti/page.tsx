@@ -5,7 +5,7 @@ import { isCrypti } from "../../lib/bay-space-roles";
 
 export default async function Crypti() {
   const member = await getCurrentMember();
-  const hasCryptiAccess = Boolean(member && isCrypti(member.roles));
+  const hasCryptiAccess = Boolean(member && isCrypti(member));
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">

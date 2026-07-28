@@ -423,10 +423,10 @@ export default function LibraryBoard() {
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>Find the UFO box at the top.</li>
-                  <li>enter your assigned member number</li>
+                  <li>enter your username or member number</li>
                   <li>spaceship = go</li>
-                  <li>Pressing Enter in the member box does the same thing as tapping the spaceship.</li>
-                  <li>If the member number does not exist, the password page will say no account found.</li>
+                  <li>Pressing Enter in the login box does the same thing as tapping the spaceship.</li>
+                  <li>If the account does not exist, the password page will say no account found.</li>
                 </ul>
               </details>
 
@@ -576,8 +576,8 @@ export default function LibraryBoard() {
                   </button>
                 </div>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Open Daily Briefing Room from your member number.</li>
-                  <li>Log in with your member number and password.</li>
+                  <li>Open Daily Briefing Room from your username or member number.</li>
+                  <li>Log in with your username or member number and password.</li>
                   <li>Press settings.</li>
                   <li>Scroll to Delete Account buttons at the bottom.</li>
                   <li>Press Delete account for full erase, or Wipe Account to clear posts while keeping the ID card.</li>

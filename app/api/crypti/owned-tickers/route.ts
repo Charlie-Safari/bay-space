@@ -26,7 +26,7 @@ function ownedTickersErrorResponse(error: unknown) {
 async function requireCryptiMember() {
   const member = await getCurrentMember();
 
-  return member && isCrypti(member.roles) ? member : null;
+  return member && isCrypti(member) ? member : null;
 }
 
 export async function GET() {

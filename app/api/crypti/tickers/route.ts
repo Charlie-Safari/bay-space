@@ -24,7 +24,7 @@ function cryptiErrorResponse(error: unknown, fallbackMessage: string) {
 async function requireCryptiMember() {
   const member = await getCurrentMember();
 
-  return member && isCrypti(member.roles) ? member : null;
+  return member && isCrypti(member) ? member : null;
 }
 
 export async function GET(request: Request) {

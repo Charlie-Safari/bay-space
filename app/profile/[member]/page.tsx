@@ -116,8 +116,8 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   const overallTotalScore = formatPointTenths(
     getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts, pageVisits),
   );
-  const isBayoClubMember = isBayoClub(member?.roles ?? "");
-  const isCryptiMember = isCrypti(member?.roles ?? "");
+  const isBayoClubMember = isBayoClub(member);
+  const isCryptiMember = isCrypti(member);
 
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
   const theoryPosts = posts.filter((post) => post.category === "theory");

@@ -112,7 +112,7 @@ function getPostDailyFoodCategory(post: BayPost) {
 function getDailyFoodCategoryLabel(post: BayPost) {
   const dailyFoodCategory = getPostDailyFoodCategory(post);
 
-  return dailyFoodCategory ? `Daily Food - ${dailyFoodCategory}` : "Daily Food";
+  return dailyFoodCategory ? `Facts - ${dailyFoodCategory}` : "Facts";
 }
 
 type DfHeadlineTerminalProps = {
@@ -570,7 +570,13 @@ export default function DfHeadlineTerminal({
 
   return (
     <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
-      <div className="flex flex-wrap items-end justify-end gap-3 lg:col-span-2">
+      <div className="flex flex-wrap items-end justify-end gap-4 lg:col-span-2">
+        <Link
+          href="/news"
+          className="grid min-h-12 place-items-center border border-[#39ff14] px-6 py-3 text-sm font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        >
+          Top Story
+        </Link>
         <button
           type="button"
           onClick={() => {
@@ -582,7 +588,7 @@ export default function DfHeadlineTerminal({
               return !isOpen;
             });
           }}
-          className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+          className={`min-h-12 border px-6 py-3 text-sm font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
             isCategoriesOpen
               ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
               : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
@@ -729,8 +735,8 @@ export default function DfHeadlineTerminal({
         ) : null}
         {!hasSyncedPosts ? (
           <TerminalLoadingShell
-            label="c:\\bay-space\\daily-food> syncing-feed"
-            title="daily food"
+            label="c:\\bay-space\\facts-on-news> syncing-feed"
+            title="facts on news"
           />
         ) : displayedPost ? (
           <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
@@ -859,7 +865,7 @@ export default function DfHeadlineTerminal({
               </div>
             ) : (
               <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
-                no daily food tags filed
+                no facts tags filed
               </p>
             )}
             {getPostSources(displayedPost).length ? (
@@ -1023,13 +1029,13 @@ export default function DfHeadlineTerminal({
           </div>
         ) : (
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-            daily food queue clear
+            facts on news queue clear
           </p>
         )}
       </div>
 
       <aside
-        aria-label="Daily Food timeline"
+        aria-label="Facts on News timeline"
         className="justify-self-start lg:justify-self-end"
       >
         <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">

@@ -13,7 +13,7 @@ export default async function CryptiPostPage({
   searchParams,
 }: CryptiPostPageProps) {
   const member = await getCurrentMember();
-  const hasCryptiAccess = Boolean(member && isCrypti(member.roles));
+  const hasCryptiAccess = Boolean(member && isCrypti(member));
   const { id } = await searchParams;
 
   return (

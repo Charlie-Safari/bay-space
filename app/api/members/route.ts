@@ -1,4 +1,6 @@
 import {
+  getMember,
+  getMemberByUsername,
   getNextMemberId,
   getStorageErrorMessage,
   isRefNameAvailable,
@@ -56,6 +58,18 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const username = searchParams.get("username") ?? searchParams.get("refName");
+    const lookup = searchParams.get("lookup");
+
+    if (lookup !== null) {
+      const candidateLookup = lookup.trim();
+      const member = /^\d+$/.test(candidateLookup)
+        ? await getMember(candidateLookup)
+        : await getMemberByUsername(candidateLookup);
+
+      return member
+        ? Response.json({ member: publicMember(member) })
+        : Response.json({ message: "Member not found" }, { status: 404 });
+    }
 
     if (username !== null) {
       const candidateUsername = username.trim();

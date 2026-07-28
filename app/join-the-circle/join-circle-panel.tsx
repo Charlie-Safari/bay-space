@@ -42,7 +42,7 @@ export default function JoinCirclePanel() {
   return (
     <>
       <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
-        no email required - remember your pin
+        no email required - remember your password
       </p>
       <JoinCircleForm />
     </>

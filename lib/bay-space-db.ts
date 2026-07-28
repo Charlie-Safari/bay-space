@@ -650,6 +650,26 @@ export async function getMember(memberId: string) {
   return member ? getPublicMemberFromRow(member) : null;
 }
 
+export async function getMemberByUsername(username: string) {
+  const candidateUsername = username.trim();
+
+  if (!isValidUsername(candidateUsername)) {
+    return null;
+  }
+
+  const normalizedUsername = normalizeRefName(candidateUsername);
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      limit: 1,
+      or: `(ref_name.ilike.${normalizedUsername},name.ilike.${normalizedUsername})`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
 export async function listMembers() {
   const members = await supabaseRequest<MemberRow[]>("members", {
     query: {

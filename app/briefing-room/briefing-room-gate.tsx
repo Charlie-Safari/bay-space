@@ -32,6 +32,11 @@ import {
   isBayoClub,
   isCrypti,
 } from "../../lib/bay-space-roles";
+import {
+  bayoCoinExchangeRate,
+  canRankExchangePoints,
+  gateKeys,
+} from "../../lib/bay-space-ranks";
 import type {
   BayRank,
   BayoTitleId,
@@ -630,6 +635,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
+  const canUseExchange =
+    isAdminMember || canRankExchangePoints(savedMember?.rank);
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const openDrafts = [
     ...minimizedDrafts,
@@ -1912,6 +1919,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               circles
             </button>
+            {canUseExchange ? (
+              <button
+                onClick={() => setActivePanel("exchange")}
+                className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                  activePanel === "exchange"
+                    ? "border-[#39ff14] bg-[#39ff14] text-black"
+                    : "border-[#1d7f12] text-[#39ff14]"
+                }`}
+              >
+                exchange
+              </button>
+            ) : null}
             {isAdminMember ? (
               <Link
                 href="/admin/analytics"
@@ -3057,6 +3076,68 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 name: savedMember.name,
               }}
             />
+          ) : activePanel === "exchange" && savedMember ? (
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                exchange
+              </p>
+              <div className="mt-5 grid gap-4">
+                <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
+                  <p>
+                    available points
+                    <span className="mt-2 block text-xl text-[#39ff14]">
+                      {formatPointCount(savedMember.availablePoints)}
+                    </span>
+                  </p>
+                  <p>
+                    Bayo Coins
+                    <span className="mt-2 block text-xl text-[#39ff14]">
+                      {formatPointCount(savedMember.bayoCoins)}
+                    </span>
+                  </p>
+                  <p>
+                    exchange rate
+                    <span className="mt-2 block text-xl text-[#39ff14]">
+                      {bayoCoinExchangeRate}:1
+                    </span>
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  {gateKeys.map((gateKey) => {
+                    const isOwned = savedMember.gateKeys?.includes(gateKey.id);
+                    const isCryptiGate = gateKey.id === "crypti-plus";
+
+                    return (
+                      <div
+                        key={gateKey.id}
+                        className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
+                          isCryptiGate
+                            ? "border-[#72d7ff] text-[#d7f5ff]"
+                            : "border-[#1d7f12] text-[#d7ffd0]"
+                        }`}
+                      >
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-[0.18em]">
+                            {gateKey.label}
+                          </p>
+                          <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                            {gateKey.description}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled
+                          className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]"
+                        >
+                          {isOwned ? "owned" : `${gateKey.coinCost} coins`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : activePanel === "settings" ? (
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">

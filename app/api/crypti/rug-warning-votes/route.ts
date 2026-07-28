@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const member = await getCurrentMember();
 
-    if (!member || !isCrypti(member.roles)) {
+    if (!member || !isCrypti(member)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 

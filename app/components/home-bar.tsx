@@ -189,8 +189,8 @@ export default function HomeBar() {
         aria-label="Main navigation"
         className="border-b-2 border-[#39ff14] bg-black px-4 py-3 shadow-[0_0_22px_rgba(57,255,20,0.28)]"
       >
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
-          <div className="flex justify-end">{renderTab(baySpaceTabs[0])}</div>
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {renderTab(baySpaceTabs[0])}
 
           <Link
             href={homeHref}
@@ -201,7 +201,7 @@ export default function HomeBar() {
                 : undefined
             }
             onClick={(event) => startNavigation(event, homeHref, "basecamp")}
-            className="grid h-14 w-20 justify-self-center place-items-center bg-transparent transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:h-20 sm:w-32"
+            className="grid h-14 w-20 place-items-center bg-transparent transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:h-20 sm:w-32"
           >
             <Image
               src="/brand/bay-space-logo.png"
@@ -214,9 +214,7 @@ export default function HomeBar() {
             <span className="sr-only">Basecamp</span>
           </Link>
 
-          <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_3.5rem]">
-            {baySpaceTabs.slice(1).map(renderTab)}
-          </div>
+          {baySpaceTabs.slice(1).map(renderTab)}
         </div>
 
         <div className="mx-auto mt-3 flex w-full max-w-6xl justify-center">
