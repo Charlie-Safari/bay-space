@@ -3,6 +3,9 @@ import type { BayPost, BayPostCategory } from "./bay-space-types";
 export const postVisitPointTenths = 1;
 export const postFavoritePointTenths = 100;
 export const postTicketPointTenths = 500;
+export const truthVoteLowPointTenths = 10;
+export const truthVoteHighPointTenths = 20;
+export const articleReadPointValue = 5;
 
 export const baySpaceProfilePostPointValues = {
   "daily-food": 10,
@@ -45,6 +48,22 @@ export function getPostTicketCount(post: Pick<BayPost, "meta"> | null) {
   );
 }
 
+export function getTruthVotePointValue(score: number) {
+  if (score >= 10 && score <= 11) {
+    return 2;
+  }
+
+  if (score >= 2 && score <= 9) {
+    return 1;
+  }
+
+  return 0;
+}
+
+export function getPostTruthPointTenths(post: Pick<BayPost, "meta"> | null) {
+  return getPositiveInteger(post?.meta?.truthPointTenths);
+}
+
 export function getBaySpacePostTicketCount(post: Pick<BayPost, "meta"> | null) {
   return getPositiveInteger(post?.meta?.ticketVotes);
 }
@@ -56,7 +75,8 @@ export function getPostPointTenths(
   return (
     getPostVisitCount(post) * postVisitPointTenths +
     getPostFavoriteCount(post.id, favoriteCounts) * postFavoritePointTenths +
-    getPostTicketCount(post) * postTicketPointTenths
+    getPostTicketCount(post) * postTicketPointTenths +
+    getPostTruthPointTenths(post)
   );
 }
 
@@ -67,7 +87,8 @@ export function getBaySpacePostPointTenths(
   return (
     getPostVisitCount(post) * postVisitPointTenths +
     getPostFavoriteCount(post.id, favoriteCounts) * postFavoritePointTenths +
-    getBaySpacePostTicketCount(post) * postTicketPointTenths
+    getBaySpacePostTicketCount(post) * postTicketPointTenths +
+    getPostTruthPointTenths(post)
   );
 }
 

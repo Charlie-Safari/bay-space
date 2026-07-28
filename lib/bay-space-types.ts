@@ -26,6 +26,22 @@ export type BayPost = {
   meta?: Record<string, string | string[]>;
 };
 
+export type BayPostComment = {
+  id: string;
+  author: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+};
+
+export type BayPostTruthVoteSummary = {
+  averageScore: number;
+  pointValue: number;
+  scoreTotal: number;
+  userScore: number | null;
+  voteCount: number;
+};
+
 export type BayMember = {
   availablePoints: number;
   bayoCoins: number;

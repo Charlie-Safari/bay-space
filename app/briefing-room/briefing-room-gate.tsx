@@ -25,12 +25,19 @@ import {
   getFavoritePostIds,
 } from "../components/favorite-store";
 import {
+  canAccessAdminAnalytics,
   canUseAnonymousPosting,
   canUseIncognitoPosting,
   getAllowedPostCategories,
   isBayoClub,
   isCrypti,
 } from "../../lib/bay-space-roles";
+import type {
+  BayRank,
+  BayoTitleId,
+  CryptiRank,
+  GateKey,
+} from "../../lib/bay-space-ranks";
 import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
@@ -47,8 +54,15 @@ type BriefingRoomGateProps = {
 };
 
 type SavedMember = {
+  availablePoints?: number;
+  bayoCoins?: number;
+  cryptiRank?: CryptiRank;
+  gateKeys?: GateKey[];
+  lifetimePoints?: number;
   member: string;
   name: string;
+  purchasedTitles?: BayoTitleId[];
+  rank?: BayRank;
   refName: string;
   roles: string;
   title: string;
@@ -145,6 +159,7 @@ const lazyPostGptUrl =
   "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
 const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "MISC";
+const supportEmail = "bayoadmin@protonmail.com";
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -153,6 +168,13 @@ function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
     github: member?.links?.github ?? { url: "", display: false },
     youtube: member?.links?.youtube ?? { url: "", display: false },
   };
+}
+
+function formatPointCount(value: number | null | undefined) {
+  const numericValue = Number(value);
+
+  return (Number.isFinite(numericValue) ? Math.max(0, numericValue) : 0)
+    .toLocaleString("en-US");
 }
 
 async function fetchSavedMember(memberId: string): Promise<SavedMember | null> {
@@ -550,6 +572,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordChangeMessage, setPasswordChangeMessage] = useState("");
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [wildCardAccessKey, setWildCardAccessKey] = useState("");
+  const [wildCardMessage, setWildCardMessage] = useState("");
+  const [isWildCardOpen, setIsWildCardOpen] = useState(false);
+  const [isWildCardLoading, setIsWildCardLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
   const [birthdayYear, setBirthdayYear] = useState("");
@@ -591,9 +617,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [postIncognito, setPostIncognito] = useState(false);
   const [incognitoShelfLabel, setIncognitoShelfLabel] = useState("");
   const [isIncognitoShelfSet, setIsIncognitoShelfSet] = useState(false);
-  const allowedPostCategories = getAllowedPostCategories(savedMember?.roles ?? "");
-  const canUseAnonControls = canUseAnonymousPosting(savedMember?.roles ?? "");
-  const canUseIncogControls = canUseIncognitoPosting(savedMember?.roles ?? "");
+  const allowedPostCategories = getAllowedPostCategories(savedMember);
+  const canUseAnonControls = canUseAnonymousPosting(savedMember);
+  const canUseIncogControls = canUseIncognitoPosting(savedMember);
   const canCreatePosts = allowedPostCategories.length > 0;
   const availablePostCategories = postCategories.filter((category) =>
     allowedPostCategories.includes(category.id),
@@ -601,8 +627,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const activePostCategory = allowedPostCategories.includes(postCategory)
     ? postCategory
     : availablePostCategories[0]?.id ?? "library-submission";
-  const isBayoClubMember = isBayoClub(savedMember?.roles ?? "");
-  const isCryptiMember = isCrypti(savedMember?.roles ?? "");
+  const isBayoClubMember = isBayoClub(savedMember);
+  const isCryptiMember = isCrypti(savedMember);
+  const isAdminMember = canAccessAdminAnalytics(savedMember);
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const openDrafts = [
     ...minimizedDrafts,
@@ -1564,6 +1591,56 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSettingsMessage("settings saved");
   }
 
+  async function unlockWildCard() {
+    if (!savedMember) {
+      setWildCardMessage("no account found");
+      return;
+    }
+
+    if (!wildCardAccessKey.trim()) {
+      setWildCardMessage("access key required");
+      return;
+    }
+
+    setIsWildCardLoading(true);
+    setWildCardMessage("");
+
+    try {
+      const response = await fetch(`/api/members/${resolvedMember}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          accessKey: wildCardAccessKey,
+          action: "wild-card",
+        }),
+      });
+      const data = (await response.json()) as {
+        member?: SavedMember;
+        message?: string;
+        wildCard?: { pointFloor?: number; rank?: string };
+      };
+
+      if (!response.ok || !data.member) {
+        setWildCardMessage(
+          response.status === 403
+            ? "access key rejected"
+            : data.message ?? "wild card missed",
+        );
+        return;
+      }
+
+      setSavedMember(data.member);
+      applySettingsFields(data.member);
+      setWildCardAccessKey("");
+      setWildCardMessage(
+        `wild card accepted - ${formatPointCount(data.wildCard?.pointFloor ?? data.member.availablePoints)} points loaded`,
+      );
+      window.dispatchEvent(new Event("bay-space-auth"));
+    } finally {
+      setIsWildCardLoading(false);
+    }
+  }
+
   async function wipeAccount() {
     const response = await fetch(`/api/members/${resolvedMember}`, {
       method: "PATCH",
@@ -1835,10 +1912,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               circles
             </button>
+            {isAdminMember ? (
+              <Link
+                href="/admin/analytics"
+                className="border border-[#72d7ff] px-3 py-2 text-left transition hover:border-[#72d7ff] hover:bg-[#72d7ff] hover:text-black hover:shadow-[0_0_12px_rgba(114,215,255,0.35)]"
+              >
+                analytics
+              </Link>
+            ) : null}
             <button
               onClick={() => {
                 setActivePanel("settings");
                 setSettingsMessage("");
+                setWildCardMessage("");
                 setDeleteAccountConfirm(false);
                 setWipeAccountConfirm(false);
               }}
@@ -3218,6 +3304,70 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     {settingsMessage}
                   </p>
                 ) : null}
+
+                <div className="border-t border-[#1d7f12] pt-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    support
+                  </p>
+                  <a
+                    href={`mailto:${supportEmail}?subject=Name%20Change`}
+                    className="mt-3 inline-flex max-w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    {supportEmail}
+                  </a>
+                  <p className="mt-3 text-xs font-bold uppercase leading-5 tracking-[0.14em] text-[#7f9f78]">
+                    subject line example: Name Change
+                  </p>
+                </div>
+
+                <div className="border-t border-[#1d7f12] pt-5">
+                  <button
+                    type="button"
+                    aria-label="Open Wild Card access"
+                    title="Wild Card"
+                    onClick={() => {
+                      setIsWildCardOpen((isOpen) => !isOpen);
+                      setWildCardMessage("");
+                    }}
+                    className="grid h-14 w-14 place-items-center border border-[#d7ffd0] bg-black text-3xl text-[#d7ffd0] shadow-[0_0_14px_rgba(215,255,208,0.2)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  >
+                    🃏
+                  </button>
+
+                  {isWildCardOpen ? (
+                    <div className="mt-4 grid max-w-md gap-3 border border-[#1d7f12] bg-[#001100] p-4">
+                      <label className="grid gap-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                          access key
+                        </span>
+                        <input
+                          type="password"
+                          value={wildCardAccessKey}
+                          onChange={(event) => {
+                            setWildCardAccessKey(
+                              event.target.value.slice(0, 48),
+                            );
+                            setWildCardMessage("");
+                          }}
+                          className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={unlockWildCard}
+                        disabled={isWildCardLoading}
+                        className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
+                      >
+                        {isWildCardLoading ? "checking" : "unlock"}
+                      </button>
+                      {wildCardMessage ? (
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                          {wildCardMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           ) : activePanel === "id-card" && savedMember ? (
@@ -3227,6 +3377,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 TITLE: {savedMember.title}
+              </p>
+              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                RANK: {(savedMember.rank ?? "reader").replace("-", " ")}
+              </p>
+              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                POINTS: {formatPointCount(savedMember.availablePoints)} available
+                / {formatPointCount(savedMember.lifetimePoints)} lifetime
+              </p>
+              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                BAYO COINS: {formatPointCount(savedMember.bayoCoins)}
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 NAME: {savedMember.name}

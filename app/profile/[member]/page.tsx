@@ -5,6 +5,7 @@ import PublicIdCard from "./public-id-card";
 import ProfileStatsCard from "./profile-stats-card";
 import {
   countSavedPosts,
+  getMemberArticleReadCount,
   getMember,
   getMemberProfileVisitCount,
   listSavedPostsByMember,
@@ -111,6 +112,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
     0,
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
+  const totalArticleReadCount = await getMemberArticleReadCount(memberId);
   const overallTotalScore = formatPointTenths(
     getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts, pageVisits),
   );
@@ -167,6 +169,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 initialPageVisits={pageVisits}
                 member={member.member}
                 overallTotalScore={overallTotalScore}
+                totalArticleReadCount={totalArticleReadCount}
                 totalFavoriteCount={totalFavoriteCount}
                 totalPostCount={statsPosts.length}
                 totalPostVisitCount={totalPostVisitCount}

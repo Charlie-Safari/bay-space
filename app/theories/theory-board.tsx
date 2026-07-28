@@ -9,11 +9,13 @@ import {
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import PostEngagementPanel from "../components/post-engagement-panel";
 import {
   countFavoritePosts,
   favoriteStoreEvent,
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
+import type { BayPostTruthVoteSummary } from "../../lib/bay-space-types";
 import { recordPostVisit } from "../components/post-visit-client";
 import {
   hasCreatorAccess,
@@ -284,6 +286,28 @@ export default function TheoryBoard() {
 
   function isPostRevealed() {
     return isLoggedIn && revealAll;
+  }
+
+  function syncPostTruthSummary(
+    postId: string,
+    summary: BayPostTruthVoteSummary,
+  ) {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              meta: {
+                ...(post.meta ?? {}),
+                truthAverageScore: summary.averageScore.toFixed(1),
+                truthPointTenths: String(summary.pointValue * 10),
+                truthScoreTotal: String(summary.scoreTotal),
+                truthVoteCount: String(summary.voteCount),
+              },
+            }
+          : post,
+      ),
+    );
   }
 
   const sortedPosts = useMemo(() => {
@@ -598,6 +622,13 @@ export default function TheoryBoard() {
                   <div className="mt-5">
                     <CopyPostLinkButton path={`/theories#post-${post.id}`} />
                   </div>
+                  <PostEngagementPanel
+                    isLoggedIn={isLoggedIn}
+                    onTruthSummaryChange={(summary) =>
+                      syncPostTruthSummary(post.id, summary)
+                    }
+                    postId={post.id}
+                  />
                 </>
               ) : (
                 <button

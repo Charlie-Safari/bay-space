@@ -6,17 +6,27 @@ import {
 import {
   BayMember,
   BayPost,
+  BayPostComment,
+  BayPostTruthVoteSummary,
   PublicLink,
 } from "./bay-space-types";
 import {
+  bayoCoinExchangeRate,
   defaultMemberRole,
   defaultMemberTitle,
+  gateKeys,
+  getBayRankConfig,
+  getRankForLifetimePoints,
   normalizeBayRank,
   type BayoTitleId,
   type CryptiRank,
   type GateKey,
 } from "./bay-space-ranks";
-import { getPositiveInteger } from "./bay-space-scoring";
+import {
+  articleReadPointValue,
+  getPositiveInteger,
+  getTruthVotePointValue,
+} from "./bay-space-scoring";
 import {
   isValidUsername,
   normalizeUsername,
@@ -56,6 +66,20 @@ type MemberSettingsInput = {
     youtube?: PublicLink;
   };
 };
+
+const baySpaceWildCardAccessKey = "Welcome*";
+const wildCardGateKeyReserve: GateKey[] = ["safari-nation", "crypti-plus"];
+const wildCardGateKeyReservePoints =
+  wildCardGateKeyReserve.reduce((totalCoins, gateKeyId) => {
+    const gateKey = gateKeys.find((candidate) => candidate.id === gateKeyId);
+
+    return totalCoins + (gateKey?.coinCost ?? 0);
+  }, 0) * bayoCoinExchangeRate;
+export const baySpaceWildCardPointFloor = Math.max(
+  100000,
+  getBayRankConfig("graduation").minLifetimePoints +
+    wildCardGateKeyReservePoints,
+);
 
 type MemberStats = {
   profileVisits?: number;
@@ -112,6 +136,13 @@ type MemberRoleRow = {
   role: string;
 };
 
+type MemberArticleReadRow = {
+  created_at: string;
+  member_id: string;
+  point_value: number;
+  post_id: string;
+};
+
 type MemberSessionRow = {
   expires_at: string;
   id: string;
@@ -137,6 +168,27 @@ type PostRow = {
   shelf_code: string | null;
   shelf_label: string | null;
   title: string;
+  updated_at: string;
+};
+
+type PostCommentRow = {
+  author_member_id: string | null;
+  author_member_number: number | null;
+  body: string;
+  created_at: string;
+  deleted_at: string | null;
+  id: string;
+  moderation_status: string;
+  post_id: string;
+  updated_at: string;
+};
+
+type PostTruthVoteRow = {
+  created_at: string;
+  member_id: string;
+  point_value: number;
+  post_id: string;
+  score: number;
   updated_at: string;
 };
 
@@ -270,6 +322,45 @@ function publicPost(post: PostRow): BayPost {
     shelfLabel: post.shelf_label ?? undefined,
     shelfCode: post.shelf_code ?? undefined,
     meta: post.meta ?? {},
+  };
+}
+
+function publicPostComment(
+  comment: PostCommentRow,
+  author?: MemberRow,
+): BayPostComment {
+  return {
+    author: comment.author_member_number
+      ? formatMemberId(comment.author_member_number)
+      : "unknown",
+    authorName: author?.name ?? "",
+    body: comment.body,
+    createdAt: comment.created_at,
+    id: comment.id,
+  };
+}
+
+function summarizeTruthVotes(
+  votes: PostTruthVoteRow[],
+  userMemberId?: string,
+): BayPostTruthVoteSummary {
+  const voteCount = votes.length;
+  const scoreTotal = votes.reduce((total, vote) => total + vote.score, 0);
+  const pointValue = votes.reduce(
+    (total, vote) => total + getTruthVotePointValue(vote.score),
+    0,
+  );
+  const userVote =
+    userMemberId
+      ? votes.find((vote) => vote.member_id === userMemberId)
+      : undefined;
+
+  return {
+    averageScore: voteCount ? scoreTotal / voteCount : 0,
+    pointValue,
+    scoreTotal,
+    userScore: userVote?.score ?? null,
+    voteCount,
   };
 }
 
@@ -453,6 +544,14 @@ function isRefNameUniqueViolation(error: unknown) {
 function isMemberNumberUniqueViolation(error: unknown) {
   return /members_member_number/i.test(
     error instanceof Error ? error.message : String(error),
+  );
+}
+
+function isMemberArticleReadUniqueViolation(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    (error.status === 409 ||
+      /member_article_reads_pkey|duplicate key/i.test(error.message))
   );
 }
 
@@ -700,10 +799,80 @@ export async function updateMemberSettings(
   return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
 }
 
+export function isBaySpaceWildCardAccessKey(accessKey: string) {
+  return accessKey.trim() === baySpaceWildCardAccessKey;
+}
+
+function getWildCardTitle(member: MemberRow) {
+  const currentTitle = member.title.trim();
+
+  if (
+    !currentTitle ||
+    currentTitle === "Curious Reader" ||
+    currentTitle === defaultMemberTitle
+  ) {
+    return "Graduation";
+  }
+
+  return member.title;
+}
+
+export async function applyMemberWildCard(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      available_points: Math.max(
+        normalizePointBalance(member.available_points),
+        baySpaceWildCardPointFloor,
+      ),
+      lifetime_points: Math.max(
+        normalizePointBalance(member.lifetime_points),
+        baySpaceWildCardPointFloor,
+      ),
+      rank: "graduation",
+      title: getWildCardTitle(member),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
 export async function getMemberProfileVisitCount(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
   return member ? getMemberProfileVisits(member) : 0;
+}
+
+async function getMemberArticleReadCountFromRow(member: MemberRow) {
+  const rows = await supabaseRequest<MemberArticleReadRow[]>(
+    "member_article_reads",
+    {
+      query: {
+        member_id: `eq.${member.id}`,
+        select: "post_id",
+      },
+    },
+  );
+
+  return rows.length;
+}
+
+export async function getMemberArticleReadCount(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return member ? getMemberArticleReadCountFromRow(member) : 0;
 }
 
 export async function getMemberCryptiProfileVisitCount(memberId: string) {
@@ -961,6 +1130,26 @@ export async function wipeMemberAccount(memberId: string) {
     query: { author_member_id: `eq.${member.id}` },
   });
 
+  await supabaseRequest<PostCommentRow[]>("post_comments", {
+    body: {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=minimal",
+    query: { author_member_id: `eq.${member.id}` },
+  });
+
+  await supabaseRequest<null>("post_truth_votes", {
+    method: "DELETE",
+    query: { member_id: `eq.${member.id}` },
+  });
+
+  await supabaseRequest<null>("member_article_reads", {
+    method: "DELETE",
+    query: { member_id: `eq.${member.id}` },
+  });
+
   return true;
 }
 
@@ -1060,6 +1249,220 @@ export async function listPosts(category?: string) {
   const posts = await supabaseRequest<PostRow[]>("posts", { query });
 
   return posts.map(publicPost);
+}
+
+function isCommentablePost(post: PostRow | null) {
+  return (
+    Boolean(post) &&
+    (post?.category === "daily-food" || post?.category === "theory") &&
+    post?.meta?.cryptiPost !== "true"
+  );
+}
+
+async function getCommentablePostRow(postId: string) {
+  const posts = await supabaseRequest<PostRow[]>("posts", {
+    query: {
+      deleted_at: "is.null",
+      id: `eq.${postId}`,
+      moderation_status: "eq.active",
+      select: "*",
+    },
+  });
+  const post = posts[0] ?? null;
+
+  return isCommentablePost(post) ? post : null;
+}
+
+async function getActiveTruthVotes(postId: string) {
+  return supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
+    query: {
+      order: "updated_at.desc",
+      post_id: `eq.${postId}`,
+      select: "*",
+    },
+  });
+}
+
+async function syncPostTruthVoteMeta(post: PostRow, userMemberId?: string) {
+  const votes = await getActiveTruthVotes(post.id);
+  const summary = summarizeTruthVotes(votes, userMemberId);
+  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
+    body: {
+      meta: {
+        ...(post.meta ?? {}),
+        truthAverageScore: summary.averageScore.toFixed(1),
+        truthPointTenths: String(summary.pointValue * 10),
+        truthScoreTotal: String(summary.scoreTotal),
+        truthVoteCount: String(summary.voteCount),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+
+  return { post: publicPost(updatedPosts[0]), summary };
+}
+
+export async function listPostComments(postId: string) {
+  const post = await getCommentablePostRow(postId);
+
+  if (!post) {
+    return null;
+  }
+
+  const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
+    query: {
+      deleted_at: "is.null",
+      moderation_status: "eq.active",
+      order: "created_at.asc",
+      post_id: `eq.${post.id}`,
+      select: "*",
+    },
+  });
+  const authorIds = Array.from(
+    new Set(
+      comments
+        .map((comment) => comment.author_member_id)
+        .filter((memberId): memberId is string => Boolean(memberId)),
+    ),
+  );
+  const authors = authorIds.length
+    ? await supabaseRequest<MemberRow[]>("members", {
+        query: {
+          deleted_at: "is.null",
+          id: `in.(${authorIds.join(",")})`,
+          select: "*",
+        },
+      })
+    : [];
+  const authorsById = new Map(authors.map((author) => [author.id, author]));
+
+  return comments.map((comment) =>
+    publicPostComment(
+      comment,
+      comment.author_member_id
+        ? authorsById.get(comment.author_member_id)
+        : undefined,
+    ),
+  );
+}
+
+export async function createPostComment(
+  postId: string,
+  memberId: string,
+  body: string,
+) {
+  const [post, member] = await Promise.all([
+    getCommentablePostRow(postId),
+    getMemberRowByNumber(memberId),
+  ]);
+  const commentBody = body.trim().replace(/\s+\n/g, "\n").slice(0, 600);
+
+  if (!post || !member || !commentBody) {
+    return null;
+  }
+
+  const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
+    body: {
+      author_member_id: member.id,
+      author_member_number: member.member_number,
+      body: commentBody,
+      post_id: post.id,
+    },
+    method: "POST",
+    prefer: "return=representation",
+    query: { select: "*" },
+  });
+
+  return publicPostComment(comments[0], member);
+}
+
+export async function getPostTruthVoteSummary(
+  postId: string,
+  memberId?: string,
+) {
+  const post = await getCommentablePostRow(postId);
+
+  if (!post) {
+    return null;
+  }
+
+  const [member, votes] = await Promise.all([
+    memberId ? getMemberRowByNumber(memberId) : Promise.resolve(null),
+    getActiveTruthVotes(post.id),
+  ]);
+
+  return summarizeTruthVotes(votes, member?.id);
+}
+
+export async function togglePostTruthVote(
+  postId: string,
+  memberId: string,
+  score: number,
+) {
+  const normalizedScore = Math.max(0, Math.min(11, Math.floor(score)));
+  const [post, member] = await Promise.all([
+    getCommentablePostRow(postId),
+    getMemberRowByNumber(memberId),
+  ]);
+
+  if (!post || !member) {
+    return null;
+  }
+
+  const existingVotes = await supabaseRequest<PostTruthVoteRow[]>(
+    "post_truth_votes",
+    {
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${post.id}`,
+        select: "*",
+      },
+    },
+  );
+  const existingVote = existingVotes[0] ?? null;
+
+  if (existingVote?.score === normalizedScore) {
+    await supabaseRequest<null>("post_truth_votes", {
+      method: "DELETE",
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${post.id}`,
+      },
+    });
+  } else if (existingVote) {
+    await supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
+      body: {
+        point_value: getTruthVotePointValue(normalizedScore),
+        score: normalizedScore,
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=minimal",
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${post.id}`,
+      },
+    });
+  } else {
+    await supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
+      body: {
+        member_id: member.id,
+        point_value: getTruthVotePointValue(normalizedScore),
+        post_id: post.id,
+        score: normalizedScore,
+      },
+      method: "POST",
+      prefer: "return=minimal",
+    });
+  }
+
+  return syncPostTruthVoteMeta(post, member.id);
 }
 
 export async function listPostsByAuthor(memberId: string) {
@@ -1306,7 +1709,93 @@ export async function togglePostTicketVote(memberId: string, postId: string) {
   };
 }
 
-export async function incrementPostVisitCount(postId: string) {
+async function awardArticleReadPoints(member: MemberRow) {
+  const availablePoints =
+    normalizePointBalance(member.available_points) + articleReadPointValue;
+  const lifetimePoints =
+    normalizePointBalance(member.lifetime_points) + articleReadPointValue;
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      available_points: availablePoints,
+      lifetime_points: lifetimePoints,
+      rank: getRankForLifetimePoints(lifetimePoints),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${member.id}`,
+      select: "*",
+    },
+  });
+
+  return rows[0]
+    ? getPublicMemberFromRow(rows[0])
+    : getPublicMemberFromRow(member);
+}
+
+async function recordMemberArticleRead(memberId: string, post: PostRow) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const existing = await supabaseRequest<MemberArticleReadRow[]>(
+    "member_article_reads",
+    {
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${post.id}`,
+        select: "post_id",
+      },
+    },
+  );
+
+  if (existing.length) {
+    return {
+      articlesRead: await getMemberArticleReadCountFromRow(member),
+      earned: false,
+      member: await getPublicMemberFromRow(member),
+      points: 0,
+    };
+  }
+
+  try {
+    await supabaseRequest<MemberArticleReadRow[]>("member_article_reads", {
+      body: {
+        member_id: member.id,
+        point_value: articleReadPointValue,
+        post_id: post.id,
+      },
+      method: "POST",
+      prefer: "return=minimal",
+    });
+  } catch (error) {
+    if (!isMemberArticleReadUniqueViolation(error)) {
+      throw error;
+    }
+
+    return {
+      articlesRead: await getMemberArticleReadCountFromRow(member),
+      earned: false,
+      member: await getPublicMemberFromRow(member),
+      points: 0,
+    };
+  }
+
+  return {
+    articlesRead: await getMemberArticleReadCountFromRow(member),
+    earned: true,
+    member: await awardArticleReadPoints(member),
+    points: articleReadPointValue,
+  };
+}
+
+export async function incrementPostVisitCount(
+  postId: string,
+  viewerMemberId?: string,
+) {
   const posts = await supabaseRequest<PostRow[]>("posts", {
     query: {
       deleted_at: "is.null",
@@ -1337,10 +1826,14 @@ export async function incrementPostVisitCount(postId: string) {
       select: "*",
     },
   });
+  const readReward = viewerMemberId
+    ? await recordMemberArticleRead(viewerMemberId, post)
+    : null;
 
   return {
     post: publicPost(updatedPosts[0]),
     postVisits,
+    readReward,
   };
 }
 

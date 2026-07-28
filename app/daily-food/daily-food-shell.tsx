@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import DfHeadlineTerminal from "./df-headline-terminal";
 
@@ -23,9 +24,17 @@ export default function DailyFoodShell() {
   return (
     <>
       <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
-          daily food
-        </h1>
+        <div className="grid gap-4">
+          <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
+            facts on news
+          </h1>
+          <Link
+            href="/news"
+            className="w-fit border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          >
+            daily food
+          </Link>
+        </div>
         <form
           id="daily-food-reference"
           onSubmit={(event) => {
@@ -43,7 +52,7 @@ export default function DailyFoodShell() {
           <button
             type="submit"
             className="grid h-10 w-10 place-items-center border border-[#39ff14] text-xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            aria-label="Search Daily Food"
+            aria-label="Search Facts on News"
           >
             🌀
           </button>

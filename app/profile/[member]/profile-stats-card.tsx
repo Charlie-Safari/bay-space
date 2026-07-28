@@ -6,6 +6,7 @@ type ProfileStatsCardProps = {
   initialPageVisits: number;
   member: string;
   overallTotalScore: string;
+  totalArticleReadCount: number;
   totalFavoriteCount: number;
   totalPostCount: number;
   totalPostVisitCount: number;
@@ -16,6 +17,7 @@ export default function ProfileStatsCard({
   initialPageVisits,
   member,
   overallTotalScore,
+  totalArticleReadCount,
   totalFavoriteCount,
   totalPostCount,
   totalPostVisitCount,
@@ -24,6 +26,7 @@ export default function ProfileStatsCard({
   const [pageVisits, setPageVisits] = useState(initialPageVisits);
   const stats = [
     { label: "overall total score", value: `${overallTotalScore} pts` },
+    { label: "articles read (+5 each)", value: totalArticleReadCount },
     { label: "profile page visits", value: pageVisits },
     { label: "total visits all posts", value: totalPostVisitCount },
     { label: "favorite diamonds received ◆", value: totalFavoriteCount },

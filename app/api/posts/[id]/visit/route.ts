@@ -3,6 +3,7 @@ import {
   getStorageErrorMessage,
   incrementPostVisitCount,
 } from "../../../../../lib/bay-space-db";
+import { getCurrentMember } from "../../../../../lib/bay-space-session";
 
 type PostVisitContext = {
   params: Promise<{ id: string }>;
@@ -12,7 +13,8 @@ export async function POST(request: Request, context: PostVisitContext) {
   try {
     void request;
     const { id } = await context.params;
-    const result = await incrementPostVisitCount(id);
+    const member = await getCurrentMember();
+    const result = await incrementPostVisitCount(id, member?.member);
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
@@ -28,6 +30,7 @@ export async function POST(request: Request, context: PostVisitContext) {
     return Response.json({
       post: result.post,
       postVisits: result.postVisits,
+      readReward: result.readReward,
     });
   } catch (error) {
     const storageMessage = getStorageErrorMessage(error);

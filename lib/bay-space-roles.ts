@@ -37,6 +37,21 @@ type PermissionSubject =
 
 export const baySpaceRoles: BaySpaceRole[] = [
   {
+    allowedCategories: [
+      "top-story",
+      "daily-food",
+      "theory",
+      "library-submission",
+    ],
+    canUseAnonymous: true,
+    canUseIncognito: true,
+    description:
+      "Admin account. Can post anywhere and access protected Bay Space data views.",
+    id: "admin",
+    label: "Admin",
+    title: "Bay Space Admin",
+  },
+  {
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
@@ -251,6 +266,15 @@ export function getRoleAcronym(subject: PermissionSubject) {
 }
 
 export function getAllowedReadCategories(subject: PermissionSubject) {
+  if (isAdmin(subject)) {
+    return [
+      "top-story",
+      "daily-food",
+      "theory",
+      "library-submission",
+    ] satisfies BayPostCategory[];
+  }
+
   return getBayRankConfig(getPermissionRank(subject)).canReadCategories;
 }
 
@@ -262,6 +286,15 @@ export function canReadCategory(
 }
 
 export function getAllowedPostCategories(subject: PermissionSubject) {
+  if (isAdmin(subject)) {
+    return [
+      "top-story",
+      "daily-food",
+      "theory",
+      "library-submission",
+    ] satisfies BayPostCategory[];
+  }
+
   const rankCategories =
     getBayRankConfig(getPermissionRank(subject)).allowedPostCategories;
   const roleCategories =
@@ -281,6 +314,7 @@ export function hasCreatorAccess(subject: PermissionSubject) {
   const roles = getRolesText(subject);
 
   return (
+    isAdmin(subject) ||
     getPrimaryRoleConfig(roles)?.id.startsWith("influencer -") ||
     getBayRankConfig(getPermissionRank(subject)).allowedPostCategories.length > 0
   );
@@ -292,6 +326,7 @@ export function isGhostRole(subject: PermissionSubject) {
 
 export function canUseAnonymousPosting(subject: PermissionSubject) {
   return (
+    isAdmin(subject) ||
     getPrimaryRoleConfig(getRolesText(subject))?.canUseAnonymous ||
     getBayRankConfig(getPermissionRank(subject)).level >= 3
   );
@@ -299,20 +334,27 @@ export function canUseAnonymousPosting(subject: PermissionSubject) {
 
 export function canUseIncognitoPosting(subject: PermissionSubject) {
   return (
+    isAdmin(subject) ||
     getPrimaryRoleConfig(getRolesText(subject))?.canUseIncognito ||
     getBayRankConfig(getPermissionRank(subject)).level >= 5
   );
 }
 
 export function needsAdminCode(_roles: string) {
+  void _roles;
+
   return false;
 }
 
 export function needsBayoGate(_roles: string) {
+  void _roles;
+
   return false;
 }
 
 export function needsPrescreenAccess(_roles: string) {
+  void _roles;
+
   return false;
 }
 
@@ -323,12 +365,21 @@ export function isBayoClub(subject: PermissionSubject) {
   return roles.includes("bayo club") || gateKeys.includes("bayo-plus");
 }
 
+export function isAdmin(subject: PermissionSubject) {
+  return splitRoles(getRolesText(subject)).includes("admin");
+}
+
+export function canAccessAdminAnalytics(subject: PermissionSubject) {
+  return isAdmin(subject);
+}
+
 export function isCrypti(subject: PermissionSubject) {
   const roles = splitRoles(getRolesText(subject));
   const gateKeys = getGateKeys(subject);
   const cryptiRank = getCryptiRank(subject);
 
   return (
+    isAdmin(subject) ||
     roles.includes("crypti") ||
     roles.includes("crypti-plus") ||
     gateKeys.includes("crypti-plus") ||

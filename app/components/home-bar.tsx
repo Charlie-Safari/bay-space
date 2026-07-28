@@ -1,27 +1,26 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MouseEvent, useEffect, useRef, useState } from "react";
 import MemberLookup from "./member-lookup";
-import { isCrypti } from "../../lib/bay-space-roles";
 import TerminalLoadingShell from "./terminal-loading-shell";
 
 type HomeTab = {
+  ariaLabel?: string;
   href: string;
-  isCrypti?: boolean;
   label: string;
+  shortLabel?: string;
 };
 
-const tabs: HomeTab[] = [
-  { label: "top story", href: "/news" },
-  { label: "daily food", href: "/daily-food" },
-  { label: "theories", href: "/theories" },
-  { label: "library", href: "/library" },
+const baySpaceTabs: HomeTab[] = [
+  { label: "conspiracy", href: "/theories" },
+  { label: "facts on news", shortLabel: "facts", href: "/daily-food" },
+  { ariaLabel: "library", label: "📚", href: "/library" },
 ];
 
 const activeMemberStorageKey = "bay-space-active-member";
-const activeMemberRolesStorageKey = "bay-space-active-member-roles";
 
 function minimizeOpenPostWindows() {
   window.dispatchEvent(new Event("bay-space-minimize-posts"));
@@ -31,7 +30,6 @@ export default function HomeBar() {
   const pathname = usePathname();
   const router = useRouter();
   const [activeMember, setActiveMember] = useState("");
-  const [activeMemberRoles, setActiveMemberRoles] = useState("");
   const [pendingRouteLabel, setPendingRouteLabel] = useState("");
   const transitionTimerRef = useRef<number | null>(null);
 
@@ -40,34 +38,27 @@ export default function HomeBar() {
 
     async function syncActiveMember() {
       const cachedMember = window.localStorage.getItem(activeMemberStorageKey) ?? "";
-      const cachedRoles =
-        window.localStorage.getItem(activeMemberRolesStorageKey) ?? "";
 
       if (cachedMember && isMounted) {
         setActiveMember(cachedMember);
-        setActiveMemberRoles(cachedRoles);
       }
 
       const response = await fetch("/api/me", { cache: "no-store" });
 
       if (response.ok) {
         const data = (await response.json()) as {
-          member?: { member: string; roles?: string } | null;
+          member?: { member: string } | null;
         };
         const memberId = data.member?.member ?? "";
-        const roles = data.member?.roles ?? "";
 
         if (memberId) {
           window.localStorage.setItem(activeMemberStorageKey, memberId);
-          window.localStorage.setItem(activeMemberRolesStorageKey, roles);
         } else {
           window.localStorage.removeItem(activeMemberStorageKey);
-          window.localStorage.removeItem(activeMemberRolesStorageKey);
         }
 
         if (isMounted) {
           setActiveMember(memberId);
-          setActiveMemberRoles(roles);
         }
 
         return;
@@ -75,11 +66,9 @@ export default function HomeBar() {
 
       if (response.status === 401) {
         window.localStorage.removeItem(activeMemberStorageKey);
-        window.localStorage.removeItem(activeMemberRolesStorageKey);
 
         if (isMounted) {
           setActiveMember("");
-          setActiveMemberRoles("");
         }
       }
     }
@@ -95,36 +84,18 @@ export default function HomeBar() {
     };
   }, []);
 
-  const visibleTabs: HomeTab[] = useMemo(
-    () => [
-      ...(activeMember
-        ? [
-            {
-              label: "briefing room",
-              href: `/briefing-room?member=${activeMember}`,
-            },
-          ]
-        : []),
-      ...(isCrypti(activeMemberRoles)
-        ? [{ isCrypti: true, label: "+Crypti", href: "/crypti" }]
-        : []),
-      ...tabs,
-    ],
-    [activeMember, activeMemberRoles],
-  );
-
   const homeHref = activeMember ? `/briefing-room?member=${activeMember}` : "/";
 
   useEffect(() => {
     const prefetchHrefs = new Set([
       homeHref,
-      ...visibleTabs.map((tab) => tab.href),
+      ...baySpaceTabs.map((tab) => tab.href),
     ]);
 
     prefetchHrefs.forEach((href) => {
       router.prefetch(href);
     });
-  }, [homeHref, router, visibleTabs]);
+  }, [homeHref, router]);
 
   useEffect(() => {
     if (!pendingRouteLabel) {
@@ -174,6 +145,33 @@ export default function HomeBar() {
     }
   }
 
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function renderTab(tab: HomeTab) {
+    const active = isActiveRoute(tab.href);
+    const routeLabel = tab.ariaLabel ?? tab.label;
+
+    return (
+      <Link
+        key={tab.href}
+        href={tab.href}
+        aria-label={tab.ariaLabel}
+        aria-current={active ? "page" : undefined}
+        onClick={(event) => startNavigation(event, tab.href, routeLabel)}
+        className={`grid min-h-11 w-full place-items-center border px-2 py-2 text-center text-[0.62rem] font-black uppercase tracking-[0.08em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:min-h-12 sm:w-auto sm:px-3 sm:text-xs sm:tracking-[0.18em] ${
+          active
+            ? "border-[#d7ffd0] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
+            : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+        } ${tab.ariaLabel === "library" ? "text-xl" : ""}`}
+      >
+        <span className="hidden sm:inline">{tab.label}</span>
+        <span className="sm:hidden">{tab.shortLabel ?? tab.label}</span>
+      </Link>
+    );
+  }
+
   return (
     <>
       {pendingRouteLabel ? (
@@ -191,32 +189,39 @@ export default function HomeBar() {
         aria-label="Main navigation"
         className="border-b-2 border-[#39ff14] bg-black px-4 py-3 shadow-[0_0_22px_rgba(57,255,20,0.28)]"
       >
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={homeHref}
-              onClick={(event) => startNavigation(event, homeHref, "bay-space")}
-              className="text-xl font-black uppercase tracking-[0.24em] text-[#d7ffd0] [text-shadow:0_0_10px_#39ff14]"
-            >
-              bay-space
-            </Link>
-            <MemberLookup />
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+          <div className="flex justify-end">{renderTab(baySpaceTabs[0])}</div>
+
+          <Link
+            href={homeHref}
+            aria-label="Basecamp"
+            aria-current={
+              pathname === "/" || pathname.startsWith("/briefing-room")
+                ? "page"
+                : undefined
+            }
+            onClick={(event) => startNavigation(event, homeHref, "basecamp")}
+            className="grid h-14 w-20 justify-self-center place-items-center bg-transparent transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:h-20 sm:w-32"
+          >
+            <Image
+              src="/brand/bay-space-logo.png"
+              alt=""
+              width={1148}
+              height={736}
+              priority
+              className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(57,255,20,0.55)]"
+            />
+            <span className="sr-only">Basecamp</span>
+          </Link>
+
+          <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2 sm:grid-cols-[minmax(0,1fr)_3.5rem]">
+            {baySpaceTabs.slice(1).map(renderTab)}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-            {visibleTabs.map((tab) => (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                onClick={(event) => startNavigation(event, tab.href, tab.label)}
-                className={`border px-3 py-2 text-center text-xs font-bold uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                  tab.isCrypti
-                    ? "border-[#72d7ff] text-[#72d7ff] hover:bg-[#72d7ff] hover:text-black"
-                    : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
+        </div>
+
+        <div className="mx-auto mt-3 flex w-full max-w-6xl justify-center">
+          <div className="w-full max-w-md">
+            <MemberLookup />
           </div>
         </div>
       </nav>

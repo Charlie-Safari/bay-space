@@ -1,11 +1,14 @@
 import {
+  applyMemberWildCard,
   changeMemberPin,
   completeMember,
   createMemberSession,
   deleteMemberAccount,
   getMember,
   getStorageErrorMessage,
+  isBaySpaceWildCardAccessKey,
   baySpaceAgreementVersion,
+  baySpaceWildCardPointFloor,
   updateMemberSettings,
   wipeMemberAccount,
   UsernameUnavailableError,
@@ -221,6 +224,7 @@ export async function PATCH(request: Request, context: MemberContext) {
       roles?: string;
       title?: string;
       action?: string;
+      accessKey?: string;
       settings?: {
         email?: string;
         birthdayMonth?: string;
@@ -242,6 +246,26 @@ export async function PATCH(request: Request, context: MemberContext) {
       }
 
       return Response.json({ member });
+    }
+
+    if (body.action === "wild-card") {
+      if (!isBaySpaceWildCardAccessKey(body.accessKey ?? "")) {
+        return Response.json({ message: "access key rejected" }, { status: 403 });
+      }
+
+      const member = await applyMemberWildCard(memberId);
+
+      if (!member) {
+        return Response.json({ message: "Member not found" }, { status: 404 });
+      }
+
+      return Response.json({
+        member,
+        wildCard: {
+          pointFloor: baySpaceWildCardPointFloor,
+          rank: "graduation",
+        },
+      });
     }
 
     if (body.action === "wipe-account") {

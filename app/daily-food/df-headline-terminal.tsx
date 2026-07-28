@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import FavoriteButton from "../components/favorite-button";
+import PostEngagementPanel from "../components/post-engagement-panel";
 import TicketVoteButton from "../components/ticket-vote-button";
 import TerminalLoadingShell from "../components/terminal-loading-shell";
 import {
@@ -24,6 +25,7 @@ import {
   isBayoClub,
   isGhostRole,
 } from "../../lib/bay-space-roles";
+import type { BayPostTruthVoteSummary } from "../../lib/bay-space-types";
 import {
   formatPointTenths,
   getBaySpacePostPointTenths,
@@ -532,6 +534,28 @@ export default function DfHeadlineTerminal({
     return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
   }
 
+  function syncPostTruthSummary(
+    postId: string,
+    summary: BayPostTruthVoteSummary,
+  ) {
+    setPosts((currentPosts) =>
+      currentPosts.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              meta: {
+                ...(post.meta ?? {}),
+                truthAverageScore: summary.averageScore.toFixed(1),
+                truthPointTenths: String(summary.pointValue * 10),
+                truthScoreTotal: String(summary.scoreTotal),
+                truthVoteCount: String(summary.voteCount),
+              },
+            }
+          : post,
+      ),
+    );
+  }
+
   function openCategoryPost(post: BayPost) {
     setExpandedPostId("");
     setHashPostId(post.id);
@@ -865,6 +889,13 @@ export default function DfHeadlineTerminal({
                 </span>
               ) : null}
             </div>
+            <PostEngagementPanel
+              isLoggedIn={isLoggedIn}
+              onTruthSummaryChange={(summary) =>
+                syncPostTruthSummary(displayedPost.id, summary)
+              }
+              postId={displayedPost.id}
+            />
           </article>
         ) : activePosts.length ? (
           <div className="grid gap-3">

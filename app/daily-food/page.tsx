@@ -8,7 +8,7 @@ export default function DailyFood() {
 
       <section className="mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
         <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-          c:\bay-space\daily-food&gt; main
+          c:\bay-space\facts-on-news&gt; main
         </p>
         <DailyFoodShell />
       </section>
