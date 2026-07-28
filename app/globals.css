@@ -25,6 +25,19 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.bay-terminal-copy {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.bay-terminal-field {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
 @keyframes option-shake {
   0%,
   100% {
@@ -64,6 +77,18 @@ body {
 
   80% {
     transform: scale(1.03) translateX(3px);
+  }
+}
+
+@keyframes signup-field-swipe {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 

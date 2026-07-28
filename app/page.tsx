@@ -18,14 +18,14 @@ export default async function Home() {
         <h1 className="text-5xl font-black uppercase tracking-[0.2em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-7xl md:text-8xl">
           bay-space
         </h1>
-        <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
+        <p className="bay-terminal-copy mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-sm leading-7 text-[#d7ffd0] sm:text-base">
           system online. signal clean. select a channel from the home bar.
         </p>
         <Link
           href="/join-the-circle"
-          className="mt-10 w-fit border-2 border-[#39ff14] bg-black px-4 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          className="bay-terminal-copy mt-10 w-fit border-2 border-[#39ff14] bg-black px-4 py-3 text-sm text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
         >
-          join the circle
+          Join the Circle
         </Link>
       </section>
     </main>

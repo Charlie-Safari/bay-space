@@ -7,11 +7,22 @@ import {
   normalizeUsername,
 } from "../../lib/bay-space-username";
 
+type SignupPhase = "username" | "password";
+
+const signupPasswordStoragePrefix = "bay-space-signup-password";
+
+export function getSignupPasswordStorageKey(member: string) {
+  return `${signupPasswordStoragePrefix}:${member}`;
+}
+
 export default function JoinCircleForm() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const canAutoFocusRef = useRef(false);
+  const [signupPhase, setSignupPhase] = useState<SignupPhase>("username");
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pendingMember, setPendingMember] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isUsernameBlocked, setIsUsernameBlocked] = useState(false);
@@ -38,6 +49,11 @@ export default function JoinCircleForm() {
 
   async function activate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (signupPhase === "password") {
+      await savePassword();
+      return;
+    }
 
     const cleanUsername = normalizeUsername(username);
 
@@ -92,11 +108,69 @@ export default function JoinCircleForm() {
       return;
     }
 
-    router.push(
-      `/join-the-circle/member?name=${encodeURIComponent(
-        cleanUsername,
-      )}&member=${data.member}&ref=${encodeURIComponent(cleanUsername)}`,
-    );
+    setUsername(cleanUsername);
+    setPendingMember(data.member);
+    setSignupPhase("password");
+    setPassword("");
+    window.requestAnimationFrame(() => {
+      focusInput();
+    });
+  }
+
+  async function savePassword() {
+    const cleanUsername = normalizeUsername(username);
+
+    if (!pendingMember || !cleanUsername) {
+      setSignupPhase("username");
+      setErrorMessage("try again");
+      return;
+    }
+
+    if (!password.trim() || isSubmitting) {
+      setErrorMessage("password required");
+      setIsUsernameBlocked(true);
+      focusInputForError();
+      return;
+    }
+
+    setErrorMessage("");
+    setIsUsernameBlocked(false);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/signup-draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          member: pendingMember,
+          name: cleanUsername,
+          pin: password,
+          refName: cleanUsername,
+        }),
+      });
+      const data = (await response.json()) as {
+        message?: string;
+        nextPath?: string;
+      };
+
+      if (!response.ok || !data.nextPath) {
+        setErrorMessage(data.message ?? "save failed");
+        setIsUsernameBlocked(true);
+        return;
+      }
+
+      window.sessionStorage.setItem(
+        getSignupPasswordStorageKey(pendingMember),
+        password,
+      );
+      setPassword("");
+      router.push(data.nextPath);
+    } catch {
+      setErrorMessage("save failed");
+      setIsUsernameBlocked(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -107,65 +181,102 @@ export default function JoinCircleForm() {
     >
       <label
         htmlFor="circle-username"
-        className="mb-2 block text-xs font-bold uppercase tracking-[0.24em] text-[#d7ffd0]"
+        className="bay-terminal-copy mb-2 block text-xs text-[#d7ffd0]"
       >
-        Create your user name
+        {signupPhase === "username" ? "Create your user name" : "Create your password"}
       </label>
       <div
         onPointerDown={focusInput}
         onAnimationEnd={() => setIsUsernameBlocked(false)}
-        className={`flex items-center gap-2 border border-[#1d7f12] bg-[#001100] px-2 py-2 shadow-[inset_0_0_12px_rgba(57,255,20,0.14)] ${
+        className={`flex items-center gap-2 overflow-hidden border border-[#1d7f12] bg-[#001100] px-2 py-2 shadow-[inset_0_0_12px_rgba(57,255,20,0.14)] ${
           isUsernameBlocked ? "animate-[option-shake_180ms_linear]" : ""
         }`}
       >
         <span
-          className="text-3xl font-black leading-none text-[#39ff14]"
+          className="bay-terminal-field text-xl leading-none text-[#39ff14]"
           aria-hidden="true"
         >
           C&gt;
         </span>
-        <div className="relative min-h-9 flex-1">
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center text-3xl font-black leading-none tracking-[0.12em] text-[#39ff14] [text-shadow:0_0_10px_#39ff14]"
-            aria-hidden="true"
-          >
-            <span>{username}</span>
-            <span className="ml-1 h-8 w-5 animate-pulse bg-[#39ff14] shadow-[0_0_10px_#39ff14]" />
-          </div>
+        <div
+          key={signupPhase}
+          className="relative min-h-9 flex-1 animate-[signup-field-swipe_240ms_ease-out]"
+        >
+          {signupPhase === "username" ? (
+            <div
+              className="bay-terminal-field pointer-events-none absolute inset-0 flex items-center text-base leading-6 text-[#39ff14] [text-shadow:0_0_8px_#39ff14]"
+              aria-hidden="true"
+            >
+              <span>{username}</span>
+              <span className="ml-1 h-5 w-3 animate-pulse bg-[#39ff14] shadow-[0_0_10px_#39ff14]" />
+            </div>
+          ) : null}
           <input
             ref={inputRef}
             id="circle-username"
-            autoComplete="off"
+            autoComplete={signupPhase === "username" ? "username" : "new-password"}
             autoCapitalize="none"
             inputMode="text"
             maxLength={30}
             spellCheck={false}
-            value={username}
+            type={signupPhase === "username" ? "text" : "password"}
+            value={signupPhase === "username" ? username : password}
             onChange={(event) => {
-              setUsername(normalizeUsername(event.target.value));
+              if (signupPhase === "username") {
+                setUsername(normalizeUsername(event.target.value));
+              } else {
+                setPassword(event.target.value.slice(0, 24));
+              }
+
               setErrorMessage("");
               setIsUsernameBlocked(false);
             }}
-            className="absolute inset-0 w-full bg-transparent text-3xl font-black leading-none tracking-[0.12em] text-transparent caret-transparent outline-none"
+            placeholder={signupPhase === "username" ? "" : "Create a Password"}
+            className={`bay-terminal-field absolute inset-0 w-full bg-transparent text-base leading-6 outline-none placeholder:font-normal placeholder:italic placeholder:text-[#1d7f12] ${
+              signupPhase === "username"
+                ? "text-transparent caret-transparent"
+                : "text-[#39ff14] caret-[#39ff14]"
+            }`}
           />
         </div>
       </div>
       <button
         type="submit"
         disabled={isSubmitting}
-        className="mt-3 min-h-11 w-full touch-manipulation border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.24em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        className="bay-terminal-copy mt-3 min-h-11 w-full touch-manipulation border border-[#39ff14] px-3 py-2 text-sm text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
-        {isSubmitting ? "activating" : "activate"}
+        {isSubmitting
+          ? signupPhase === "username"
+            ? "Activating"
+            : "Saving"
+          : signupPhase === "username"
+            ? "Join the Circle"
+            : "Continue"}
       </button>
-      <p className="mt-3 border-l border-[#39ff14] pl-3 text-[0.68rem] font-bold leading-5 tracking-[0.14em] text-[#7f9f78]">
-        a-z
-        <br />
-        0-9
-        <br />
-        (-)
-      </p>
+      {signupPhase === "username" ? (
+        <p className="bay-terminal-copy mt-3 border-l border-[#39ff14] pl-3 text-[0.68rem] leading-5 text-[#7f9f78]">
+          a-z
+          <br />
+          0-9
+          <br />
+          (-)
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setSignupPhase("username");
+            setPassword("");
+            setErrorMessage("");
+            focusInput();
+          }}
+          className="bay-terminal-copy mt-3 text-left text-[0.68rem] text-[#7f9f78] underline decoration-[#1d7f12] underline-offset-4 transition hover:text-[#39ff14]"
+        >
+          change username
+        </button>
+      )}
       {errorMessage ? (
-        <p className="mt-3 text-[0.68rem] font-black leading-5 tracking-[0.14em] text-[#39ff14]">
+        <p className="bay-terminal-copy mt-3 text-[0.68rem] leading-5 text-[#39ff14]">
           {errorMessage}
         </p>
       ) : null}

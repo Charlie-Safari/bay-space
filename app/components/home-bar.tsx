@@ -17,8 +17,8 @@ type HomeTab = {
 };
 
 const baySpaceTabs: HomeTab[] = [
-  { label: "conspiracy", href: "/theories" },
-  { label: "facts on news", shortLabel: "facts", href: "/daily-food" },
+  { label: "Conspiracy", href: "/theories" },
+  { label: "Facts on News", shortLabel: "Facts", href: "/daily-food" },
   { ariaLabel: "library", label: "📚", href: "/library" },
 ];
 
@@ -183,11 +183,11 @@ export default function HomeBar() {
           aria-label={tab.ariaLabel}
           aria-current={active ? "page" : undefined}
           onClick={(event) => startNavigation(event, tab.href, routeLabel)}
-          className={`grid min-h-11 w-full place-items-center border px-2 py-2 text-center text-[0.62rem] font-black uppercase tracking-[0.08em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] md:min-h-12 md:w-auto md:px-3 md:text-xs md:tracking-[0.18em] ${
+          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center text-[0.62rem] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] md:min-h-12 md:w-auto md:px-4 md:text-xs ${
             active
               ? "border-[#d7ffd0] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
               : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-          } ${tab.ariaLabel === "library" ? "text-xl" : ""}`}
+          } ${tab.ariaLabel === "library" ? "text-xl leading-none" : ""}`}
         >
           <span className="hidden md:inline">{tab.label}</span>
           <span className="md:hidden">{tab.shortLabel ?? tab.label}</span>
@@ -207,7 +207,7 @@ export default function HomeBar() {
           aria-label="+CRYPTI"
           aria-current={active ? "page" : undefined}
           onClick={(event) => startNavigation(event, "/crypti", "+CRYPTI")}
-          className={`grid min-h-11 w-full place-items-center border px-2 py-2 text-center text-[0.62rem] font-black uppercase tracking-[0.08em] transition focus:outline-none focus:ring-2 focus:ring-[#b8f1ff] md:min-h-12 md:w-auto md:px-3 md:text-xs md:tracking-[0.18em] ${
+          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center text-[0.62rem] transition focus:outline-none focus:ring-2 focus:ring-[#b8f1ff] md:min-h-12 md:w-auto md:px-4 md:text-xs ${
             active
               ? "border-[#b8f1ff] bg-[#59d6ff] text-black shadow-[0_0_18px_rgba(89,214,255,0.45)]"
               : "border-[#59d6ff] text-[#59d6ff] hover:bg-[#59d6ff] hover:text-black"

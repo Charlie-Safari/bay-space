@@ -128,7 +128,7 @@ export default function MemberLookup() {
         aria-label="Open briefing room by username or member number"
         onAnimationEnd={() => setIsBlocked(false)}
       >
-        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.12em] text-[#39ff14]">
+        <span className="bay-terminal-copy whitespace-nowrap text-[10px] text-[#39ff14]">
           [LOG IN] --&gt;
         </span>
         <button
@@ -158,7 +158,7 @@ export default function MemberLookup() {
             setStatusMessage("");
           }}
           placeholder={loginPhase === "lookup" ? "username" : "password"}
-          className="w-40 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:border-[#39ff14] focus:ring-1 focus:ring-[#39ff14]"
+          className="bay-terminal-field w-40 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#1d7f12] focus:border-[#39ff14] focus:ring-1 focus:ring-[#39ff14]"
           aria-label={
             loginPhase === "lookup"
               ? "Username or member number"
@@ -167,7 +167,7 @@ export default function MemberLookup() {
         />
       </form>
       {isBlocked ? (
-        <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#39ff14]">
+        <p className="bay-terminal-copy mt-1 text-[10px] text-[#39ff14]">
           {statusMessage}
         </p>
       ) : null}

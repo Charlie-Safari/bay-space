@@ -8,6 +8,7 @@ import {
 } from "../../../../lib/bay-space-agreement";
 import { isCrypti } from "../../../../lib/bay-space-roles";
 import { openExternalBrowser } from "../../../components/open-external-browser";
+import { getSignupPasswordStorageKey } from "../../join-circle-form";
 import styles from "./password-confirm-form.module.css";
 
 type PasswordConfirmFormProps = {
@@ -26,6 +27,14 @@ function getAgreementReadParam() {
   return new URLSearchParams(window.location.search).get("agreementRead") ?? "";
 }
 
+function getStoredSignupPassword(member: string) {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.sessionStorage.getItem(getSignupPasswordStorageKey(member)) ?? "";
+}
+
 export default function PasswordConfirmForm({
   member,
   name,
@@ -34,7 +43,8 @@ export default function PasswordConfirmForm({
   title,
 }: PasswordConfirmFormProps) {
   const router = useRouter();
-  const [confirmPin, setConfirmPin] = useState("");
+  const [storedSignupPassword] = useState(() => getStoredSignupPassword(member));
+  const [confirmPin, setConfirmPin] = useState(storedSignupPassword);
   const [isWrongPassword, setIsWrongPassword] = useState(false);
   const [isAgreementAlert, setIsAgreementAlert] = useState(false);
   const [isBayoPlusAgreementAlert, setIsBayoPlusAgreementAlert] =
@@ -167,6 +177,7 @@ export default function PasswordConfirmForm({
       }
 
       const savedMemberId = data.member.member;
+      window.sessionStorage.removeItem(getSignupPasswordStorageKey(member));
       window.localStorage.setItem("bay-space-active-member", savedMemberId);
       window.localStorage.setItem(
         "bay-space-active-member-roles",
@@ -182,23 +193,29 @@ export default function PasswordConfirmForm({
 
   return (
     <form onSubmit={saveMember} className="mt-8 w-full max-w-md">
-      <div
-        className={isWrongPassword ? styles.alert : ""}
-        onAnimationEnd={() => setIsWrongPassword(false)}
-      >
-        <input
-          aria-label="Create password"
-          autoComplete="new-password"
-          placeholder="Create a Password"
-          type="password"
-          value={confirmPin}
-          onChange={(event) => {
-            setConfirmPin(event.target.value.slice(0, 24));
-          }}
-          className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
-          autoFocus
-        />
-      </div>
+      {storedSignupPassword ? (
+        <p className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-xs font-black uppercase leading-5 tracking-[0.18em] text-[#d7ffd0]">
+          password saved for this signup session
+        </p>
+      ) : (
+        <div
+          className={isWrongPassword ? styles.alert : ""}
+          onAnimationEnd={() => setIsWrongPassword(false)}
+        >
+          <input
+            aria-label="Create password"
+            autoComplete="new-password"
+            placeholder="Create a Password"
+            type="password"
+            value={confirmPin}
+            onChange={(event) => {
+              setConfirmPin(event.target.value.slice(0, 24));
+            }}
+            className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
+            autoFocus
+          />
+        </div>
+      )}
       <a
         href={baySpaceAgreementHref}
         target="_blank"

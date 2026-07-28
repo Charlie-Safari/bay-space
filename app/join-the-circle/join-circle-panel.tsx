@@ -33,7 +33,7 @@ export default function JoinCirclePanel() {
 
   if (activeMember) {
     return (
-      <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base font-black uppercase leading-7 tracking-[0.16em] text-[#d7ffd0] sm:text-lg">
+      <p className="bay-terminal-copy mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-sm leading-7 text-[#d7ffd0] sm:text-base">
         you are already logged in
       </p>
     );
@@ -41,7 +41,7 @@ export default function JoinCirclePanel() {
 
   return (
     <>
-      <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
+      <p className="bay-terminal-copy mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-sm leading-7 text-[#d7ffd0] sm:text-base">
         no email required - remember your password
       </p>
       <JoinCircleForm />
