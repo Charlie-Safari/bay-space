@@ -51,10 +51,12 @@ import {
 } from "../../lib/daily-food-categories";
 import { theoryCategories } from "../../lib/theory-categories";
 import {
-  bayoPlusAgreementHref,
   baySpaceAgreementHref,
+  cryptiAgreementHref,
+  cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
 import TicketVoteCounter from "../components/ticket-vote-counter";
+import { openExternalBrowser } from "../components/open-external-browser";
 
 type BriefingRoomGateProps = {
   member: string;
@@ -63,6 +65,8 @@ type BriefingRoomGateProps = {
 type SavedMember = {
   availablePoints?: number;
   bayoCoins?: number;
+  cryptiAgreementAcceptedAt?: string;
+  cryptiAgreementVersion?: string;
   cryptiRank?: CryptiRank;
   gateKeys?: GateKey[];
   lifetimePoints?: number;
@@ -610,6 +614,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [email, setEmail] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
   const [birthdayYear, setBirthdayYear] = useState("");
+  const [hasOpenedCryptiAgreement, setHasOpenedCryptiAgreement] =
+    useState(false);
+  const [hasAcceptedCryptiAgreement, setHasAcceptedCryptiAgreement] =
+    useState(false);
+  const [isCryptiAgreementAlert, setIsCryptiAgreementAlert] = useState(false);
   const [settingsLinks, setSettingsLinks] = useState<Required<SettingsLinks>>({
     x: { url: "", display: false },
     linkedin: { url: "", display: false },
@@ -661,6 +670,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
+  const hasAcceptedCurrentCryptiAgreement = Boolean(
+    savedMember?.cryptiAgreementAcceptedAt &&
+      savedMember.cryptiAgreementVersion === cryptiAgreementVersion,
+  );
+  const needsCryptiAgreementAcceptance =
+    isCryptiMember && !hasAcceptedCurrentCryptiAgreement;
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const isOptionsRoom = isOptionRoomPanel(activePanel);
   const promotionProgress = savedMember
@@ -827,9 +842,17 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   function applySettingsFields(memberRecord: SavedMember | null) {
+    const hasAcceptedCryptiAgreementRecord = Boolean(
+      memberRecord?.cryptiAgreementAcceptedAt &&
+        memberRecord.cryptiAgreementVersion === cryptiAgreementVersion,
+    );
+
     setEmail(memberRecord?.email ?? "");
     setBirthdayMonth(memberRecord?.birthdayMonth ?? "");
     setBirthdayYear(memberRecord?.birthdayYear ?? "");
+    setHasAcceptedCryptiAgreement(hasAcceptedCryptiAgreementRecord);
+    setHasOpenedCryptiAgreement(hasAcceptedCryptiAgreementRecord);
+    setIsCryptiAgreementAlert(false);
     setSettingsLinks(getSettingsLinks(memberRecord));
   }
 
@@ -863,6 +886,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSettingsMessage("");
     setExchangeMessage("");
     setWildCardMessage("");
+    setIsCryptiAgreementAlert(false);
     setIsChangingPassword(false);
     setDeleteAccountConfirm(false);
     setWipeAccountConfirm(false);
@@ -1627,7 +1651,32 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSettingsMessage("");
   }
 
+  function openCryptiAgreement() {
+    if (openExternalBrowser(cryptiAgreementHref)) {
+      setHasOpenedCryptiAgreement(true);
+      setIsCryptiAgreementAlert(false);
+      setSettingsMessage("");
+      return;
+    }
+
+    setSettingsMessage("open +CRYPTI user agreement");
+  }
+
   async function saveSettings() {
+    if (needsCryptiAgreementAcceptance) {
+      if (!hasOpenedCryptiAgreement) {
+        setIsCryptiAgreementAlert(true);
+        setSettingsMessage("open +CRYPTI user agreement first");
+        return;
+      }
+
+      if (!hasAcceptedCryptiAgreement) {
+        setIsCryptiAgreementAlert(true);
+        setSettingsMessage("confirm +CRYPTI user agreement");
+        return;
+      }
+    }
+
     const response = await fetch(`/api/members/${resolvedMember}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -1637,6 +1686,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           email,
           birthdayMonth,
           birthdayYear,
+          cryptiAgreementAccepted: needsCryptiAgreementAcceptance
+            ? hasAcceptedCryptiAgreement
+            : undefined,
           links: settingsLinks,
         },
       }),
@@ -1649,7 +1701,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     setSavedMember(data.member);
+    applySettingsFields(data.member);
     setSettingsMessage("settings saved");
+    window.dispatchEvent(new Event("bay-space-auth"));
   }
 
   async function runExchangeAction(
@@ -1658,7 +1712,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   ) {
     if (!savedMember) {
       setExchangeMessage("no account found");
-      return;
+      return null;
     }
 
     setIsExchangeLoading(true);
@@ -1677,13 +1731,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
       if (!response.ok || !data.member) {
         setExchangeMessage(data.message ?? "exchange failed");
-        return;
+        return null;
       }
 
       setSavedMember(data.member);
       applySettingsFields(data.member);
       setExchangeMessage(successMessage);
       window.dispatchEvent(new Event("bay-space-auth"));
+      return data.member;
     } finally {
       setIsExchangeLoading(false);
     }
@@ -1715,9 +1770,28 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   }
 
   async function purchaseGateKey(gateKey: GateKey) {
-    await runExchangeAction(
+    const hadCryptiGateKey = Boolean(
+      savedMember?.gateKeys?.includes("crypti-plus"),
+    );
+    const member = await runExchangeAction(
       { action: "purchase-gate-key", gateKey },
       "gate key unlocked",
+    );
+
+    if (gateKey !== "crypti-plus" || !member || hadCryptiGateKey) {
+      return;
+    }
+
+    setActivePanel("settings");
+    setHasAcceptedCryptiAgreement(false);
+    setIsCryptiAgreementAlert(true);
+
+    const openedAgreement = openExternalBrowser(cryptiAgreementHref);
+    setHasOpenedCryptiAgreement(openedAgreement);
+    setSettingsMessage(
+      openedAgreement
+        ? "review +CRYPTI agreement, check the box, then save settings"
+        : "open +CRYPTI agreement, check the box, then save settings",
     );
   }
 
@@ -3489,14 +3563,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   })}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={saveSettings}
-                  className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                >
-                  save settings
-                </button>
-
                 <div className="border-t border-[#1d7f12] pt-5">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
                     Delete Account buttons
@@ -3595,14 +3661,65 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       privacy + user agreement
                     </Link>
                     {isCryptiMember ? (
-                      <Link
-                        href={bayoPlusAgreementHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-3 mt-3 inline-flex border border-[#72d7ff] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      <div
+                        className={`mt-4 border p-4 ${
+                          isCryptiAgreementAlert
+                            ? "border-[#72d7ff] shadow-[0_0_18px_rgba(114,215,255,0.35)]"
+                            : "border-[#1d7f12]"
+                        }`}
                       >
-                        +Crypti user agreement
-                      </Link>
+                        <button
+                          type="button"
+                          onClick={openCryptiAgreement}
+                          className="inline-flex border border-[#72d7ff] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          open +CRYPTI user agreement
+                        </button>
+                        <label className="mt-4 flex items-start gap-3 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#72d7ff]">
+                          <input
+                            type="checkbox"
+                            checked={
+                              hasAcceptedCurrentCryptiAgreement ||
+                              hasAcceptedCryptiAgreement
+                            }
+                            readOnly={hasAcceptedCurrentCryptiAgreement}
+                            onChange={(event) => {
+                              if (hasAcceptedCurrentCryptiAgreement) {
+                                return;
+                              }
+
+                              if (
+                                event.target.checked &&
+                                !hasOpenedCryptiAgreement
+                              ) {
+                                setHasAcceptedCryptiAgreement(false);
+                                setIsCryptiAgreementAlert(true);
+                                setSettingsMessage(
+                                  "open +CRYPTI user agreement first",
+                                );
+                                openCryptiAgreement();
+                                return;
+                              }
+
+                              setHasAcceptedCryptiAgreement(event.target.checked);
+                              setIsCryptiAgreementAlert(false);
+                              setSettingsMessage("");
+                            }}
+                            className="mt-0.5 h-4 w-4 accent-[#72d7ff]"
+                          />
+                          <span>
+                            {hasAcceptedCurrentCryptiAgreement
+                              ? "+CRYPTI user agreement saved"
+                              : "I have read and agree the +CRYPTI user agreement."}
+                          </span>
+                        </label>
+                        {needsCryptiAgreementAcceptance ? (
+                          <p className="mt-3 text-[0.68rem] font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0]">
+                            Required after +CRYPTI purchase before settings can
+                            be saved.
+                          </p>
+                        ) : null}
+                      </div>
                     ) : null}
                     <label className="mt-4 flex items-center gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
                       <input
@@ -3615,6 +3732,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     </label>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={saveSettings}
+                  className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  save settings
+                </button>
 
                 {settingsMessage ? (
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">

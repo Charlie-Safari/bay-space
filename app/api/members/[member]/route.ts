@@ -55,6 +55,8 @@ function publicMember(member: ApiMember) {
   return {
     availablePoints: member.availablePoints,
     bayoCoins: member.bayoCoins,
+    cryptiAgreementAcceptedAt: member.cryptiAgreementAcceptedAt,
+    cryptiAgreementVersion: member.cryptiAgreementVersion,
     cryptiRank: member.cryptiRank,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
@@ -81,6 +83,8 @@ function privateMember(member: ApiMember) {
   return {
     availablePoints: member.availablePoints,
     bayoCoins: member.bayoCoins,
+    cryptiAgreementAcceptedAt: member.cryptiAgreementAcceptedAt,
+    cryptiAgreementVersion: member.cryptiAgreementVersion,
     cryptiRank: member.cryptiRank,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
@@ -235,6 +239,7 @@ export async function PATCH(request: Request, context: MemberContext) {
         email?: string;
         birthdayMonth?: string;
         birthdayYear?: string;
+        cryptiAgreementAccepted?: boolean;
         links?: {
           x?: { url: string; display: boolean };
           linkedin?: { url: string; display: boolean };

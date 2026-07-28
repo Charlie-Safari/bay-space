@@ -34,6 +34,7 @@ import {
   isValidUsername,
   normalizeUsername,
 } from "./bay-space-username";
+import { cryptiAgreementVersion } from "./bay-space-agreement";
 export { baySpaceAgreementVersion } from "./bay-space-agreement";
 
 type BayPostCategory =
@@ -62,6 +63,7 @@ type MemberSettingsInput = {
   email?: string;
   birthdayMonth?: string;
   birthdayYear?: string;
+  cryptiAgreementAccepted?: boolean;
   links?: {
     x?: PublicLink;
     linkedin?: PublicLink;
@@ -114,6 +116,8 @@ type MemberRow = {
   birthday_month: string;
   birthday_year: string;
   created_at: string;
+  crypti_agreement_accepted_at?: string | null;
+  crypti_agreement_version?: string | null;
   crypti_rank?: string | null;
   deleted_at: string | null;
   email: string;
@@ -283,6 +287,9 @@ function publicMember(member: MemberRow, roles: string[] = []): BayMember {
   return {
     availablePoints: normalizePointBalance(member.available_points),
     bayoCoins: normalizePointBalance(member.bayo_coins),
+    cryptiAgreementAcceptedAt:
+      member.crypti_agreement_accepted_at ?? undefined,
+    cryptiAgreementVersion: member.crypti_agreement_version ?? undefined,
     cryptiRank: normalizeCryptiRank(member.crypti_rank),
     gateKeys: normalizeStringArray<GateKey>(member.gate_keys),
     lifetimePoints: normalizePointBalance(member.lifetime_points),
@@ -863,10 +870,24 @@ export async function updateMemberSettings(
     return null;
   }
 
+  const hasAcceptedCurrentCryptiAgreement =
+    Boolean(member.crypti_agreement_accepted_at) &&
+    member.crypti_agreement_version === cryptiAgreementVersion;
+  const shouldAcceptCryptiAgreement =
+    input.cryptiAgreementAccepted === true &&
+    hasCryptiBranchOwnership(member) &&
+    !hasAcceptedCurrentCryptiAgreement;
+
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
       birthday_month: input.birthdayMonth?.trim().slice(0, 2) ?? "",
       birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? "",
+      ...(shouldAcceptCryptiAgreement
+        ? {
+            crypti_agreement_accepted_at: new Date().toISOString(),
+            crypti_agreement_version: cryptiAgreementVersion,
+          }
+        : {}),
       email: input.email?.trim().slice(0, 120) ?? "",
       links: {
         ...(member.links ?? {}),

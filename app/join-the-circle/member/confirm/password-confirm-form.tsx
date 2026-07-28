@@ -7,6 +7,7 @@ import {
   baySpaceAgreementHref,
 } from "../../../../lib/bay-space-agreement";
 import { isCrypti } from "../../../../lib/bay-space-roles";
+import { openExternalBrowser } from "../../../components/open-external-browser";
 import styles from "./password-confirm-form.module.css";
 
 type PasswordConfirmFormProps = {
@@ -177,8 +178,12 @@ export default function PasswordConfirmForm({
       <a
         href={baySpaceAgreementHref}
         target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => {
+        rel="external noopener noreferrer"
+        onClick={(event) => {
+          if (openExternalBrowser(baySpaceAgreementHref)) {
+            event.preventDefault();
+          }
+
           setHasOpenedAgreement(true);
         }}
         className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
@@ -212,8 +217,12 @@ export default function PasswordConfirmForm({
           <a
             href={bayoPlusAgreementHref}
             target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => {
+            rel="external noopener noreferrer"
+            onClick={(event) => {
+              if (openExternalBrowser(bayoPlusAgreementHref)) {
+                event.preventDefault();
+              }
+
               setHasOpenedBayoPlusAgreement(true);
             }}
             className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${

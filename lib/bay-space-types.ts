@@ -45,6 +45,8 @@ export type BayPostTruthVoteSummary = {
 export type BayMember = {
   availablePoints: number;
   bayoCoins: number;
+  cryptiAgreementAcceptedAt?: string;
+  cryptiAgreementVersion?: string;
   cryptiRank: CryptiRank;
   gateKeys: GateKey[];
   lifetimePoints: number;
