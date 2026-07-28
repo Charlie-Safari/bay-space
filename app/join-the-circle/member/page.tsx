@@ -1,5 +1,9 @@
 import HomeBar from "../../components/home-bar";
-import RoleSelector from "./role-selector";
+import {
+  defaultMemberRole,
+  defaultMemberTitle,
+} from "../../../lib/bay-space-roles";
+import PasswordConfirmForm from "./confirm/password-confirm-form";
 
 type CircleMemberProps = {
   searchParams: Promise<{
@@ -24,10 +28,25 @@ export default async function CircleMember({ searchParams }: CircleMemberProps) 
           Member: {member} - {name}
         </h1>
         <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
-          Welcome, explorer.
+          Welcome, explorer. Create your password and enter as Reader.
         </p>
 
-        <RoleSelector member={member} name={name} refName={ref} />
+        <div className="mt-10 w-full max-w-2xl border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+            Rank: {defaultMemberTitle}
+          </p>
+          <p className="mt-3 text-xs font-black uppercase leading-6 tracking-[0.18em] text-[#7f9f78]">
+            Reader can read theories and news. Promotions unlock Library,
+            posting, Graduation, and the Bayo Coin exchange.
+          </p>
+          <PasswordConfirmForm
+            member={member}
+            name={name}
+            refName={ref}
+            roles={defaultMemberRole}
+            title={defaultMemberTitle}
+          />
+        </div>
       </section>
     </main>
   );

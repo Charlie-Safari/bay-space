@@ -13,8 +13,15 @@ type ApiMember = Awaited<ReturnType<typeof listMembers>>[number];
 
 function publicMember(member: ApiMember) {
   return {
+    availablePoints: member.availablePoints,
+    bayoCoins: member.bayoCoins,
+    cryptiRank: member.cryptiRank,
+    gateKeys: member.gateKeys,
+    lifetimePoints: member.lifetimePoints,
     member: member.member,
     name: member.name,
+    purchasedTitles: member.purchasedTitles,
+    rank: member.rank,
     refName: member.refName,
     roles: member.roles,
     title: member.title,

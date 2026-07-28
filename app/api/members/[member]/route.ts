@@ -19,7 +19,10 @@ import {
   getCurrentMember,
   setSessionCookie,
 } from "../../../../lib/bay-space-session";
-import { isCrypti } from "../../../../lib/bay-space-roles";
+import {
+  defaultMemberRole,
+  defaultMemberTitle,
+} from "../../../../lib/bay-space-roles";
 
 type MemberContext = {
   params: Promise<{ member: string }>;
@@ -43,8 +46,15 @@ type ApiMember = NonNullable<Awaited<ReturnType<typeof getMember>>>;
 
 function publicMember(member: ApiMember) {
   return {
+    availablePoints: member.availablePoints,
+    bayoCoins: member.bayoCoins,
+    cryptiRank: member.cryptiRank,
+    gateKeys: member.gateKeys,
+    lifetimePoints: member.lifetimePoints,
     member: member.member,
     name: member.name,
+    purchasedTitles: member.purchasedTitles,
+    rank: member.rank,
     refName: member.refName,
     roles: member.roles,
     title: member.title,
@@ -62,8 +72,15 @@ function publicMember(member: ApiMember) {
 
 function privateMember(member: ApiMember) {
   return {
+    availablePoints: member.availablePoints,
+    bayoCoins: member.bayoCoins,
+    cryptiRank: member.cryptiRank,
+    gateKeys: member.gateKeys,
+    lifetimePoints: member.lifetimePoints,
     member: member.member,
     name: member.name,
+    purchasedTitles: member.purchasedTitles,
+    rank: member.rank,
     refName: member.refName,
     roles: member.roles,
     title: member.title,
@@ -95,35 +112,41 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
       agreementAccepted?: boolean;
       bayoPlusAgreementAccepted?: boolean;
       confirmPin?: string;
+      name?: string;
+      pin?: string;
+      refName?: string;
     };
-    const pin = body.confirmPin ?? "";
+    const pin = body.pin ?? body.confirmPin ?? "";
     const draft = await getSignupDraftCookie();
 
     if (!pin) {
-      return Response.json({ message: "PIN required" }, { status: 400 });
+      return Response.json({ message: "password required" }, { status: 400 });
     }
 
     if (body.agreementAccepted !== true) {
       return Response.json({ message: "agreement required" }, { status: 400 });
     }
 
-    if (!draft || !verifySignupDraftPin(draft, pin)) {
+    if (draft && !verifySignupDraftPin(draft, pin)) {
       return Response.json({ message: "Invalid signup draft" }, { status: 400 });
     }
 
-    if (isCrypti(draft.roles) && body.bayoPlusAgreementAccepted !== true) {
-      return Response.json(
-        { message: "bayo+ agreement required" },
-        { status: 400 },
-      );
+    if (!draft && !(body.name ?? "").trim()) {
+      return Response.json({ message: "username required" }, { status: 400 });
     }
 
-    const member = await completeMember(draft.member, {
-      name: draft.name,
+    const pendingMember = {
+      member: draft?.member ?? normalizeMemberId(memberId),
+      name: draft?.name ?? body.name ?? "",
+      refName: draft?.refName ?? body.refName ?? body.name ?? "",
+    };
+
+    const member = await completeMember(pendingMember.member, {
+      name: pendingMember.name,
       pin,
-      refName: draft.refName,
-      roles: draft.roles,
-      title: draft.title,
+      refName: pendingMember.refName,
+      roles: defaultMemberRole,
+      title: defaultMemberTitle,
       agreementAcceptedAt: new Date().toISOString(),
       agreementVersion: baySpaceAgreementVersion,
     });
@@ -139,7 +162,10 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
     }
 
     await setSessionCookie(sessionToken);
-    await clearSignupDraftCookie();
+
+    if (draft) {
+      await clearSignupDraftCookie();
+    }
 
     return Response.json({ member });
   } catch (error) {

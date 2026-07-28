@@ -6,6 +6,7 @@ import {
 import { getCurrentMember } from "../../../lib/bay-space-session";
 import { BayPostCategory } from "../../../lib/bay-space-types";
 import {
+  canReadCategory,
   canPostCategory,
   canUseAnonymousPosting,
   canUseIncognitoPosting,
@@ -40,16 +41,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") ?? undefined;
     const member = await getCurrentMember();
-    const hasCryptiAccess = Boolean(member && isCrypti(member.roles));
+    const hasCryptiAccess = Boolean(member && isCrypti(member));
 
     if (category && !isPostCategory(category)) {
       return Response.json({ message: "Invalid category" }, { status: 400 });
     }
 
     const posts = await listPosts(category);
-    const visiblePosts = hasCryptiAccess
-      ? posts
-      : posts.filter((post) => post.meta?.cryptiPost !== "true");
+    const visiblePosts = posts.filter(
+      (post) =>
+        canReadCategory(member, post.category) &&
+        (hasCryptiAccess || post.meta?.cryptiPost !== "true"),
+    );
 
     return Response.json({ posts: visiblePosts });
   } catch (error) {
@@ -71,7 +74,7 @@ export async function POST(request: Request) {
       return Response.json({ message: "Invalid category" }, { status: 400 });
     }
 
-    if (!canPostCategory(member.roles, body.category)) {
+    if (!canPostCategory(member, body.category)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -84,7 +87,7 @@ export async function POST(request: Request) {
       delete meta.accountMarker;
     }
 
-    if (meta?.cryptiPost === "true" && !isCrypti(member.roles)) {
+    if (meta?.cryptiPost === "true" && !isCrypti(member)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -93,8 +96,8 @@ export async function POST(request: Request) {
         category: body.category,
         title: String(body.title ?? "").slice(0, 140),
         body: String(body.body ?? ""),
-        anonymous: Boolean(body.anonymous) && canUseAnonymousPosting(member.roles),
-        incognito: Boolean(body.incognito) && canUseIncognitoPosting(member.roles),
+        anonymous: Boolean(body.anonymous) && canUseAnonymousPosting(member),
+        incognito: Boolean(body.incognito) && canUseIncognitoPosting(member),
         author: member.member,
         shelfLabel: body.shelfLabel ? String(body.shelfLabel) : undefined,
         shelfCode: body.shelfCode ? String(body.shelfCode) : undefined,

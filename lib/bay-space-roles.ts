@@ -1,4 +1,15 @@
 import type { BayPostCategory } from "./bay-space-types";
+import {
+  defaultBayRank,
+  defaultMemberRole,
+  defaultMemberTitle,
+  getBayRankConfig,
+  getBayRankLabel,
+  normalizeBayRank,
+  type BayRank,
+  type CryptiRank,
+  type GateKey,
+} from "./bay-space-ranks";
 
 type BaySpaceRole = {
   allowedCategories: BayPostCategory[];
@@ -13,15 +24,91 @@ type BaySpaceRole = {
   title: string;
 };
 
+type PermissionSubject =
+  | string
+  | {
+      cryptiRank?: CryptiRank | string;
+      gateKeys?: Array<GateKey | string>;
+      rank?: BayRank | string;
+      roles?: string;
+    }
+  | null
+  | undefined;
+
 export const baySpaceRoles: BaySpaceRole[] = [
   {
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
     description: "Read and reveal posts.",
+    id: "reader",
+    label: "Reader",
+    title: "Reader",
+  },
+  {
+    allowedCategories: [],
+    canUseAnonymous: false,
+    canUseIncognito: false,
+    description: "Legacy reader account. Promotes into the new Reader ladder.",
     id: "curious reader",
     label: "Curious Reader",
-    title: "Curious Reader",
+    title: "Reader",
+  },
+  {
+    allowedCategories: [],
+    canUseAnonymous: false,
+    canUseIncognito: false,
+    description: "Can read Library in addition to Theories and News.",
+    id: "reader-ii",
+    label: "Reader II",
+    title: "Reader II",
+  },
+  {
+    allowedCategories: ["theory"],
+    canUseAnonymous: true,
+    canUseIncognito: false,
+    description: "Can post in conspiracies.",
+    id: "poster",
+    label: "Poster",
+    title: "Poster",
+  },
+  {
+    allowedCategories: ["theory", "library-submission"],
+    canUseAnonymous: true,
+    canUseIncognito: false,
+    description: "Can post in Library and conspiracies.",
+    id: "poster-ii",
+    label: "Poster II",
+    title: "Poster II",
+  },
+  {
+    allowedCategories: [
+      "top-story",
+      "daily-food",
+      "theory",
+      "library-submission",
+    ],
+    canUseAnonymous: true,
+    canUseIncognito: true,
+    description: "Can post in Theories, Library, and News.",
+    id: "poster-iii",
+    label: "Poster III",
+    title: "Poster III",
+  },
+  {
+    allowedCategories: [
+      "top-story",
+      "daily-food",
+      "theory",
+      "library-submission",
+    ],
+    canUseAnonymous: true,
+    canUseIncognito: true,
+    description:
+      "Graduated account. Can post across Bay Space and exchange points for Bayo Coins.",
+    id: "graduation",
+    label: "Graduation",
+    title: "Graduation",
   },
   {
     allowedCategories: ["daily-food", "library-submission"],
@@ -68,11 +155,65 @@ export const baySpaceRoles: BaySpaceRole[] = [
   },
 ];
 
+function getRolesText(subject: PermissionSubject) {
+  return typeof subject === "string" ? subject : subject?.roles ?? "";
+}
+
+function getGateKeys(subject: PermissionSubject) {
+  return typeof subject === "string" ? [] : subject?.gateKeys ?? [];
+}
+
+function getCryptiRank(subject: PermissionSubject) {
+  return typeof subject === "string" ? "" : subject?.cryptiRank ?? "";
+}
+
 function splitRoles(roles: string) {
   return roles
     .split(",")
     .map((role) => role.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function getRankFromLegacyRoles(roles: string): BayRank {
+  const normalizedRoles = splitRoles(roles);
+
+  if (normalizedRoles.includes("graduation")) {
+    return "graduation";
+  }
+
+  if (
+    normalizedRoles.includes("poster-iii") ||
+    normalizedRoles.includes("crypti") ||
+    normalizedRoles.includes("bayo club")
+  ) {
+    return "poster-iii";
+  }
+
+  if (
+    normalizedRoles.includes("poster-ii") ||
+    normalizedRoles.includes("influencer - daily food") ||
+    normalizedRoles.includes("influencer - theories")
+  ) {
+    return "poster-ii";
+  }
+
+  if (normalizedRoles.includes("poster")) {
+    return "poster";
+  }
+
+  if (normalizedRoles.includes("reader-ii")) {
+    return "reader-ii";
+  }
+
+  return defaultBayRank;
+}
+
+function getPermissionRank(subject: PermissionSubject) {
+  if (typeof subject !== "string" && subject?.rank) {
+    return normalizeBayRank(subject.rank);
+  }
+
+  return getRankFromLegacyRoles(getRolesText(subject));
 }
 
 export function getRoleConfig(role: string) {
@@ -88,13 +229,13 @@ export function getPrimaryRoleConfig(roles: string) {
 }
 
 export function getRoleLabel(role: string) {
-  return getRoleConfig(role)?.label ?? role;
+  return getRoleConfig(role)?.label ?? getBayRankLabel(role);
 }
 
 export function getRoleReviewLabel(role: string) {
   const roleConfig = getRoleConfig(role);
 
-  return roleConfig?.reviewLabel ?? roleConfig?.label ?? role;
+  return roleConfig?.reviewLabel ?? roleConfig?.label ?? getBayRankLabel(role);
 }
 
 export function getRoleDescription(role: string) {
@@ -102,53 +243,99 @@ export function getRoleDescription(role: string) {
 }
 
 export function getAccountTitle(roles: string) {
-  return getPrimaryRoleConfig(roles)?.title ?? "Curious Reader";
+  return getPrimaryRoleConfig(roles)?.title ?? defaultMemberTitle;
 }
 
-export function getRoleAcronym(roles: string) {
-  return isCrypti(roles) ? "+" : isBayoClub(roles) ? "🦉" : "";
+export function getRoleAcronym(subject: PermissionSubject) {
+  return isCrypti(subject) ? "+" : isBayoClub(subject) ? "🦉" : "";
 }
 
-export function getAllowedPostCategories(roles: string) {
-  return getPrimaryRoleConfig(roles)?.allowedCategories ?? [];
+export function getAllowedReadCategories(subject: PermissionSubject) {
+  return getBayRankConfig(getPermissionRank(subject)).canReadCategories;
 }
 
-export function canPostCategory(roles: string, category: BayPostCategory) {
-  return getAllowedPostCategories(roles).includes(category);
+export function canReadCategory(
+  subject: PermissionSubject,
+  category: BayPostCategory,
+) {
+  return getAllowedReadCategories(subject).includes(category);
 }
 
-export function hasCreatorAccess(roles: string) {
-  return getPrimaryRoleConfig(roles)?.id.startsWith("influencer -") ?? false;
+export function getAllowedPostCategories(subject: PermissionSubject) {
+  const rankCategories =
+    getBayRankConfig(getPermissionRank(subject)).allowedPostCategories;
+  const roleCategories =
+    getPrimaryRoleConfig(getRolesText(subject))?.allowedCategories ?? [];
+
+  return Array.from(new Set([...rankCategories, ...roleCategories]));
 }
 
-export function isGhostRole(roles: string) {
-  return getPrimaryRoleConfig(roles)?.id.startsWith("author -") ?? false;
+export function canPostCategory(
+  subject: PermissionSubject,
+  category: BayPostCategory,
+) {
+  return getAllowedPostCategories(subject).includes(category);
 }
 
-export function canUseAnonymousPosting(roles: string) {
-  return getPrimaryRoleConfig(roles)?.canUseAnonymous ?? false;
+export function hasCreatorAccess(subject: PermissionSubject) {
+  const roles = getRolesText(subject);
+
+  return (
+    getPrimaryRoleConfig(roles)?.id.startsWith("influencer -") ||
+    getBayRankConfig(getPermissionRank(subject)).allowedPostCategories.length > 0
+  );
 }
 
-export function canUseIncognitoPosting(roles: string) {
-  return getPrimaryRoleConfig(roles)?.canUseIncognito ?? false;
+export function isGhostRole(subject: PermissionSubject) {
+  return getPrimaryRoleConfig(getRolesText(subject))?.id.startsWith("author -") ?? false;
 }
 
-export function needsAdminCode(roles: string) {
-  return getPrimaryRoleConfig(roles)?.requiresAdminCode ?? false;
+export function canUseAnonymousPosting(subject: PermissionSubject) {
+  return (
+    getPrimaryRoleConfig(getRolesText(subject))?.canUseAnonymous ||
+    getBayRankConfig(getPermissionRank(subject)).level >= 3
+  );
 }
 
-export function needsBayoGate(roles: string) {
-  return getPrimaryRoleConfig(roles)?.requiresBayoGate ?? false;
+export function canUseIncognitoPosting(subject: PermissionSubject) {
+  return (
+    getPrimaryRoleConfig(getRolesText(subject))?.canUseIncognito ||
+    getBayRankConfig(getPermissionRank(subject)).level >= 5
+  );
 }
 
-export function needsPrescreenAccess(roles: string) {
-  return needsAdminCode(roles) || needsBayoGate(roles);
+export function needsAdminCode(_roles: string) {
+  return false;
 }
 
-export function isBayoClub(roles: string) {
-  return getPrimaryRoleConfig(roles)?.id === "bayo club";
+export function needsBayoGate(_roles: string) {
+  return false;
 }
 
-export function isCrypti(roles: string) {
-  return splitRoles(roles).includes("crypti");
+export function needsPrescreenAccess(_roles: string) {
+  return false;
 }
+
+export function isBayoClub(subject: PermissionSubject) {
+  const roles = splitRoles(getRolesText(subject));
+  const gateKeys = getGateKeys(subject);
+
+  return roles.includes("bayo club") || gateKeys.includes("bayo-plus");
+}
+
+export function isCrypti(subject: PermissionSubject) {
+  const roles = splitRoles(getRolesText(subject));
+  const gateKeys = getGateKeys(subject);
+  const cryptiRank = getCryptiRank(subject);
+
+  return (
+    roles.includes("crypti") ||
+    roles.includes("crypti-plus") ||
+    gateKeys.includes("crypti-plus") ||
+    cryptiRank === "reader-iii" ||
+    cryptiRank === "poster-iv" ||
+    cryptiRank === "poster-v"
+  );
+}
+
+export { defaultMemberRole, defaultMemberTitle };

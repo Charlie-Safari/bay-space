@@ -62,7 +62,7 @@ export async function PATCH(request: Request, context: PostContext) {
       return Response.json({ message: "Invalid anonymous value" }, { status: 400 });
     }
 
-    if (body.anonymous && !canUseAnonymousPosting(member.roles)) {
+    if (body.anonymous && !canUseAnonymousPosting(member)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 

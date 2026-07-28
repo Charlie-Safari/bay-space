@@ -8,6 +8,14 @@ import {
   BayPost,
   PublicLink,
 } from "./bay-space-types";
+import {
+  defaultMemberRole,
+  defaultMemberTitle,
+  normalizeBayRank,
+  type BayoTitleId,
+  type CryptiRank,
+  type GateKey,
+} from "./bay-space-ranks";
 import { getPositiveInteger } from "./bay-space-scoring";
 import {
   isValidUsername,
@@ -72,15 +80,22 @@ type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
 type MemberRow = {
   agreement_accepted_at: string | null;
   agreement_version: string;
+  available_points?: number | null;
+  bayo_coins?: number | null;
   birthday_month: string;
   birthday_year: string;
   created_at: string;
+  crypti_rank?: string | null;
   deleted_at: string | null;
   email: string;
+  gate_keys?: unknown;
   id: string;
   links: MemberLinks;
+  lifetime_points?: number | null;
   member_number: number;
   name: string;
+  purchased_titles?: unknown;
+  rank?: string | null;
   ref_name: string;
   title: string;
   updated_at: string;
@@ -189,7 +204,7 @@ function normalizeRefName(refName: string) {
 }
 
 function normalizeTitle(title: string) {
-  return title.trim().slice(0, 80) || "Curious Reader";
+  return title.trim().slice(0, 80) || defaultMemberTitle;
 }
 
 function hashPin(pin: string, salt: string) {
@@ -209,8 +224,17 @@ function getSessionExpiry() {
 
 function publicMember(member: MemberRow, roles: string[] = []): BayMember {
   return {
+    availablePoints: normalizePointBalance(member.available_points),
+    bayoCoins: normalizePointBalance(member.bayo_coins),
+    cryptiRank: normalizeCryptiRank(member.crypti_rank),
+    gateKeys: normalizeStringArray<GateKey>(member.gate_keys),
+    lifetimePoints: normalizePointBalance(member.lifetime_points),
     member: formatMemberId(member.member_number),
     name: member.name,
+    purchasedTitles: normalizeStringArray<BayoTitleId>(
+      member.purchased_titles,
+    ),
+    rank: normalizeBayRank(member.rank),
     refName: member.ref_name,
     roles: roles.join(","),
     title: member.title,
@@ -290,6 +314,26 @@ function normalizeCryptiOwnedTickerSymbols(symbols?: unknown) {
         ),
       )
     : [];
+}
+
+function normalizeStringArray<T extends string>(value: unknown) {
+  return Array.isArray(value)
+    ? Array.from(
+        new Set(value.filter((item): item is T => typeof item === "string")),
+      )
+    : [];
+}
+
+function normalizePointBalance(value: unknown) {
+  const points = Number(value);
+
+  return Number.isFinite(points) && points > 0 ? Math.floor(points) : 0;
+}
+
+function normalizeCryptiRank(rank: string | null | undefined): CryptiRank {
+  return rank === "reader-iii" || rank === "poster-iv" || rank === "poster-v"
+    ? rank
+    : "";
 }
 
 function normalizeProfileVisitCount(value: unknown) {
@@ -545,7 +589,7 @@ export async function completeMember(
         ...(memberNumber ? { member_number: memberNumber } : {}),
         name: normalizeName(input.name),
         ref_name: refName,
-        title: normalizeTitle(input.title),
+        title: normalizeTitle(defaultMemberTitle),
       },
       method: "POST",
       prefer: "return=representation",
@@ -585,7 +629,7 @@ export async function completeMember(
     method: "POST",
     prefer: "return=minimal",
   });
-  await setMemberRoles(member.id, input.roles);
+  await setMemberRoles(member.id, defaultMemberRole);
 
   return getPublicMemberFromRow(member);
 }

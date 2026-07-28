@@ -143,6 +143,10 @@ export default function PasswordConfirmForm({
 
       const savedMemberId = data.member.member;
       window.localStorage.setItem("bay-space-active-member", savedMemberId);
+      window.localStorage.setItem(
+        "bay-space-active-member-roles",
+        data.member.roles,
+      );
       window.dispatchEvent(new Event("bay-space-auth"));
       router.push(`/join-the-circle/member/complete?member=${savedMemberId}`);
     } catch {
@@ -158,6 +162,8 @@ export default function PasswordConfirmForm({
         onAnimationEnd={() => setIsWrongPassword(false)}
       >
         <input
+          aria-label="Create password"
+          autoComplete="new-password"
           type="password"
           value={confirmPin}
           onChange={(event) => {
@@ -247,7 +253,7 @@ export default function PasswordConfirmForm({
         disabled={isSaving}
         className="mt-3 w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
-        {isSaving ? "saving" : "save"}
+        {isSaving ? "entering" : "enter bay-space"}
       </button>
     </form>
   );

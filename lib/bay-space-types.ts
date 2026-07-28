@@ -1,3 +1,10 @@
+import type {
+  BayRank,
+  BayoTitleId,
+  CryptiRank,
+  GateKey,
+} from "./bay-space-ranks";
+
 export type BayPostCategory =
   | "top-story"
   | "daily-food"
@@ -20,8 +27,15 @@ export type BayPost = {
 };
 
 export type BayMember = {
+  availablePoints: number;
+  bayoCoins: number;
+  cryptiRank: CryptiRank;
+  gateKeys: GateKey[];
+  lifetimePoints: number;
   member: string;
   name: string;
+  purchasedTitles: BayoTitleId[];
+  rank: BayRank;
   refName: string;
   roles: string;
   title: string;
