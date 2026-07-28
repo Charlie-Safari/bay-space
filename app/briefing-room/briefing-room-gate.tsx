@@ -670,12 +670,15 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
+  const hasCryptiGateKeyOrRank = Boolean(
+    savedMember?.gateKeys?.includes("crypti-plus") || savedMember?.cryptiRank,
+  );
   const hasAcceptedCurrentCryptiAgreement = Boolean(
     savedMember?.cryptiAgreementAcceptedAt &&
       savedMember.cryptiAgreementVersion === cryptiAgreementVersion,
   );
   const needsCryptiAgreementAcceptance =
-    isCryptiMember && !hasAcceptedCurrentCryptiAgreement;
+    hasCryptiGateKeyOrRank && !hasAcceptedCurrentCryptiAgreement;
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const isOptionsRoom = isOptionRoomPanel(activePanel);
   const promotionProgress = savedMember
@@ -3682,7 +3685,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                               hasAcceptedCurrentCryptiAgreement ||
                               hasAcceptedCryptiAgreement
                             }
-                            readOnly={hasAcceptedCurrentCryptiAgreement}
+                            disabled={hasAcceptedCurrentCryptiAgreement}
                             onChange={(event) => {
                               if (hasAcceptedCurrentCryptiAgreement) {
                                 return;
@@ -3705,7 +3708,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                               setIsCryptiAgreementAlert(false);
                               setSettingsMessage("");
                             }}
-                            className="mt-0.5 h-4 w-4 accent-[#72d7ff]"
+                            className="mt-0.5 h-4 w-4 accent-[#72d7ff] disabled:opacity-60"
                           />
                           <span>
                             {hasAcceptedCurrentCryptiAgreement
