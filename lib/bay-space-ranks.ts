@@ -58,6 +58,7 @@ export const defaultBayRankLabel = "Reader";
 export const defaultMemberRole = "reader";
 export const defaultMemberTitle = "Reader";
 export const bayoCoinExchangeRate = 100;
+export const graduationCoinCost = 500;
 
 export const bayRanks: BayRankConfig[] = [
   {

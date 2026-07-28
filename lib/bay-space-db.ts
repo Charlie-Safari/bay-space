@@ -17,6 +17,7 @@ import {
   gateKeys,
   getBayRankConfig,
   getRankForLifetimePoints,
+  graduationCoinCost,
   normalizeBayRank,
   type BayoTitleId,
   type CryptiRank,
@@ -856,6 +857,124 @@ export async function applyMemberWildCard(memberId: string) {
       ),
       rank: "graduation",
       title: getWildCardTitle(member),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function exchangeMemberPointsForCoins(
+  memberId: string,
+  points: number,
+) {
+  const member = await getMemberRowByNumber(memberId);
+  const normalizedPoints = Math.floor(points);
+
+  if (!member || normalizedPoints < bayoCoinExchangeRate) {
+    return null;
+  }
+
+  const availablePoints = normalizePointBalance(member.available_points);
+  const spendablePoints =
+    Math.floor(normalizedPoints / bayoCoinExchangeRate) * bayoCoinExchangeRate;
+
+  if (spendablePoints > availablePoints) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      available_points: availablePoints - spendablePoints,
+      bayo_coins:
+        normalizePointBalance(member.bayo_coins) +
+        spendablePoints / bayoCoinExchangeRate,
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function purchaseMemberGraduation(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  if (normalizeBayRank(member.rank) === "graduation") {
+    return getPublicMemberFromRow(member);
+  }
+
+  const bayoCoins = normalizePointBalance(member.bayo_coins);
+
+  if (bayoCoins < graduationCoinCost) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      bayo_coins: bayoCoins - graduationCoinCost,
+      rank: "graduation",
+      title: getWildCardTitle(member),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function purchaseMemberGateKey(
+  memberId: string,
+  gateKeyId: GateKey,
+) {
+  const member = await getMemberRowByNumber(memberId);
+  const gateKey = gateKeys.find((candidate) => candidate.id === gateKeyId);
+
+  if (!member || !gateKey || normalizeBayRank(member.rank) !== "graduation") {
+    return null;
+  }
+
+  const gateKeyIds = normalizeStringArray<GateKey>(member.gate_keys);
+
+  if (gateKeyIds.includes(gateKey.id)) {
+    return getPublicMemberFromRow(member);
+  }
+
+  const bayoCoins = normalizePointBalance(member.bayo_coins);
+
+  if (bayoCoins < gateKey.coinCost) {
+    return null;
+  }
+
+  const nextGateKeyIds = [...gateKeyIds, gateKey.id];
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      bayo_coins: bayoCoins - gateKey.coinCost,
+      crypti_rank:
+        gateKey.id === "crypti-plus" && !member.crypti_rank
+          ? "reader-iii"
+          : member.crypti_rank,
+      gate_keys: nextGateKeyIds,
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",

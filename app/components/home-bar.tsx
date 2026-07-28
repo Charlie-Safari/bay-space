@@ -217,11 +217,13 @@ export default function HomeBar() {
           {baySpaceTabs.slice(1).map(renderTab)}
         </div>
 
-        <div className="mx-auto mt-3 flex w-full max-w-6xl justify-center">
-          <div className="w-full max-w-md">
-            <MemberLookup />
+        {!activeMember ? (
+          <div className="mx-auto mt-3 flex w-full max-w-6xl justify-center">
+            <div className="w-full max-w-md">
+              <MemberLookup />
+            </div>
           </div>
-        </div>
+        ) : null}
       </nav>
     </>
   );

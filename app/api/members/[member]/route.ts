@@ -4,11 +4,14 @@ import {
   completeMember,
   createMemberSession,
   deleteMemberAccount,
+  exchangeMemberPointsForCoins,
   getMember,
   getStorageErrorMessage,
   isBaySpaceWildCardAccessKey,
   baySpaceAgreementVersion,
   baySpaceWildCardPointFloor,
+  purchaseMemberGateKey,
+  purchaseMemberGraduation,
   updateMemberSettings,
   wipeMemberAccount,
   UsernameUnavailableError,
@@ -26,6 +29,7 @@ import {
   defaultMemberRole,
   defaultMemberTitle,
 } from "../../../../lib/bay-space-roles";
+import { gateKeys, type GateKey } from "../../../../lib/bay-space-ranks";
 
 type MemberContext = {
   params: Promise<{ member: string }>;
@@ -225,6 +229,8 @@ export async function PATCH(request: Request, context: MemberContext) {
       title?: string;
       action?: string;
       accessKey?: string;
+      gateKey?: string;
+      points?: unknown;
       settings?: {
         email?: string;
         birthdayMonth?: string;
@@ -243,6 +249,56 @@ export async function PATCH(request: Request, context: MemberContext) {
 
       if (!member) {
         return Response.json({ message: "Member not found" }, { status: 404 });
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "exchange-points") {
+      const member = await exchangeMemberPointsForCoins(
+        memberId,
+        Number(body.points),
+      );
+
+      if (!member) {
+        return Response.json(
+          { message: "not enough points to exchange" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "purchase-graduation") {
+      const member = await purchaseMemberGraduation(memberId);
+
+      if (!member) {
+        return Response.json(
+          { message: "not enough coins for graduation" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "purchase-gate-key") {
+      const gateKey = gateKeys.find(
+        (candidate) => candidate.id === body.gateKey,
+      )?.id as GateKey | undefined;
+
+      if (!gateKey) {
+        return Response.json({ message: "Invalid gate key" }, { status: 400 });
+      }
+
+      const member = await purchaseMemberGateKey(memberId, gateKey);
+
+      if (!member) {
+        return Response.json(
+          { message: "gate key locked or not enough coins" },
+          { status: 400 },
+        );
       }
 
       return Response.json({ member });

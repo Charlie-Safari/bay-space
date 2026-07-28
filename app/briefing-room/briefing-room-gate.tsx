@@ -34,8 +34,8 @@ import {
 } from "../../lib/bay-space-roles";
 import {
   bayoCoinExchangeRate,
-  canRankExchangePoints,
   gateKeys,
+  graduationCoinCost,
 } from "../../lib/bay-space-ranks";
 import type {
   BayRank,
@@ -581,6 +581,9 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [wildCardMessage, setWildCardMessage] = useState("");
   const [isWildCardOpen, setIsWildCardOpen] = useState(false);
   const [isWildCardLoading, setIsWildCardLoading] = useState(false);
+  const [exchangePoints, setExchangePoints] = useState("");
+  const [exchangeMessage, setExchangeMessage] = useState("");
+  const [isExchangeLoading, setIsExchangeLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
   const [birthdayYear, setBirthdayYear] = useState("");
@@ -635,8 +638,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
-  const canUseExchange =
-    isAdminMember || canRankExchangePoints(savedMember?.rank);
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
   const openDrafts = [
     ...minimizedDrafts,
@@ -1598,6 +1599,75 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSettingsMessage("settings saved");
   }
 
+  async function runExchangeAction(
+    payload: Record<string, unknown>,
+    successMessage: string,
+  ) {
+    if (!savedMember) {
+      setExchangeMessage("no account found");
+      return;
+    }
+
+    setIsExchangeLoading(true);
+    setExchangeMessage("");
+
+    try {
+      const response = await fetch(`/api/members/${resolvedMember}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json()) as {
+        member?: SavedMember;
+        message?: string;
+      };
+
+      if (!response.ok || !data.member) {
+        setExchangeMessage(data.message ?? "exchange failed");
+        return;
+      }
+
+      setSavedMember(data.member);
+      applySettingsFields(data.member);
+      setExchangeMessage(successMessage);
+      window.dispatchEvent(new Event("bay-space-auth"));
+    } finally {
+      setIsExchangeLoading(false);
+    }
+  }
+
+  async function exchangePointsForCoins() {
+    const points = Number(exchangePoints);
+
+    if (!Number.isFinite(points) || points < bayoCoinExchangeRate) {
+      setExchangeMessage(`minimum exchange is ${bayoCoinExchangeRate} points`);
+      return;
+    }
+
+    await runExchangeAction(
+      {
+        action: "exchange-points",
+        points,
+      },
+      "points exchanged for Bayo Coins",
+    );
+    setExchangePoints("");
+  }
+
+  async function purchaseGraduation() {
+    await runExchangeAction(
+      { action: "purchase-graduation" },
+      "graduation unlocked",
+    );
+  }
+
+  async function purchaseGateKey(gateKey: GateKey) {
+    await runExchangeAction(
+      { action: "purchase-gate-key", gateKey },
+      "gate key unlocked",
+    );
+  }
+
   async function unlockWildCard() {
     if (!savedMember) {
       setWildCardMessage("no account found");
@@ -1919,18 +1989,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             >
               circles
             </button>
-            {canUseExchange ? (
-              <button
-                onClick={() => setActivePanel("exchange")}
-                className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                  activePanel === "exchange"
-                    ? "border-[#39ff14] bg-[#39ff14] text-black"
-                    : "border-[#1d7f12] text-[#39ff14]"
-                }`}
-              >
-                exchange
-              </button>
-            ) : null}
+            <button
+              onClick={() => setActivePanel("exchange")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "exchange"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              exchange
+            </button>
             {isAdminMember ? (
               <Link
                 href="/admin/analytics"
@@ -3082,31 +3150,107 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 exchange
               </p>
               <div className="mt-5 grid gap-4">
-                <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
-                  <p>
-                    available points
-                    <span className="mt-2 block text-xl text-[#39ff14]">
-                      {formatPointCount(savedMember.availablePoints)}
-                    </span>
+                <div className="border-2 border-[#39ff14] bg-[#001100] p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    point exchange
                   </p>
-                  <p>
-                    Bayo Coins
-                    <span className="mt-2 block text-xl text-[#39ff14]">
-                      {formatPointCount(savedMember.bayoCoins)}
-                    </span>
-                  </p>
-                  <p>
-                    exchange rate
-                    <span className="mt-2 block text-xl text-[#39ff14]">
-                      {bayoCoinExchangeRate}:1
-                    </span>
-                  </p>
+                  <div className="mt-4 grid gap-3 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
+                    <p>
+                      available points
+                      <span className="mt-2 block text-xl text-[#39ff14]">
+                        {formatPointCount(savedMember.availablePoints)}
+                      </span>
+                    </p>
+                    <p>
+                      Bayo Coins
+                      <span className="mt-2 block text-xl text-[#39ff14]">
+                        {formatPointCount(savedMember.bayoCoins)}
+                      </span>
+                    </p>
+                    <p>
+                      exchange rate
+                      <span className="mt-2 block text-xl text-[#39ff14]">
+                        {bayoCoinExchangeRate}:1
+                      </span>
+                    </p>
+                  </div>
+                  <div className="mt-5 flex flex-wrap items-end gap-3">
+                    <label className="grid gap-2">
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                        points to trade
+                      </span>
+                      <input
+                        inputMode="numeric"
+                        value={exchangePoints}
+                        onChange={(event) => {
+                          setExchangePoints(
+                            event.target.value.replace(/\D/g, "").slice(0, 8),
+                          );
+                          setExchangeMessage("");
+                        }}
+                        placeholder={String(bayoCoinExchangeRate)}
+                        className="w-40 border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={exchangePointsForCoins}
+                      disabled={isExchangeLoading}
+                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
+                    >
+                      trade for coins
+                    </button>
+                  </div>
+                  {exchangeMessage ? (
+                    <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      {exchangeMessage}
+                    </p>
+                  ) : null}
                 </div>
 
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                  Badge Quest
+                </p>
                 <div className="grid gap-3">
+                  {(() => {
+                    const isGraduated = savedMember.rank === "graduation";
+
+                    return (
+                      <div className="grid gap-3 border border-[#39ff14] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                            Graduation
+                          </p>
+                          <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                            instantly ranks the account to Graduation and opens
+                            the rest of the Badge Quest store.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={purchaseGraduation}
+                          disabled={
+                            isExchangeLoading ||
+                            isGraduated ||
+                            (savedMember.bayoCoins ?? 0) < graduationCoinCost
+                          }
+                          className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
+                        >
+                          {isGraduated
+                            ? "owned"
+                            : `${graduationCoinCost} coins`}
+                        </button>
+                      </div>
+                    );
+                  })()}
                   {gateKeys.map((gateKey) => {
+                    const isGraduated = savedMember.rank === "graduation";
                     const isOwned = savedMember.gateKeys?.includes(gateKey.id);
                     const isCryptiGate = gateKey.id === "crypti-plus";
+                    const canBuy =
+                      isGraduated &&
+                      !isOwned &&
+                      (savedMember.bayoCoins ?? 0) >= gateKey.coinCost;
 
                     return (
                       <div
@@ -3127,10 +3271,15 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                         </div>
                         <button
                           type="button"
-                          disabled
-                          className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]"
+                          onClick={() => purchaseGateKey(gateKey.id)}
+                          disabled={isExchangeLoading || !canBuy}
+                          className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
                         >
-                          {isOwned ? "owned" : `${gateKey.coinCost} coins`}
+                          {isOwned
+                            ? "owned"
+                            : isGraduated
+                              ? `${gateKey.coinCost} coins`
+                              : "locked"}
                         </button>
                       </div>
                     );
