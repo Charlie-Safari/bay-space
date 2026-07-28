@@ -16,7 +16,9 @@ import {
   defaultMemberTitle,
   gateKeys,
   getBayRankConfig,
-  getRankForLifetimePoints,
+  getCryptiRankForLifetimePoints,
+  getPromotedBayRankForLifetimePoints,
+  hasCryptiPromotionBranch,
   graduationCoinCost,
   normalizeBayRank,
   type BayoTitleId,
@@ -81,6 +83,8 @@ export const baySpaceWildCardPointFloor = Math.max(
   getBayRankConfig("graduation").minLifetimePoints +
     wildCardGateKeyReservePoints,
 );
+const instantRankPromotionGateKeyId: GateKey = "instant-rank-promotion";
+const instantRankPromotionIIGateKeyId: GateKey = "instant-rank-promotion-ii";
 
 type MemberStats = {
   profileVisits?: number;
@@ -426,6 +430,76 @@ function normalizeCryptiRank(rank: string | null | undefined): CryptiRank {
   return rank === "reader-iii" || rank === "poster-iv" || rank === "poster-v"
     ? rank
     : "";
+}
+
+function getMemberGateKeys(member: Pick<MemberRow, "gate_keys">) {
+  return normalizeStringArray<GateKey>(member.gate_keys);
+}
+
+function getPromotedMemberCryptiRank(member: MemberRow, lifetimePoints: number) {
+  const currentCryptiRank = normalizeCryptiRank(member.crypti_rank);
+  const subject = {
+    cryptiRank: currentCryptiRank,
+    gateKeys: getMemberGateKeys(member),
+    rank: member.rank ?? "",
+  };
+
+  return hasCryptiPromotionBranch(subject)
+    ? getCryptiRankForLifetimePoints(lifetimePoints, currentCryptiRank)
+    : currentCryptiRank;
+}
+
+function hasCryptiBranchOwnership(
+  member: Pick<MemberRow, "crypti_rank" | "gate_keys">,
+) {
+  return (
+    getMemberGateKeys(member).includes("crypti-plus") ||
+    Boolean(normalizeCryptiRank(member.crypti_rank))
+  );
+}
+
+function canPurchaseGateKey(
+  gateKeyId: GateKey,
+  gateKeyIds: GateKey[],
+  member: MemberRow,
+) {
+  if (gateKeyId === instantRankPromotionGateKeyId) {
+    return hasCryptiBranchOwnership(member);
+  }
+
+  if (gateKeyId === instantRankPromotionIIGateKeyId) {
+    return (
+      hasCryptiBranchOwnership(member) &&
+      gateKeyIds.includes(instantRankPromotionGateKeyId)
+    );
+  }
+
+  return true;
+}
+
+function getCryptiRankAfterGateKeyPurchase(
+  gateKeyId: GateKey,
+  member: MemberRow,
+) {
+  const lifetimePoints = normalizePointBalance(member.lifetime_points);
+  const currentCryptiRank = normalizeCryptiRank(member.crypti_rank);
+
+  if (gateKeyId === "crypti-plus") {
+    return getCryptiRankForLifetimePoints(
+      lifetimePoints,
+      currentCryptiRank || "reader-iii",
+    );
+  }
+
+  if (gateKeyId === instantRankPromotionGateKeyId) {
+    return getCryptiRankForLifetimePoints(lifetimePoints, "poster-iv");
+  }
+
+  if (gateKeyId === instantRankPromotionIIGateKeyId) {
+    return "poster-v";
+  }
+
+  return currentCryptiRank;
 }
 
 function normalizeProfileVisitCount(value: unknown) {
@@ -845,18 +919,21 @@ export async function applyMemberWildCard(memberId: string) {
     return null;
   }
 
+  const availablePoints = Math.max(
+    normalizePointBalance(member.available_points),
+    baySpaceWildCardPointFloor,
+  );
+  const lifetimePoints = Math.max(
+    normalizePointBalance(member.lifetime_points),
+    baySpaceWildCardPointFloor,
+  );
+
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      available_points: Math.max(
-        normalizePointBalance(member.available_points),
-        baySpaceWildCardPointFloor,
-      ),
-      lifetime_points: Math.max(
-        normalizePointBalance(member.lifetime_points),
-        baySpaceWildCardPointFloor,
-      ),
-      rank: "graduation",
-      title: getWildCardTitle(member),
+      available_points: availablePoints,
+      lifetime_points: lifetimePoints,
+      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
+      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -925,9 +1002,14 @@ export async function purchaseMemberGraduation(memberId: string) {
     return null;
   }
 
+  const graduatedMember = { ...member, rank: "graduation" };
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
       bayo_coins: bayoCoins - graduationCoinCost,
+      crypti_rank: getPromotedMemberCryptiRank(
+        graduatedMember,
+        normalizePointBalance(member.lifetime_points),
+      ),
       rank: "graduation",
       title: getWildCardTitle(member),
       updated_at: new Date().toISOString(),
@@ -954,10 +1036,14 @@ export async function purchaseMemberGateKey(
     return null;
   }
 
-  const gateKeyIds = normalizeStringArray<GateKey>(member.gate_keys);
+  const gateKeyIds = getMemberGateKeys(member);
 
   if (gateKeyIds.includes(gateKey.id)) {
     return getPublicMemberFromRow(member);
+  }
+
+  if (!canPurchaseGateKey(gateKey.id, gateKeyIds, member)) {
+    return null;
   }
 
   const bayoCoins = normalizePointBalance(member.bayo_coins);
@@ -970,10 +1056,7 @@ export async function purchaseMemberGateKey(
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
       bayo_coins: bayoCoins - gateKey.coinCost,
-      crypti_rank:
-        gateKey.id === "crypti-plus" && !member.crypti_rank
-          ? "reader-iii"
-          : member.crypti_rank,
+      crypti_rank: getCryptiRankAfterGateKeyPurchase(gateKey.id, member),
       gate_keys: nextGateKeyIds,
       updated_at: new Date().toISOString(),
     },
@@ -1857,7 +1940,8 @@ async function awardArticleReadPoints(member: MemberRow) {
     body: {
       available_points: availablePoints,
       lifetime_points: lifetimePoints,
-      rank: getRankForLifetimePoints(lifetimePoints),
+      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
+      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",

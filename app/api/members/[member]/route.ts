@@ -319,7 +319,7 @@ export async function PATCH(request: Request, context: MemberContext) {
         member,
         wildCard: {
           pointFloor: baySpaceWildCardPointFloor,
-          rank: "graduation",
+          rank: member.rank,
         },
       });
     }

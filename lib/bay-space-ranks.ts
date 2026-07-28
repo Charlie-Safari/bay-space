@@ -14,6 +14,8 @@ export type GateKey =
   | "safari-nation"
   | "bayo-plus"
   | "crypti-plus"
+  | "instant-rank-promotion"
+  | "instant-rank-promotion-ii"
   | "cabbin-wizard-club";
 
 export type BayoTitleId =
@@ -34,6 +36,13 @@ type BayRankConfig = {
   minLifetimePoints: number;
 };
 
+type CryptiRankConfig = {
+  id: Exclude<CryptiRank, "">;
+  label: string;
+  level: number;
+  minLifetimePoints: number;
+};
+
 type GateKeyConfig = {
   id: GateKey;
   label: string;
@@ -45,6 +54,14 @@ type BayoTitleConfig = {
   id: BayoTitleId;
   label: string;
   coinCost: number;
+};
+
+type PromotionTrack = "bay-space" | "crypti";
+
+export type PromotionProgress = {
+  label: string;
+  pointsUntil: number;
+  track: PromotionTrack;
 };
 
 const publicReadCategories: BayPostCategory[] = [
@@ -145,9 +162,23 @@ export const gateKeys: GateKeyConfig[] = [
   {
     coinCost: 250,
     description:
-      "Advance to Reader III, unlock the Crypti+ branch, and begin the path toward posting and blue-name status.",
+      "Advance to Reader III, unlock the +CRYPTI branch, and begin the path toward posting and blue-name status.",
     id: "crypti-plus",
-    label: "Crypti+",
+    label: "+CRYPTI",
+  },
+  {
+    coinCost: 150,
+    description:
+      "Instantly advances the +CRYPTI branch to Poster IV. Requires +CRYPTI ownership.",
+    id: "instant-rank-promotion",
+    label: "Instant Rank Promotion",
+  },
+  {
+    coinCost: 50,
+    description:
+      "Grand highest rank. Requires Instant Rank Promotion and advances the +CRYPTI branch to Poster V.",
+    id: "instant-rank-promotion-ii",
+    label: "Instant Rank Promotion II",
   },
   {
     coinCost: 10000,
@@ -155,6 +186,27 @@ export const gateKeys: GateKeyConfig[] = [
       "Travel to Colorado for secret Cabal trading meetups when they happen.",
     id: "cabbin-wizard-club",
     label: "Cabbin Wizard Club",
+  },
+];
+
+export const cryptiRanks: CryptiRankConfig[] = [
+  {
+    id: "reader-iii",
+    label: "Reader III",
+    level: 6,
+    minLifetimePoints: 100000,
+  },
+  {
+    id: "poster-iv",
+    label: "Poster IV",
+    level: 7,
+    minLifetimePoints: 175000,
+  },
+  {
+    id: "poster-v",
+    label: "Poster V",
+    level: 8,
+    minLifetimePoints: 300000,
   },
 ];
 
@@ -183,6 +235,18 @@ export function getBayRankLevel(rank: string | null | undefined) {
   return getBayRankConfig(rank).level;
 }
 
+export function getCryptiRankConfig(rank: string | null | undefined) {
+  return cryptiRanks.find((candidate) => candidate.id === rank) ?? null;
+}
+
+export function normalizeCryptiRank(rank: string | null | undefined): CryptiRank {
+  return getCryptiRankConfig(rank)?.id ?? "";
+}
+
+export function getCryptiRankLabel(rank: string | null | undefined) {
+  return getCryptiRankConfig(rank)?.label ?? "";
+}
+
 export function canRankExchangePoints(rank: string | null | undefined) {
   return getBayRankConfig(rank).canExchangePoints;
 }
@@ -190,9 +254,121 @@ export function canRankExchangePoints(rank: string | null | undefined) {
 export function getRankForLifetimePoints(points: number) {
   const normalizedPoints = Number.isFinite(points) ? Math.max(0, points) : 0;
 
-  return bayRanks.reduce(
+  return bayRanks
+    .filter((candidate) => candidate.id !== "graduation")
+    .reduce(
+      (earnedRank, candidate) =>
+        normalizedPoints >= candidate.minLifetimePoints
+          ? candidate
+          : earnedRank,
+      bayRanks[0],
+    ).id;
+}
+
+export function getPromotedBayRankForLifetimePoints(
+  points: number,
+  currentRank: string | null | undefined,
+) {
+  const normalizedCurrentRank = normalizeBayRank(currentRank);
+
+  if (normalizedCurrentRank === "graduation") {
+    return "graduation";
+  }
+
+  const earnedRank = getRankForLifetimePoints(points);
+
+  return getBayRankLevel(earnedRank) >= getBayRankLevel(normalizedCurrentRank)
+    ? earnedRank
+    : normalizedCurrentRank;
+}
+
+export function getCryptiRankForLifetimePoints(
+  points: number,
+  currentRank: string | null | undefined = "",
+) {
+  const normalizedPoints = Number.isFinite(points) ? Math.max(0, points) : 0;
+  const currentConfig = getCryptiRankConfig(currentRank);
+  const earnedConfig = cryptiRanks.reduce<CryptiRankConfig | null>(
     (earnedRank, candidate) =>
-      normalizedPoints >= candidate.minLifetimePoints ? candidate : earnedRank,
-    bayRanks[0],
-  ).id;
+      normalizedPoints >= candidate.minLifetimePoints
+        ? candidate
+        : earnedRank,
+    null,
+  );
+
+  if (!earnedConfig) {
+    return currentConfig?.id ?? "";
+  }
+
+  if (currentConfig && currentConfig.level > earnedConfig.level) {
+    return currentConfig.id;
+  }
+
+  return earnedConfig.id;
+}
+
+type PromotionSubject = {
+  cryptiRank?: CryptiRank | string;
+  gateKeys?: Array<GateKey | string>;
+  rank?: BayRank | string;
+} | null | undefined;
+
+export function hasCryptiPromotionBranch(subject: PromotionSubject) {
+  return (
+    normalizeBayRank(subject?.rank) === "graduation" &&
+    (subject?.gateKeys?.includes("crypti-plus") ||
+      Boolean(normalizeCryptiRank(subject?.cryptiRank)))
+  );
+}
+
+export function getNextPromotionProgress(
+  points: number,
+  subject?: PromotionSubject,
+) {
+  const normalizedPoints = Number.isFinite(points) ? Math.max(0, points) : 0;
+
+  if (hasCryptiPromotionBranch(subject)) {
+    const currentConfig = getCryptiRankConfig(subject?.cryptiRank);
+    const nextCryptiRank = cryptiRanks.find(
+      (candidate) =>
+        !currentConfig || candidate.level > currentConfig.level,
+    );
+
+    return nextCryptiRank
+      ? {
+          label: nextCryptiRank.label,
+          pointsUntil: Math.max(
+            0,
+            nextCryptiRank.minLifetimePoints - normalizedPoints,
+          ),
+          track: "crypti" satisfies PromotionTrack,
+        }
+      : null;
+  }
+
+  const currentBayRank = normalizeBayRank(subject?.rank);
+
+  if (currentBayRank === "graduation") {
+    return null;
+  }
+
+  const currentBayRankLevel = getBayRankLevel(currentBayRank);
+  const nextRank = bayRanks
+    .filter((candidate) => candidate.id !== "graduation")
+    .find((candidate) => candidate.level > currentBayRankLevel);
+
+  return nextRank
+    ? {
+        label: nextRank.label,
+        pointsUntil: Math.max(0, nextRank.minLifetimePoints - normalizedPoints),
+        track: "bay-space" satisfies PromotionTrack,
+      }
+    : null;
+}
+
+export function getPointsUntilNextPromotion(
+  points: number,
+  subject?: PromotionSubject,
+) {
+  return getNextPromotionProgress(points, subject)?.pointsUntil ?? 0;
 }

@@ -383,7 +383,176 @@ export default function LibraryBoard() {
             <div className="mt-5 grid gap-3">
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  How to - LA Bay-Space
+                  quick start
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Press join the circle.</li>
+                  <li>Enter a name, create a password, and enter Bay Space as Reader.</li>
+                  <li>No account type choice and no access code are needed for normal signup.</li>
+                  <li>Use Conspiracy for theories, Facts on News for Top Story and fact-based news, and the book button for Library.</li>
+                  <li>The Bay Space logo is Basecamp. From the Briefing Room, it also brings you back from any options room.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  how to log in
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Find [LOG IN] at the top of the page.</li>
+                  <li>Type your username or member number in the username box.</li>
+                  <li>Press the spaceship or press Enter.</li>
+                  <li>The same box becomes the password box. Type your password there.</li>
+                  <li>Press the spaceship or Enter again to open your Briefing Room.</li>
+                  <li>After login, the login bar disappears until you sign out.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  navigation
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Conspiracy opens the theory board.</li>
+                  <li>Facts on News opens the facts feed with Top Story controls.</li>
+                  <li>The book button opens Library.</li>
+                  <li>The Bay Space logo opens Basecamp / Briefing Room.</li>
+                  <li>On mobile or a condensed window, the layout stacks as +CRYPTI, logo, Conspiracy and Facts, then Library.</li>
+                  <li>The +CRYPTI button appears to the left of Conspiracy after the +CRYPTI gate key is owned.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  briefing room
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>The ID card shows rank, title, available points, lifetime points, Bayo Coins, and points until next promotion.</li>
+                  <li>The options menu opens rooms like profile, favorites, my posts, settings, and exchange.</li>
+                  <li>When an option is open, the big Briefing Room header and posting tools step out of the way.</li>
+                  <li>Each options room has a back button that returns to the Briefing Room.</li>
+                  <li>Pressing the Bay Space logo also returns to the Briefing Room.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  ranks and posting
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>Everyone starts as Reader. Lifetime points move the account through the regular Bay Space ladder.</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>Reader - can read Conspiracy and Facts on News.</li>
+                    <li>Reader II - 250 lifetime points, unlocks Library reading.</li>
+                    <li>Poster - 1,000 lifetime points, can post in Conspiracy.</li>
+                    <li>Poster II - 3,500 lifetime points, can post in Conspiracy and Library.</li>
+                    <li>Poster III - 10,000 lifetime points, can post in Conspiracy, Library, and Facts on News.</li>
+                    <li>Graduation - purchased in Badge Quest for 500 Bayo Coins.</li>
+                  </ul>
+                </div>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  points and article reads
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>Promotion points are shown on the ID card as available points and lifetime points.</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>Opening an article for the first time gives +5 available points and +5 lifetime points.</li>
+                    <li>Each article can only award those +5 points one time per account.</li>
+                    <li>The profile score section also counts articles read, matching the one-time article read count.</li>
+                    <li>Available points can be traded for Bayo Coins in Exchange at 100 points for 1 coin.</li>
+                    <li>Lifetime points are never spent; they keep your promotion history moving forward.</li>
+                  </ul>
+                  <p>Post score is separate from promotion points.</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>Post opens add 0.1 post points.</li>
+                    <li>Favorite diamonds received add post score and save posts to reader favorites.</li>
+                    <li>Tickets and diamonds can move a post forward in the public score system.</li>
+                    <li>Deleted posts lose their post score with them.</li>
+                  </ul>
+                </div>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  exchange and Badge Quest
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>Exchange is available from the start inside the Briefing Room options menu.</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>Trade available points for Bayo Coins at 100 points for 1 coin.</li>
+                    <li>Open the Badge Quest dropdown to view unlocks.</li>
+                    <li>Graduation costs 500 Bayo Coins and unlocks the rest of the gate key store.</li>
+                    <li>Safari Nation costs 25 coins.</li>
+                    <li>Bayo+ costs 100 coins.</li>
+                    <li>+CRYPTI costs 250 coins and unlocks the +CRYPTI branch.</li>
+                    <li>Cabbin Wizard Club costs 10,000 coins.</li>
+                  </ul>
+                </div>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  +CRYPTI branch
+                </summary>
+                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <p>After Graduation, buy the +CRYPTI gate key for 250 coins to enter the blue branch.</p>
+                  <ul className="list-disc space-y-2 pl-5">
+                    <li>Reader III - 100,000 lifetime points, can read +CRYPTI.</li>
+                    <li>Poster IV - 175,000 lifetime points, can post in +CRYPTI.</li>
+                    <li>Poster V - 300,000 lifetime points, grand highest rank.</li>
+                    <li>Instant Rank Promotion costs 150 tokens and advances +CRYPTI to Poster IV. Requires +CRYPTI ownership.</li>
+                    <li>Instant Rank Promotion II costs 50 tokens and advances +CRYPTI to Poster V. Requires Instant Rank Promotion.</li>
+                    <li>Once +CRYPTI is owned, the blue +CRYPTI nav appears beside Conspiracy.</li>
+                  </ul>
+                </div>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  comments and truth votes
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Conspiracy and Facts on News posts include comments.</li>
+                  <li>The truth scale runs from 0 to 11.</li>
+                  <li>Press vote to cast a truth vote.</li>
+                  <li>Pressing vote again on the same score undoes your vote.</li>
+                  <li>Truth scores from 2 through 9 add +1 truth point to the post.</li>
+                  <li>Truth scores from 10 through 11 add +2 truth points to the post.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  favorite diamond
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Open a post and press the green diamond to save it.</li>
+                  <li>Diamond posts are added to your favorites folder.</li>
+                  <li>Open the Briefing Room and press favorites to view saved posts.</li>
+                  <li>Favorites are grouped by Facts on News, Conspiracy, Library, and +CRYPTI when available.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  how to make a post
+                </summary>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Conspiracy is for theories, conspiracies, hypotheses, dreams, strange signals, and speculation.</li>
+                  <li>Facts on News is for fact-based news and Top Story posts with supporting details.</li>
+                  <li>Library is for longer reading material, sources, archives, and items that belong on the shelf.</li>
+                  <li>Add sources when available. If it is your own idea, source yourself clearly.</li>
+                  <li>Anon keeps the post public while hiding your displayed name.</li>
+                  <li>Incog keeps the post out of public feeds and uses a reference path instead.</li>
+                </ul>
+              </details>
+
+              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
+                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  LA Bay-Space
                 </summary>
                 <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <a
@@ -394,16 +563,11 @@ export default function LibraryBoard() {
                   >
                     Create
                   </a>
-                  <p>LA Bay-Space finds stories for you.</p>
-                  <p>
-                    Just ask for: Daily Food, Top Story, or Conspiracy/Theory.
-                  </p>
-                  <p>
-                    LA Bay-Space searches, checks the story, and gives you a numbered list.
-                  </p>
-                  <p>You pick a number.</p>
+                  <p>LA Bay-Space helps find and shape stories.</p>
+                  <p>Ask for a Conspiracy, Facts on News, Top Story, or Library draft.</p>
+                  <p>It can search, check the story, give you a numbered list, and turn the selected item into a clean post.</p>
                   <div>
-                    <p>Then LA Bay-Space turns it into a clean post with:</p>
+                    <p>The finished draft should include:</p>
                     <ul className="mt-2 list-disc space-y-2 pl-5">
                       <li>headline</li>
                       <li>body details</li>
@@ -411,122 +575,16 @@ export default function LibraryBoard() {
                       <li>ready-to-paste Agent Mode format</li>
                     </ul>
                   </div>
-                  <p>
-                    You do not need to find the article, organize the facts, or format the post.
-                  </p>
                 </div>
               </details>
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  how to log in
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Find the UFO box at the top.</li>
-                  <li>enter your username or member number</li>
-                  <li>spaceship = go</li>
-                  <li>Pressing Enter in the login box does the same thing as tapping the spaceship.</li>
-                  <li>If the account does not exist, the password page will say no account found.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  how to use anon vs incog
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Anon keeps the post public but replaces your name with classified.</li>
-                  <li>Incog keeps the post out of public feeds and uses a reference code instead.</li>
-                  <li>Anon and Incog cannot be used together.</li>
-                  <li>Use Anon when the post should be public but your name should not show.</li>
-                  <li>Use Incog when the post should only be found through a code or private reference path.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  favorite diamond
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>clicking this reveals ghost accounts profile info.</li>
-                  <li>Open a post and press the green diamond to save it.</li>
-                  <li>Diamond posts are automatically added to your favorites folder.</li>
-                  <li>Open the briefing room and press favorites to view saved posts.</li>
-                  <li>Favorites are grouped by Daily Food, Theories, and Library.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  how to make a post
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Daily Food: use fact-based supporting details. Add a different source for each supporting detail when available.</li>
-                  <li>Daily Food: if the post does not have facts to support it, consider moving it to Theories.</li>
-                  <li>Theories: use this for conspiracy, hypothesis, instinct, speculation, or even a dream you had.</li>
-                  <li>Theories: zero evidence is acceptable, but be clear about what is theory versus fact.</li>
-                  <li>Library: add reading material here when it does not fit cleanly into Daily Food or Theories.</li>
-                  <li>Library: try to include sources. If it is your own idea, source yourself.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  point structure
-                </summary>
-                <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <p>✨ Profile score only tracks:</p>
-                  <ul className="list-disc space-y-2 pl-5">
-                    <li>🍽️ Daily Food post → +10</li>
-                    <li>🧠 Theories post → +1</li>
-                    <li>📚 Library post → +5</li>
-                    <li>👤 Profile visit → +0.1</li>
-                    <li>🔍 Fully opened post? 🍽️ 🧠 📚 → +0.1 post points</li>
-                  </ul>
-                  <p>🎁 Bonus drops:</p>
-                  <ul className="list-disc space-y-2 pl-5">
-                    <li>💎 Diamond received → +10</li>
-                    <li>💎 Diamond removed → -10</li>
-                    <li>🎟️ Ticket received → +50</li>
-                    <li>🎟️ Ticket removed → -50</li>
-                  </ul>
-                  <p>🗑️ Deleted post? Its points disappear too: base points + visits + 💎 + 🎟️</p>
-                </div>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  types of accounts
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Curious Reader: read and reveal posts.</li>
-                  <li>Author/influencer - Daily Food: can only post in Daily Food and Library. Anon and incog unavailable.</li>
-                  <li>Author/influencer - Theories: can only post in Theories and Library. Anon and incog available.</li>
-                  <li>Oracle: can post in Daily Food, Theories, and Library. Anon posts link to the user profile.</li>
-                  <li>+CRYPTI: unrestricted posting access anywhere, including +CRYPTI.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  which account is right for you?
-                </summary>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Pick Curious Reader if you only want to read and reveal posts.</li>
-                  <li>Pick Author/influencer - Daily Food if you post Daily Food and Library under your public name.</li>
-                  <li>Pick Author/influencer - Theories if you post Theories and Library under your public name.</li>
-                  <li>Pick Oracle if you need Daily Food, Theories, Library, and anon profile-linked posting. Access code required.</li>
-                  <li>Pick +CRYPTI if you need unrestricted BAY-SPACE access plus +CRYPTI viewing and posting. Access code required.</li>
-                </ul>
-              </details>
-
-              <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
-                <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  theories
+                  theories and categories
                 </summary>
                 <div className="mt-3 grid gap-3 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <p>
-                    Theories can be filed as conspiracy, declassified,
+                    Conspiracy posts can be filed as conspiracy, declassified,
                     dreams/visions, fact based, hypothesis, misc, occult,
                     psychic, or psychedelic/download.
                   </p>
@@ -550,11 +608,13 @@ export default function LibraryBoard() {
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
                 <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                  library
+                  account support
                 </summary>
-                <p className="mt-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
-                  coming soon
-                </p>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
+                  <li>Email bayoadmin@protonmail.com for account support.</li>
+                  <li>For a name change, use subject line: Name Change.</li>
+                  <li>For account issues, include your username or member number.</li>
+                </ul>
               </details>
 
               <details className="border border-[#1d7f12] bg-[#001100] px-3 py-3">
@@ -576,7 +636,7 @@ export default function LibraryBoard() {
                   </button>
                 </div>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Open Daily Briefing Room from your username or member number.</li>
+                  <li>Open the Briefing Room from your username or member number.</li>
                   <li>Log in with your username or member number and password.</li>
                   <li>Press settings.</li>
                   <li>Scroll to Delete Account buttons at the bottom.</li>
@@ -593,8 +653,8 @@ export default function LibraryBoard() {
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>BaySpace is a new approach to social media.</li>
                   <li>It is built as a place to share news, theories, conspiracies, sources, and strange signals.</li>
-                  <li>It is not built for hyping yourself, performing popularity, or showing off.</li>
-                  <li>Here you will not find commenting, messaging, follower counts, or public like counts.</li>
+                  <li>It rewards exploration first: reading, saving, voting, commenting, and eventually posting.</li>
+                  <li>Follower counts and public popularity theater are not the main event here.</li>
                 </ul>
               </details>
             </div>

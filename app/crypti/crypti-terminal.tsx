@@ -2827,10 +2827,10 @@ export default function CryptiTerminal() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em]">
-                +Crypti how to
+                +CRYPTI how to
               </p>
               <h2 className="mt-3 text-3xl font-black uppercase tracking-[0.14em] [text-shadow:0_0_14px_rgba(114,215,255,0.75)]">
-                carnival rules for signal hunters
+                blue branch field guide
               </h2>
             </div>
             <button
@@ -2844,53 +2844,70 @@ export default function CryptiTerminal() {
 
           {[
             {
-              title: "point system",
+              title: "how to unlock +CRYPTI",
               body: [
-                "🎪 Step right up: every fully opened R News, Q Degen, or S Buzz post is a tiny ticket punch worth 0.1 post points. Ten real opens make 1 full point, so a post can climb one click at a time without ticker views sneaking onto the board.",
-                "💎 Favorite diamonds are the shiny midway prizes: each favorite adds 10 full post points. If the diamond is removed, those 10 points come right back off the board.",
-                "🎟️ Tickets are the big-ring toss: each ticket adds 50 full post points. Unticketing pulls 50 points back. The top-right score is the live post total: visits x 0.1, plus favorites x 10, plus tickets x 50, shown with the tenth when it matters.",
-                "🏆 Profile score is its own prize booth. R News posts earn 10 profile points, Q Degen earns 1, S Buzz earns 5, ticker contributions earn 10, favorites received earn 1 each, tickets received earn 10 each, and total post visits add 0.1 each. Daily Smoke winners can add the 500-point jackpot when that award is recorded.",
+                "Graduation comes first. In the Bay Space Briefing Room, open Exchange, trade available points for Bayo Coins, then buy Graduation in Badge Quest for 500 coins.",
+                "After Graduation is owned, the other gate keys unlock. Buy +CRYPTI for 250 coins to open the blue branch.",
+                "Once +CRYPTI is owned, the blue +CRYPTI logo appears in the Bay Space nav beside Conspiracy. That button opens this terminal.",
               ],
             },
             {
-              title: "how to use LA +Crypti",
+              title: "rank ladder",
               body: [
-                "🧠 Open LA +Crypti when you want the booth operator to sort the tickets for you. Ask it to turn your rough idea into an R News, Q Degen, or S Buzz draft with a headline, category, receipts, sources, and tickers mentioned.",
-                "📋 Copy the finished LA +Crypti output and paste it into ✅💰. You can also ask it for a ticker upload draft by giving it the ticker symbol, company or chain, asset type, market, and description. It should format the draft so the money-bag lane can read it cleanly.",
-                "🎯 Good prompt: Draft this for +Crypti as R News with receipts, sources, category, tickers mentioned, and a short headline. Keep it ready to paste into the checkmark money bag.",
+                "Reader III is the entry rank after +CRYPTI is owned. It unlocks +CRYPTI reading and starts the blue branch promotion track at 100,000 lifetime points.",
+                "Poster IV unlocks +CRYPTI posting at 175,000 lifetime points. Instant Rank Promotion can also advance the account to Poster IV for 150 tokens after +CRYPTI is owned.",
+                "Poster V is the grand highest rank at 300,000 lifetime points. Instant Rank Promotion II advances to Poster V for 50 tokens, but only after Instant Rank Promotion is owned.",
+                "The ID card shows CRYPTI RANK and points until the next blue-branch promotion once Graduation and +CRYPTI are active.",
+              ],
+            },
+            {
+              title: "point system",
+              body: [
+                "Every fully opened R News, Q Degen, or S Buzz post adds 0.1 post points to that post. Ten real opens make 1 full post point.",
+                "Favorite diamonds add 10 full post points. If the diamond is removed, those 10 points come back off the board.",
+                "Tickets add 50 full post points. Unticketing pulls 50 points back. The top-right score is visits x 0.1, plus favorites x 10, plus tickets x 50.",
+                "Profile score is separate from Bay Space promotion points. R News posts earn 10 profile points, Q Degen earns 1, S Buzz earns 5, ticker contributions earn 10, favorites received earn 1 each, tickets received earn 10 each, and total post visits add 0.1 each.",
+              ],
+            },
+            {
+              title: "how to use LA +CRYPTI",
+              body: [
+                "Open LA +CRYPTI when you want help sorting a rough signal into R News, Q Degen, or S Buzz.",
+                "Ask for a headline, category, receipts, sources, tickers mentioned, and a draft that is ready for the checkmark money-bag lane.",
+                "Good prompt: Draft this for +CRYPTI as R News with receipts, sources, category, tickers mentioned, and a short headline. Keep it ready to paste into the checkmark money bag.",
               ],
             },
             {
               title: "how to use ✅💰",
               body: [
-                "✅💰 is the easy counter. Paste the LA +Crypti draft, a typed post draft, or a ticker draft into the box, then let the builder separate headline, category, receipts, links, tickers, and ticker metadata.",
-                "🪄 LA +Crypti can do most of the prep work. You bring the rumor, receipt, ticker, or signal; LA +Crypti shapes it; ✅💰 turns it into a review screen; then you submit from there.",
-                "💼 For ticker posts, ask LA +Crypti to draft a ticker upload with ticker, company, chain / market, type, and asset description box. Paste that into ✅💰 and it can become a ticker contribution instead of a regular post.",
+                "Paste a LA +CRYPTI draft, typed post draft, or ticker draft into the box.",
+                "The builder separates headline, category, receipts, links, tickers, and ticker metadata, then sends you to a review screen.",
+                "For ticker posts, ask LA +CRYPTI to draft a ticker upload with ticker, company, chain / market, type, and asset description box. Paste that into ✅💰 and it can become a ticker contribution instead of a regular post.",
               ],
             },
             {
               title: 'how to use "Share Your Secrets"',
               body: [
-                "🔐 Use Share Your Secrets when the signal is more whisper than article: a classified S Buzz item, a quiet rumor, or something you want shaped as a secret post instead of standard R News or Q Degen.",
-                "🌀 Add a headline, write the secret in the whisper box, then press the spiral to review it. The review screen lets you check the encoded secret before it goes live.",
-                "📡 Submitting files it under S Buzz / Secrets so readers can find it in the secret lane without it pretending to be sourced news.",
+                "Use Share Your Secrets when the signal is more whisper than article: a classified S Buzz item, quiet rumor, or secret post.",
+                "Add a headline, write the secret in the whisper box, then press the spiral to review it.",
+                "Submitting files it under S Buzz / Secrets so readers can find it in the secret lane without it pretending to be sourced news.",
               ],
             },
             {
               title: "how to upload a new ticker",
               body: [
-                "🔎 Go to the Tickers tab and use the search box first. If the ticker is not already listed, press add ticker.",
-                "🏷️ Enter the symbol, company or project name, chain / market, type, and a short description. Keep the symbol clean, uppercase, and direct.",
-                "🗂️ OR, declassified shortcut: open LA +Crypti and request: format ticker intake. Copy the finished dossier into ✅💰 and press enter. The money-bag lane will auto-shape it into the ticker post style, so you do not have to enter every field by hand.",
-                "📌 Submit ticker. Once accepted, the ticker becomes part of the Crypti ticker library and counts as a ticker contribution on your profile score.",
+                "Go to the Tickers tab and use the search box first. If the ticker is not already listed, press add ticker.",
+                "Enter the symbol, company or project name, chain / market, type, and a short description. Keep the symbol clean, uppercase, and direct.",
+                "Shortcut: open LA +CRYPTI and request: format ticker intake. Copy the finished dossier into ✅💰 and press enter. The money-bag lane will shape it into the ticker post style.",
+                "Submit ticker. Once accepted, the ticker becomes part of the Crypti ticker library and counts as a ticker contribution on your profile score.",
               ],
             },
             {
               title: "what anon really does",
               body: [
-                "🕶️ Anon is profile-light, not magic invisibility. There is never a full anonymous mode in +Crypti because the system still needs member records, moderation, and platform integrity.",
-                "👤 People reading the article can still click anonymous and reach the author's profile path. The big practical effect is that anon posts are not automatically listed in the +Crypti profile post lanes the way regular posts are.",
-                "🔁 You can switch anon on or off later from My Posts. Use it when you want the article to live away from the automatic profile showcase, not when you need a total identity wipe.",
+                "Anon is profile-light, not magic invisibility. There is never a full anonymous mode in +CRYPTI because the system still needs member records, moderation, and platform integrity.",
+                "People reading the article can still click anonymous and reach the author's profile path. The practical effect is that anon posts are not automatically listed in the +CRYPTI profile post lanes like regular posts.",
+                "You can switch anon on or off later from My Posts. Use it when you want the article away from the automatic profile showcase, not when you need a total identity wipe.",
               ],
             },
           ].map((section) => (

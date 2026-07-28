@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./member-lookup.module.css";
+
+type LoginPhase = "lookup" | "password";
 
 function normalizeLookup(value: string) {
   return value
@@ -13,11 +15,27 @@ function normalizeLookup(value: string) {
 
 export default function MemberLookup() {
   const router = useRouter();
-  const [member, setMember] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [entry, setEntry] = useState("");
   const [isBlocked, setIsBlocked] = useState(false);
+  const [loginPhase, setLoginPhase] = useState<LoginPhase>("lookup");
+  const [pendingMember, setPendingMember] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
 
-  async function openBriefingRoom() {
-    const lookup = member.trim();
+  function flashStatus(message: string) {
+    setStatusMessage(message);
+    setIsBlocked(false);
+    window.setTimeout(() => setIsBlocked(true), 0);
+  }
+
+  function focusInput() {
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }
+
+  async function findMember() {
+    const lookup = entry.trim();
 
     if (!lookup) {
       return;
@@ -29,8 +47,7 @@ export default function MemberLookup() {
     );
 
     if (!memberResponse.ok) {
-      setIsBlocked(false);
-      window.setTimeout(() => setIsBlocked(true), 0);
+      flashStatus("no account found");
       return;
     }
 
@@ -40,8 +57,7 @@ export default function MemberLookup() {
     const memberId = memberData.member?.member ?? "";
 
     if (!memberId) {
-      setIsBlocked(false);
-      window.setTimeout(() => setIsBlocked(true), 0);
+      flashStatus("no account found");
       return;
     }
 
@@ -51,18 +67,55 @@ export default function MemberLookup() {
       : { member: null };
     const activeMember = data.member?.member ?? "";
 
-    if (activeMember && activeMember !== memberId) {
-      setIsBlocked(false);
-      window.setTimeout(() => setIsBlocked(true), 0);
+    if (activeMember === memberId) {
+      router.push(`/briefing-room?member=${memberId}`);
       return;
     }
 
-    router.push(`/briefing-room?member=${memberId}`);
+    if (activeMember) {
+      flashStatus("already logged in");
+      return;
+    }
+
+    setPendingMember(memberId);
+    setLoginPhase("password");
+    setEntry("");
+    setStatusMessage("");
+    focusInput();
+  }
+
+  async function submitPassword() {
+    const pin = entry;
+
+    if (!pendingMember || !pin) {
+      return;
+    }
+
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ member: pendingMember, pin }),
+    });
+    const data = (await response.json()) as {
+      member?: { member: string } | null;
+    };
+    const memberId = data.member?.member ?? "";
+
+    if (response.ok && memberId) {
+      window.localStorage.setItem("bay-space-active-member", memberId);
+      window.dispatchEvent(new Event("bay-space-auth"));
+      router.push(`/briefing-room?member=${memberId}`);
+      return;
+    }
+
+    setEntry("");
+    flashStatus(response.status === 401 ? "try again" : "no account found");
+    focusInput();
   }
 
   function submitLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void openBriefingRoom();
+    void (loginPhase === "lookup" ? findMember() : submitPassword());
   }
 
   return (
@@ -86,22 +139,36 @@ export default function MemberLookup() {
           🛸
         </button>
         <input
+          ref={inputRef}
           autoCapitalize="none"
-          autoComplete="username"
+          autoComplete={
+            loginPhase === "lookup" ? "username" : "current-password"
+          }
           maxLength={24}
-          value={member}
+          type={loginPhase === "lookup" ? "text" : "password"}
+          value={entry}
           onChange={(event) => {
-            setMember(normalizeLookup(event.target.value));
+            const value = event.target.value;
+            setEntry(
+              loginPhase === "lookup"
+                ? normalizeLookup(value)
+                : value.slice(0, 24),
+            );
             setIsBlocked(false);
+            setStatusMessage("");
           }}
-          placeholder="username"
+          placeholder={loginPhase === "lookup" ? "username" : "password"}
           className="w-40 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:border-[#39ff14] focus:ring-1 focus:ring-[#39ff14]"
-          aria-label="Username or member number"
+          aria-label={
+            loginPhase === "lookup"
+              ? "Username or member number"
+              : "Password"
+          }
         />
       </form>
       {isBlocked ? (
         <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#39ff14]">
-          no account found / already logged in
+          {statusMessage}
         </p>
       ) : null}
     </div>

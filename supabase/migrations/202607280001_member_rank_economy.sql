@@ -81,7 +81,7 @@ where exists (
 comment on column public.members.rank is
   'Earned Bay Space rank: reader, reader-ii, poster, poster-ii, poster-iii, or graduation.';
 comment on column public.members.crypti_rank is
-  'Crypti+ branch rank after purchasing the Crypti+ gate key.';
+  '+CRYPTI branch rank after purchasing the +CRYPTI gate key.';
 comment on column public.members.lifetime_points is
   'Total earned reputation points. Promotions should use this value.';
 comment on column public.members.available_points is

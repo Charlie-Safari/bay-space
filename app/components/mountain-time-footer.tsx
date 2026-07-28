@@ -2,13 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-function isCryptiRole(roles = "") {
-  return roles
-    .split(",")
-    .map((role) => role.trim().toLowerCase())
-    .includes("crypti");
-}
+import { isCrypti } from "../../lib/bay-space-roles";
+import type { BayMember } from "../../lib/bay-space-types";
 
 const formatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/Phoenix",
@@ -52,12 +47,12 @@ export default function MountainTimeFooter() {
       const response = await fetch("/api/me", { cache: "no-store" });
       const data = response.ok
         ? ((await response.json()) as {
-            member?: { roles?: string } | null;
+            member?: BayMember | null;
           })
         : { member: null };
 
       if (isMounted) {
-        setHasCryptiAccess(isCryptiRole(data.member?.roles));
+        setHasCryptiAccess(Boolean(data.member && isCrypti(data.member)));
       }
     }
 

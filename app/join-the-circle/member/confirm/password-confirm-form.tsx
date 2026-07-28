@@ -164,12 +164,13 @@ export default function PasswordConfirmForm({
         <input
           aria-label="Create password"
           autoComplete="new-password"
+          placeholder="Create a Password"
           type="password"
           value={confirmPin}
           onChange={(event) => {
             setConfirmPin(event.target.value.slice(0, 24));
           }}
-          className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+          className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
           autoFocus
         />
       </div>

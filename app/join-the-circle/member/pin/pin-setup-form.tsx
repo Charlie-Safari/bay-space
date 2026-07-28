@@ -61,9 +61,10 @@ export default function PinSetupForm({
         Please chose a password:
         <input
           type="password"
+          placeholder="Create a Password"
           value={pin}
           onChange={(event) => setPin(event.target.value.slice(0, 24))}
-          className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+          className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
         />
       </label>
       <label className="grid gap-2 text-xs font-black uppercase tracking-[0.2em] text-[#d7ffd0]">

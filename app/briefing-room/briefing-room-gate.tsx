@@ -35,6 +35,8 @@ import {
 import {
   bayoCoinExchangeRate,
   gateKeys,
+  getCryptiRankLabel,
+  getNextPromotionProgress,
   graduationCoinCost,
 } from "../../lib/bay-space-ranks";
 import type {
@@ -105,6 +107,15 @@ type SourceDraft = {
 };
 
 type FavoriteCategory = "daily-food" | "theory" | "library-submission";
+type BriefingPanel =
+  | "id-card"
+  | "post"
+  | "my-posts"
+  | "favorites"
+  | "lazy-assistant"
+  | "circles"
+  | "exchange"
+  | "settings";
 
 type PostDraft = {
   id: number;
@@ -165,6 +176,18 @@ const lazyPostGptUrl =
 const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "MISC";
 const supportEmail = "bayoadmin@protonmail.com";
+const optionRoomPanels: BriefingPanel[] = [
+  "my-posts",
+  "favorites",
+  "lazy-assistant",
+  "circles",
+  "exchange",
+  "settings",
+];
+
+function isOptionRoomPanel(panel: BriefingPanel) {
+  return optionRoomPanels.includes(panel);
+}
 
 function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   return {
@@ -543,7 +566,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [gateErrorMessage, setGateErrorMessage] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [activePanel, setActivePanel] = useState("id-card");
+  const [activePanel, setActivePanel] = useState<BriefingPanel>("id-card");
   const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
   const [isPostOpen, setIsPostOpen] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<number | null>(null);
@@ -639,6 +662,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
+  const isOptionsRoom = isOptionRoomPanel(activePanel);
+  const promotionProgress = savedMember
+    ? getNextPromotionProgress(savedMember.lifetimePoints ?? 0, savedMember)
+    : null;
   const openDrafts = [
     ...minimizedDrafts,
     ...(isPostOpen && activeDraftId
@@ -829,6 +856,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setIsPostOpen(false);
   }, [resolvedMember]);
 
+  const returnToBriefingRoom = useCallback(() => {
+    setActivePanel("id-card");
+    setDeletePostId("");
+    setActiveFavoriteCategory("");
+    setSettingsMessage("");
+    setExchangeMessage("");
+    setWildCardMessage("");
+    setIsChangingPassword(false);
+    setDeleteAccountConfirm(false);
+    setWipeAccountConfirm(false);
+  }, []);
+
   useEffect(() => {
     async function syncActiveMember() {
       setIsCheckingSession(true);
@@ -875,6 +914,20 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       window.removeEventListener("bay-space-auth", syncActiveMember);
     };
   }, [clearOpenPostDrafts, member]);
+
+  useEffect(() => {
+    window.addEventListener(
+      "bay-space-return-to-briefing-room",
+      returnToBriefingRoom,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "bay-space-return-to-briefing-room",
+        returnToBriefingRoom,
+      );
+    };
+  }, [returnToBriefingRoom]);
 
   useEffect(() => {
     let loadDraftsFrame = 0;
@@ -1823,7 +1876,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     );
   }
 
-  const header = (
+  const header = isOptionsRoom ? null : (
     <div className="w-full max-w-4xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
@@ -1908,13 +1961,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       <>
         {header}
         <div
-          className={`mt-10 grid w-full max-w-4xl gap-6 ${
-            isPostOpen && activePanel === "post"
+          className={`${isOptionsRoom ? "mt-0" : "mt-10"} grid w-full max-w-4xl gap-6 ${
+            (isPostOpen && activePanel === "post") || isOptionsRoom
               ? ""
               : "md:grid-cols-[220px_1fr]"
           }`}
         >
-        {isPostOpen && activePanel === "post" ? null : (
+        {(isPostOpen && activePanel === "post") || isOptionsRoom ? null : (
         <aside className="order-2 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] md:order-1">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
@@ -2034,9 +2087,20 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         )}
         <section
           className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
-            isPostOpen && activePanel === "post" ? "order-1" : "order-1 md:order-2"
+            (isPostOpen && activePanel === "post") || isOptionsRoom
+              ? "order-1"
+              : "order-1 md:order-2"
           }`}
         >
+          {isOptionsRoom ? (
+            <button
+              type="button"
+              onClick={returnToBriefingRoom}
+              className="mb-5 w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              back to briefing room
+            </button>
+          ) : null}
           {activePanel === "post" && isPostOpen ? (
             postPreview ? (
               <div
@@ -3208,83 +3272,106 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   ) : null}
                 </div>
 
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                  Badge Quest
-                </p>
-                <div className="grid gap-3">
-                  {(() => {
-                    const isGraduated = savedMember.rank === "graduation";
+                <details className="border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_14px_rgba(57,255,20,0.12)]">
+                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
+                    Badge Quest
+                  </summary>
+                  <div className="mt-4 grid gap-3">
+                    {(() => {
+                      const isGraduated = savedMember.rank === "graduation";
 
-                    return (
-                      <div className="grid gap-3 border border-[#39ff14] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                            Graduation
-                          </p>
-                          <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                            instantly ranks the account to Graduation and opens
-                            the rest of the Badge Quest store.
-                          </p>
+                      return (
+                        <div className="grid gap-3 border border-[#39ff14] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                          <div>
+                            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                              Graduation
+                            </p>
+                            <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                              instantly ranks the account to Graduation and
+                              opens the rest of the Badge Quest store.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={purchaseGraduation}
+                            disabled={
+                              isExchangeLoading ||
+                              isGraduated ||
+                              (savedMember.bayoCoins ?? 0) < graduationCoinCost
+                            }
+                            className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
+                          >
+                            {isGraduated
+                              ? "owned"
+                              : `${graduationCoinCost} coins`}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={purchaseGraduation}
-                          disabled={
-                            isExchangeLoading ||
-                            isGraduated ||
-                            (savedMember.bayoCoins ?? 0) < graduationCoinCost
-                          }
-                          className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
-                        >
-                          {isGraduated
-                            ? "owned"
-                            : `${graduationCoinCost} coins`}
-                        </button>
-                      </div>
-                    );
-                  })()}
-                  {gateKeys.map((gateKey) => {
-                    const isGraduated = savedMember.rank === "graduation";
-                    const isOwned = savedMember.gateKeys?.includes(gateKey.id);
-                    const isCryptiGate = gateKey.id === "crypti-plus";
-                    const canBuy =
-                      isGraduated &&
-                      !isOwned &&
-                      (savedMember.bayoCoins ?? 0) >= gateKey.coinCost;
+                      );
+                    })()}
+                    {gateKeys.map((gateKey) => {
+                      const isGraduated = savedMember.rank === "graduation";
+                      const isOwned = savedMember.gateKeys?.includes(gateKey.id);
+                      const isCryptiGate = gateKey.id === "crypti-plus";
+                      const isInstantRankPromotion =
+                        gateKey.id === "instant-rank-promotion";
+                      const isInstantRankPromotionII =
+                        gateKey.id === "instant-rank-promotion-ii";
+                      const hasCryptiBranch =
+                        Boolean(savedMember.cryptiRank) ||
+                        Boolean(savedMember.gateKeys?.includes("crypti-plus"));
+                      const hasRequiredPromotion =
+                        !isInstantRankPromotionII ||
+                        Boolean(
+                          savedMember.gateKeys?.includes(
+                            "instant-rank-promotion",
+                          ),
+                        );
+                      const isPromotionGate =
+                        isInstantRankPromotion || isInstantRankPromotionII;
+                      const gateRequirementsMet =
+                        !isPromotionGate ||
+                        (hasCryptiBranch && hasRequiredPromotion);
+                      const canBuy =
+                        isGraduated &&
+                        !isOwned &&
+                        gateRequirementsMet &&
+                        (savedMember.bayoCoins ?? 0) >= gateKey.coinCost;
+                      const costUnit = isPromotionGate ? "tokens" : "coins";
 
-                    return (
-                      <div
-                        key={gateKey.id}
-                        className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
-                          isCryptiGate
-                            ? "border-[#72d7ff] text-[#d7f5ff]"
-                            : "border-[#1d7f12] text-[#d7ffd0]"
-                        }`}
-                      >
-                        <div>
-                          <p className="text-sm font-black uppercase tracking-[0.18em]">
-                            {gateKey.label}
-                          </p>
-                          <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                            {gateKey.description}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => purchaseGateKey(gateKey.id)}
-                          disabled={isExchangeLoading || !canBuy}
-                          className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
+                      return (
+                        <div
+                          key={gateKey.id}
+                          className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
+                            isCryptiGate || isPromotionGate
+                              ? "border-[#72d7ff] text-[#d7f5ff]"
+                              : "border-[#1d7f12] text-[#d7ffd0]"
+                          }`}
                         >
-                          {isOwned
-                            ? "owned"
-                            : isGraduated
-                              ? `${gateKey.coinCost} coins`
-                              : "locked"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                          <div>
+                            <p className="text-sm font-black uppercase tracking-[0.18em]">
+                              {gateKey.label}
+                            </p>
+                            <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                              {gateKey.description}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => purchaseGateKey(gateKey.id)}
+                            disabled={isExchangeLoading || !canBuy}
+                            className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
+                          >
+                            {isOwned
+                              ? "owned"
+                              : isGraduated && gateRequirementsMet
+                                ? `${gateKey.coinCost} ${costUnit}`
+                                : "locked"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
               </div>
             </div>
           ) : activePanel === "settings" ? (
@@ -3611,10 +3698,31 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 RANK: {(savedMember.rank ?? "reader").replace("-", " ")}
               </p>
+              {savedMember.cryptiRank ? (
+                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#72d7ff]">
+                  CRYPTI RANK: {getCryptiRankLabel(savedMember.cryptiRank)}
+                </p>
+              ) : null}
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 POINTS: {formatPointCount(savedMember.availablePoints)} available
                 / {formatPointCount(savedMember.lifetimePoints)} lifetime
               </p>
+              {promotionProgress ? (
+                <p
+                  className={`mt-4 text-sm font-black uppercase tracking-[0.2em] ${
+                    promotionProgress.track === "crypti"
+                      ? "text-[#72d7ff]"
+                      : "text-[#d7ffd0]"
+                  }`}
+                >
+                  POINTS UNTIL {promotionProgress.label}:{" "}
+                  {formatPointCount(promotionProgress.pointsUntil)}
+                </p>
+              ) : (
+                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                  POINTS UNTIL NEXT PROMOTION: 0
+                </p>
+              )}
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 BAYO COINS: {formatPointCount(savedMember.bayoCoins)}
               </p>
