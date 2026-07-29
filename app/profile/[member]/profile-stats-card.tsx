@@ -4,31 +4,37 @@ import { useEffect, useState } from "react";
 
 type ProfileStatsCardProps = {
   initialPageVisits: number;
+  lifetimePoints: number;
+  lifetimeTokens: number;
   member: string;
-  overallTotalScore: string;
-  totalArticleReadCount: number;
   totalFavoriteCount: number;
   totalPostCount: number;
   totalPostVisitCount: number;
   totalTicketCount: number;
 };
 
+function formatStatValue(value: number | string) {
+  return typeof value === "number" ? value.toLocaleString("en-US") : value;
+}
+
 export default function ProfileStatsCard({
   initialPageVisits,
+  lifetimePoints,
+  lifetimeTokens,
   member,
-  overallTotalScore,
-  totalArticleReadCount,
   totalFavoriteCount,
   totalPostCount,
   totalPostVisitCount,
   totalTicketCount,
 }: ProfileStatsCardProps) {
   const [pageVisits, setPageVisits] = useState(initialPageVisits);
+  const [displayLifetimePoints, setDisplayLifetimePoints] =
+    useState(lifetimePoints);
   const stats = [
-    { label: "overall total score", value: `${overallTotalScore} pts` },
-    { label: "articles read (+5 each)", value: totalArticleReadCount },
+    { label: "lifetime points", value: displayLifetimePoints },
+    { label: "lifetime tokens", value: lifetimeTokens },
     { label: "profile page visits", value: pageVisits },
-    { label: "total visits all posts", value: totalPostVisitCount },
+    { label: "total views on posts", value: totalPostVisitCount },
     { label: "favorite diamonds received ◆", value: totalFavoriteCount },
     { label: "tickets received 🎟️", value: totalTicketCount },
     { label: "total # of posts", value: totalPostCount },
@@ -41,11 +47,19 @@ export default function ProfileStatsCard({
       .then((response) =>
         response.ok ? response.json() : { pageVisits: initialPageVisits },
       )
-      .then((data: { pageVisits?: number }) => {
-        if (isMounted && typeof data.pageVisits === "number") {
-          setPageVisits(data.pageVisits);
-        }
-      })
+      .then(
+        (data: {
+          member?: { lifetimePoints?: number };
+          pageVisits?: number;
+        }) => {
+          if (isMounted && typeof data.pageVisits === "number") {
+            setPageVisits(data.pageVisits);
+          }
+          if (isMounted && typeof data.member?.lifetimePoints === "number") {
+            setDisplayLifetimePoints(data.member.lifetimePoints);
+          }
+        },
+      )
       .catch(() => undefined);
 
     return () => {
@@ -81,7 +95,7 @@ export default function ProfileStatsCard({
                 {stat.label}
               </span>
               <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
-                {stat.value}
+                {formatStatValue(stat.value)}
               </span>
             </div>
           ))}

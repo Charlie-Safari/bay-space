@@ -7,10 +7,7 @@ import {
   isValidUsername,
   normalizeUsername,
 } from "../../../lib/bay-space-username";
-import {
-  defaultMemberRole,
-  defaultMemberTitle,
-} from "../../../lib/bay-space-roles";
+import { defaultMemberRole } from "../../../lib/bay-space-roles";
 
 function normalizeMember(value: string) {
   return value.replace(/\D/g, "").slice(0, 5).padStart(5, "0");
@@ -48,7 +45,7 @@ export async function POST(request: Request) {
     const refName = normalizeUsername(candidateRefName);
     const name = refName;
     const roles = defaultMemberRole;
-    const title = defaultMemberTitle;
+    const title = name;
 
     await setSignupDraftCookie({
       member,

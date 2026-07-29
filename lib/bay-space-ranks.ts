@@ -26,6 +26,40 @@ export type BayoTitleId =
   | "influencer"
   | "historian";
 
+export type BayoCardId =
+  | "empath-card"
+  | "hero-card"
+  | "library-card"
+  | "doublay-card"
+  | "money-printer-i"
+  | "money-printer-ii"
+  | "money-printer-iii"
+  | "impossible-card";
+
+export type BayoStampId =
+  | "fountain-of-youth"
+  | "millennial-fever-dream"
+  | "senior-citizens"
+  | "red-elephant"
+  | "blue-donkey"
+  | "red-blue-yingyang"
+  | "mountains"
+  | "oceans"
+  | "islands"
+  | "support-our-troops"
+  | "vfw"
+  | "summer"
+  | "winter"
+  | "fall"
+  | "spring"
+  | "seasons"
+  | "holidays"
+  | "birthday"
+  | "rainbow"
+  | "support-law-enforcement"
+  | "support-israel"
+  | "support-palestine";
+
 type BayRankConfig = {
   allowedPostCategories: BayPostCategory[];
   canExchangePoints: boolean;
@@ -56,6 +90,20 @@ type BayoTitleConfig = {
   coinCost: number;
 };
 
+type BayoCardConfig = {
+  description: string;
+  id: BayoCardId;
+  label: string;
+  tokenCost: number;
+};
+
+type BayoStampConfig = {
+  coinCost: number;
+  description: string;
+  id: BayoStampId;
+  label: string;
+};
+
 type PromotionTrack = "bay-space" | "crypti";
 
 export type PromotionProgress = {
@@ -75,7 +123,22 @@ export const defaultBayRankLabel = "Reader";
 export const defaultMemberRole = "reader";
 export const defaultMemberTitle = "Reader";
 export const bayoCoinExchangeRate = 100;
+export const bayoTokenExchangeRate = 5;
 export const graduationCoinCost = 500;
+export const tokenGateKeys: GateKey[] = [
+  "instant-rank-promotion",
+  "instant-rank-promotion-ii",
+];
+export const doublayCardId: BayoCardId = "doublay-card";
+export const moneyPrinterICardId: BayoCardId = "money-printer-i";
+export const moneyPrinterIICardId: BayoCardId = "money-printer-ii";
+export const moneyPrinterIIICardId: BayoCardId = "money-printer-iii";
+export const moneyPrinterIIntervalMs = 30 * 60 * 1000;
+export const moneyPrinterIIIntervalMs = 30 * 60 * 1000;
+export const moneyPrinterIIIIntervalMs = 10 * 60 * 1000;
+export const moneyPrinterIPointValue = 5;
+export const moneyPrinterIIPointValue = 10;
+export const moneyPrinterIIIPointValue = 30;
 
 export const bayRanks: BayRankConfig[] = [
   {
@@ -171,12 +234,12 @@ export const gateKeys: GateKeyConfig[] = [
     description:
       "Instantly advances the +CRYPTI branch to Poster IV. Requires +CRYPTI ownership.",
     id: "instant-rank-promotion",
-    label: "Instant Rank Promotion",
+    label: "Instant Rank Promotion I",
   },
   {
     coinCost: 50,
     description:
-      "Grand highest rank. Requires Instant Rank Promotion and advances the +CRYPTI branch to Poster V.",
+      "Grand highest rank. Requires Instant Rank Promotion I and advances the +CRYPTI branch to Poster V.",
     id: "instant-rank-promotion-ii",
     label: "Instant Rank Promotion II",
   },
@@ -218,6 +281,216 @@ export const bayoTitles: BayoTitleConfig[] = [
   { coinCost: 10, id: "influencer", label: "Influencer" },
   { coinCost: 10, id: "historian", label: "Historian" },
 ];
+
+export const bayoCards: BayoCardConfig[] = [
+  {
+    description:
+      "Indigo comments. Truth votes count x2 on Conspiracy and x1 on News.",
+    id: "empath-card",
+    label: "Empath Card",
+    tokenCost: 25,
+  },
+  {
+    description:
+      "Five gold stars by comment name. Truth votes count x2 on News and x1 on Conspiracy.",
+    id: "hero-card",
+    label: "Hero Card",
+    tokenCost: 25,
+  },
+  {
+    description:
+      "Special Library badge for users who want to rep the archive branch.",
+    id: "library-card",
+    label: "Library Card",
+    tokenCost: 5,
+  },
+  {
+    description:
+      "Allows three active cards total, with Doublay counted as one active card.",
+    id: doublayCardId,
+    label: "Doublay Card",
+    tokenCost: 11,
+  },
+  {
+    description:
+      "Generates 5 points per 30 minutes while logged in, Bay Space is open, and the mouse is on-screen.",
+    id: moneyPrinterICardId,
+    label: "Money Printer I",
+    tokenCost: 1,
+  },
+  {
+    description:
+      "Generates 10 points per 30 minutes while active, syncing when the account is loaded.",
+    id: moneyPrinterIICardId,
+    label: "Money Printer II",
+    tokenCost: 10,
+  },
+  {
+    description:
+      "Generates 30 points per 10 minutes while active, syncing when the account is loaded.",
+    id: moneyPrinterIIICardId,
+    label: "Money Printer III",
+    tokenCost: 100,
+  },
+  {
+    description:
+      "Costs one billion tokens. No functional power, just legend status and street cred.",
+    id: "impossible-card",
+    label: "Impossible Card",
+    tokenCost: 1000000000,
+  },
+];
+
+export const bayoStamps: BayoStampConfig[] = [
+  {
+    coinCost: 1,
+    description: "For users who want to rep new generations.",
+    id: "fountain-of-youth",
+    label: "Fountain of Youth",
+  },
+  {
+    coinCost: 1,
+    description: "For in-between millennials who want to rep this generation.",
+    id: "millennial-fever-dream",
+    label: "Millennial Fever Dream",
+  },
+  {
+    coinCost: 1,
+    description: "For users who want to rep older generations.",
+    id: "senior-citizens",
+    label: "Senior Citizens",
+  },
+  {
+    coinCost: 1,
+    description: "Right political party stamp.",
+    id: "red-elephant",
+    label: "Red Elephant",
+  },
+  {
+    coinCost: 1,
+    description: "Left political party stamp.",
+    id: "blue-donkey",
+    label: "Blue Donkey",
+  },
+  {
+    coinCost: 1,
+    description: "Mutual political party stamp.",
+    id: "red-blue-yingyang",
+    label: "Red and Blue Yingyang",
+  },
+  {
+    coinCost: 1,
+    description: "Mountain identity stamp.",
+    id: "mountains",
+    label: "Mountains",
+  },
+  {
+    coinCost: 1,
+    description: "Ocean identity stamp.",
+    id: "oceans",
+    label: "Oceans",
+  },
+  {
+    coinCost: 1,
+    description: "Island identity stamp.",
+    id: "islands",
+    label: "Islands",
+  },
+  {
+    coinCost: 1,
+    description: "Support our troops stamp.",
+    id: "support-our-troops",
+    label: "Support Our Troops",
+  },
+  {
+    coinCost: 0,
+    description: "Veterans of Foreign Wars stamp.",
+    id: "vfw",
+    label: "VFW",
+  },
+  {
+    coinCost: 1,
+    description: "Summer stamp.",
+    id: "summer",
+    label: "Summer",
+  },
+  {
+    coinCost: 1,
+    description: "Winter stamp.",
+    id: "winter",
+    label: "Winter",
+  },
+  {
+    coinCost: 1,
+    description: "Fall stamp.",
+    id: "fall",
+    label: "Fall",
+  },
+  {
+    coinCost: 1,
+    description: "Spring stamp.",
+    id: "spring",
+    label: "Spring",
+  },
+  {
+    coinCost: 1,
+    description: "All seasons stamp.",
+    id: "seasons",
+    label: "Seasons",
+  },
+  {
+    coinCost: 1,
+    description: "Holiday stamp.",
+    id: "holidays",
+    label: "Holidays",
+  },
+  {
+    coinCost: 0,
+    description: "Birthday stamp.",
+    id: "birthday",
+    label: "Birthday",
+  },
+  {
+    coinCost: 2,
+    description: "Rainbow stamp.",
+    id: "rainbow",
+    label: "Rainbow",
+  },
+  {
+    coinCost: 5,
+    description: "Support law enforcement stamp.",
+    id: "support-law-enforcement",
+    label: "Support Law Enforcement",
+  },
+  {
+    coinCost: 1,
+    description: "Support Israel stamp.",
+    id: "support-israel",
+    label: "Support Israel",
+  },
+  {
+    coinCost: 1,
+    description: "Support Palestine stamp.",
+    id: "support-palestine",
+    label: "Support Palestine",
+  },
+];
+
+export function isTokenGateKey(gateKeyId: GateKey) {
+  return tokenGateKeys.includes(gateKeyId);
+}
+
+export function isBayoCardId(cardId: string): cardId is BayoCardId {
+  return bayoCards.some((card) => card.id === cardId);
+}
+
+export function isBayoStampId(stampId: string): stampId is BayoStampId {
+  return bayoStamps.some((stamp) => stamp.id === stampId);
+}
+
+export function getBayoCardActiveSlotCount(activeCards: BayoCardId[]) {
+  return activeCards.includes(doublayCardId) ? 3 : 1;
+}
 
 export function getBayRankConfig(rank: string | null | undefined) {
   return bayRanks.find((candidate) => candidate.id === rank) ?? bayRanks[0];

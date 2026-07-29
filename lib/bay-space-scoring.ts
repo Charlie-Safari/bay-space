@@ -1,11 +1,12 @@
 import type { BayPost, BayPostCategory } from "./bay-space-types";
 
-export const postVisitPointTenths = 1;
+export const postVisitPointTenths = 10;
 export const postFavoritePointTenths = 100;
 export const postTicketPointTenths = 500;
 export const truthVoteLowPointTenths = 10;
 export const truthVoteHighPointTenths = 20;
 export const articleReadPointValue = 5;
+export const profileVisitPointValue = 1;
 
 export const baySpaceProfilePostPointValues = {
   "daily-food": 10,

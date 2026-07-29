@@ -2,10 +2,10 @@ import Link from "next/link";
 import HomeBar from "../../components/home-bar";
 import PublicCirclesCard from "./public-circles-card";
 import PublicIdCard from "./public-id-card";
+import ProfileTrophyCase from "./profile-trophy-case";
 import ProfileStatsCard from "./profile-stats-card";
 import {
   countSavedPosts,
-  getMemberArticleReadCount,
   getMember,
   getMemberProfileVisitCount,
   listSavedPostsByMember,
@@ -15,13 +15,17 @@ import {
 import { BayPost } from "../../../lib/bay-space-types";
 import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
 import {
-  formatPointTenths,
   getBaySpacePostTicketCount,
-  getBaySpaceProfileScoreTenths,
   getPostVisitCount,
   isBaySpaceProfileScorePost,
   isCryptiPost,
 } from "../../../lib/bay-space-scoring";
+import {
+  bayoCards,
+  bayoStamps,
+  gateKeys,
+  getCryptiRankLabel,
+} from "../../../lib/bay-space-ranks";
 
 type PublicProfileProps = {
   params: Promise<{
@@ -51,6 +55,12 @@ function getExternalHref(url: string) {
   }
 
   return `https://${url}`;
+}
+
+function getProfileDisplayTitle(member: NonNullable<Awaited<ReturnType<typeof getMember>>>) {
+  const title = member.title.trim();
+
+  return title && title.toLowerCase() !== "reader" ? title : member.name;
 }
 
 function PostList({ posts }: { posts: BayPost[] }) {
@@ -112,12 +122,26 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
     0,
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
-  const totalArticleReadCount = await getMemberArticleReadCount(memberId);
-  const overallTotalScore = formatPointTenths(
-    getBaySpaceProfileScoreTenths(statsPosts, favoriteCounts, pageVisits),
-  );
   const isBayoClubMember = isBayoClub(member);
   const isCryptiMember = isCrypti(member);
+  const ownedBadges = member
+    ? [
+        ...(member.rank === "graduation" ? ["Graduation"] : []),
+        ...gateKeys
+          .filter((gateKey) => member.gateKeys.includes(gateKey.id))
+          .map((gateKey) => gateKey.label),
+      ]
+    : [];
+  const ownedCards = member
+    ? bayoCards
+        .filter((card) => member.bayoCards.includes(card.id))
+        .map((card) => card.label)
+    : [];
+  const ownedStamps = member
+    ? bayoStamps
+        .filter((stamp) => member.bayoStamps.includes(stamp.id))
+        .map((stamp) => stamp.label)
+    : [];
 
   const dailyFoodPosts = posts.filter((post) => post.category === "daily-food");
   const theoryPosts = posts.filter((post) => post.category === "theory");
@@ -159,17 +183,18 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 isCryptiMember={isCryptiMember}
                 links={publicLinks}
                 member={{
+                  cryptiTitle: getCryptiRankLabel(member.cryptiRank),
                   member: member.member,
                   name: member.name,
                   refName: member.refName,
-                  title: member.title,
+                  title: getProfileDisplayTitle(member),
                 }}
               />
               <ProfileStatsCard
                 initialPageVisits={pageVisits}
+                lifetimePoints={member.lifetimePoints}
+                lifetimeTokens={member.lifetimeTokens}
                 member={member.member}
-                overallTotalScore={overallTotalScore}
-                totalArticleReadCount={totalArticleReadCount}
                 totalFavoriteCount={totalFavoriteCount}
                 totalPostCount={statsPosts.length}
                 totalPostVisitCount={totalPostVisitCount}
@@ -182,6 +207,12 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 }}
               />
             </div>
+
+            <ProfileTrophyCase
+              badges={ownedBadges}
+              cards={ownedCards}
+              stamps={ownedStamps}
+            />
 
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">

@@ -12,15 +12,34 @@ import {
 } from "./bay-space-types";
 import {
   bayoCoinExchangeRate,
+  bayoCards,
+  bayoTokenExchangeRate,
+  bayoStamps,
   defaultMemberRole,
   defaultMemberTitle,
+  doublayCardId,
   gateKeys,
+  getBayoCardActiveSlotCount,
   getBayRankConfig,
   getCryptiRankForLifetimePoints,
   getPromotedBayRankForLifetimePoints,
   hasCryptiPromotionBranch,
   graduationCoinCost,
+  isBayoCardId,
+  isBayoStampId,
+  isTokenGateKey,
+  moneyPrinterICardId,
+  moneyPrinterIICardId,
+  moneyPrinterIIICardId,
+  moneyPrinterIIntervalMs,
+  moneyPrinterIIIntervalMs,
+  moneyPrinterIIIIntervalMs,
+  moneyPrinterIPointValue,
+  moneyPrinterIIPointValue,
+  moneyPrinterIIIPointValue,
   normalizeBayRank,
+  type BayoCardId,
+  type BayoStampId,
   type BayoTitleId,
   type CryptiRank,
   type GateKey,
@@ -29,6 +48,7 @@ import {
   articleReadPointValue,
   getPositiveInteger,
   getTruthVotePointValue,
+  profileVisitPointValue,
 } from "./bay-space-scoring";
 import {
   isValidUsername,
@@ -80,11 +100,12 @@ const wildCardGateKeyReservePoints =
 
     return totalCoins + (gateKey?.coinCost ?? 0);
   }, 0) * bayoCoinExchangeRate;
-export const baySpaceWildCardPointFloor = Math.max(
+export const baySpaceWildCardPointAward = Math.max(
   100000,
   getBayRankConfig("graduation").minLifetimePoints +
     wildCardGateKeyReservePoints,
 );
+export const baySpaceWildCardPointFloor = baySpaceWildCardPointAward;
 const instantRankPromotionGateKeyId: GateKey = "instant-rank-promotion";
 const instantRankPromotionIIGateKeyId: GateKey = "instant-rank-promotion-ii";
 
@@ -96,13 +117,25 @@ type MemberCryptiStats = {
   profileVisits?: number;
 };
 
+type MemberMoneyPrinter = {
+  activeIAt?: number;
+  passiveIIAt?: number;
+  passiveIIIAt?: number;
+};
+
 type MemberTicketVote = {
   nextAt?: number;
   postIds?: string[];
 };
 
 type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
+  _activeBayoCards?: string[];
+  _bayoCards?: string[];
+  _bayoStamps?: string[];
+  _bayoTokens?: number;
+  _lifetimeBayoTokens?: number;
   _cryptiStats?: MemberCryptiStats;
+  _moneyPrinter?: MemberMoneyPrinter;
   _stats?: MemberStats;
   _cryptiTicketVote?: MemberTicketVote;
   _ticketVote?: MemberTicketVote;
@@ -285,14 +318,19 @@ function getSessionExpiry() {
 
 function publicMember(member: MemberRow, roles: string[] = []): BayMember {
   return {
+    activeBayoCards: getMemberActiveBayoCards(member),
     availablePoints: normalizePointBalance(member.available_points),
+    bayoCards: getMemberBayoCards(member),
     bayoCoins: normalizePointBalance(member.bayo_coins),
+    bayoStamps: getMemberBayoStamps(member),
+    bayoTokens: getMemberBayoTokens(member),
     cryptiAgreementAcceptedAt:
       member.crypti_agreement_accepted_at ?? undefined,
     cryptiAgreementVersion: member.crypti_agreement_version ?? undefined,
     cryptiRank: normalizeCryptiRank(member.crypti_rank),
     gateKeys: normalizeStringArray<GateKey>(member.gate_keys),
     lifetimePoints: normalizePointBalance(member.lifetime_points),
+    lifetimeTokens: getMemberLifetimeBayoTokens(member),
     member: formatMemberId(member.member_number),
     name: member.name,
     purchasedTitles: normalizeStringArray<BayoTitleId>(
@@ -342,6 +380,7 @@ function publicPostComment(
   author?: MemberRow,
 ): BayPostComment {
   return {
+    authorActiveCards: author ? getMemberActiveBayoCards(author) : [],
     author: comment.author_member_number
       ? formatMemberId(comment.author_member_number)
       : "unknown",
@@ -443,6 +482,90 @@ function getMemberGateKeys(member: Pick<MemberRow, "gate_keys">) {
   return normalizeStringArray<GateKey>(member.gate_keys);
 }
 
+function getMemberBayoTokens(member: Pick<MemberRow, "links">) {
+  return normalizePointBalance(member.links?._bayoTokens);
+}
+
+function getMemberLifetimeBayoTokens(member: Pick<MemberRow, "links">) {
+  return Math.max(
+    normalizePointBalance(member.links?._lifetimeBayoTokens),
+    getMemberBayoTokens(member),
+  );
+}
+
+function normalizeBayoCardArray(value: unknown) {
+  return Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value.filter(
+            (cardId): cardId is BayoCardId =>
+              typeof cardId === "string" && isBayoCardId(cardId),
+          ),
+        ),
+      )
+    : [];
+}
+
+function getMemberBayoCards(member: Pick<MemberRow, "links">) {
+  return normalizeBayoCardArray(member.links?._bayoCards);
+}
+
+function getMemberActiveBayoCards(member: Pick<MemberRow, "links">) {
+  const ownedCards = getMemberBayoCards(member);
+  const activeCards = normalizeBayoCardArray(
+    member.links?._activeBayoCards,
+  ).filter((cardId) => ownedCards.includes(cardId));
+  const slotCount = getBayoCardActiveSlotCount(activeCards);
+
+  if (activeCards.includes(doublayCardId)) {
+    return [
+      doublayCardId,
+      ...activeCards.filter((cardId) => cardId !== doublayCardId),
+    ].slice(0, slotCount);
+  }
+
+  return activeCards.slice(0, slotCount);
+}
+
+function normalizeBayoStampArray(value: unknown) {
+  return Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value.filter(
+            (stampId): stampId is BayoStampId =>
+              typeof stampId === "string" && isBayoStampId(stampId),
+          ),
+        ),
+      )
+    : [];
+}
+
+function getMemberBayoStamps(member: Pick<MemberRow, "links">) {
+  return normalizeBayoStampArray(member.links?._bayoStamps);
+}
+
+function normalizeMoneyPrinterTimestamp(value: unknown) {
+  const timestamp = Number(value);
+
+  return Number.isFinite(timestamp) && timestamp > 0
+    ? Math.floor(timestamp)
+    : 0;
+}
+
+function getMemberMoneyPrinter(member: Pick<MemberRow, "links">) {
+  return {
+    activeIAt: normalizeMoneyPrinterTimestamp(
+      member.links?._moneyPrinter?.activeIAt,
+    ),
+    passiveIIAt: normalizeMoneyPrinterTimestamp(
+      member.links?._moneyPrinter?.passiveIIAt,
+    ),
+    passiveIIIAt: normalizeMoneyPrinterTimestamp(
+      member.links?._moneyPrinter?.passiveIIIAt,
+    ),
+  };
+}
+
 function getPromotedMemberCryptiRank(member: MemberRow, lifetimePoints: number) {
   const currentCryptiRank = normalizeCryptiRank(member.crypti_rank);
   const subject = {
@@ -507,6 +630,114 @@ function getCryptiRankAfterGateKeyPurchase(
   }
 
   return currentCryptiRank;
+}
+
+function getMemberPointAwardBody(member: MemberRow, points: number) {
+  const availablePoints = normalizePointBalance(member.available_points) + points;
+  const lifetimePoints = normalizePointBalance(member.lifetime_points) + points;
+
+  return {
+    available_points: availablePoints,
+    crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
+    lifetime_points: lifetimePoints,
+    rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
+  };
+}
+
+function getAccruedMoneyPrinterPoints(
+  lastAt: number,
+  now: number,
+  intervalMs: number,
+  pointsPerInterval: number,
+) {
+  if (!lastAt) {
+    return {
+      nextAt: now,
+      points: 0,
+    };
+  }
+
+  const intervals = Math.floor(Math.max(0, now - lastAt) / intervalMs);
+
+  return {
+    nextAt: intervals > 0 ? lastAt + intervals * intervalMs : lastAt,
+    points: intervals * pointsPerInterval,
+  };
+}
+
+async function syncMemberPassiveMoneyPrinter(member: MemberRow) {
+  const activeCards = getMemberActiveBayoCards(member);
+  const hasMoneyPrinterII = activeCards.includes(moneyPrinterIICardId);
+  const hasMoneyPrinterIII = activeCards.includes(moneyPrinterIIICardId);
+
+  if (!hasMoneyPrinterII && !hasMoneyPrinterIII) {
+    return member;
+  }
+
+  const now = Date.now();
+  const moneyPrinter = getMemberMoneyPrinter(member);
+  const nextMoneyPrinter = { ...moneyPrinter };
+  let points = 0;
+
+  if (hasMoneyPrinterII) {
+    const result = getAccruedMoneyPrinterPoints(
+      moneyPrinter.passiveIIAt,
+      now,
+      moneyPrinterIIIntervalMs,
+      moneyPrinterIIPointValue,
+    );
+
+    nextMoneyPrinter.passiveIIAt = result.nextAt;
+    points += result.points;
+  }
+
+  if (hasMoneyPrinterIII) {
+    const result = getAccruedMoneyPrinterPoints(
+      moneyPrinter.passiveIIIAt,
+      now,
+      moneyPrinterIIIIntervalMs,
+      moneyPrinterIIIPointValue,
+    );
+
+    nextMoneyPrinter.passiveIIIAt = result.nextAt;
+    points += result.points;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      ...(points > 0 ? getMemberPointAwardBody(member, points) : {}),
+      links: {
+        ...(member.links ?? {}),
+        _moneyPrinter: nextMoneyPrinter,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${member.id}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ?? member;
+}
+
+function getTruthVoteCardMultiplier(member: MemberRow, post: PostRow) {
+  const activeCards = getMemberActiveBayoCards(member);
+
+  if (activeCards.includes("empath-card") && post.category === "theory") {
+    return 2;
+  }
+
+  if (
+    activeCards.includes("hero-card") &&
+    (post.category === "daily-food" || post.category === "top-story")
+  ) {
+    return 2;
+  }
+
+  return 1;
 }
 
 function normalizeProfileVisitCount(value: unknown) {
@@ -729,7 +960,9 @@ export async function getNextMemberId() {
 export async function getMember(memberId: string) {
   const member = await getMemberRowByNumber(memberId);
 
-  return member ? getPublicMemberFromRow(member) : null;
+  return member
+    ? getPublicMemberFromRow(await syncMemberPassiveMoneyPrinter(member))
+    : null;
 }
 
 export async function getMemberByUsername(username: string) {
@@ -764,6 +997,33 @@ export async function listMembers() {
   return Promise.all(members.map(getPublicMemberFromRow));
 }
 
+export async function countMemberBayoStamps() {
+  const members = await supabaseRequest<Array<{ links: MemberLinks }>>(
+    "members",
+    {
+      query: {
+        deleted_at: "is.null",
+        select: "links",
+      },
+    },
+  );
+  const counts = bayoStamps.reduce<Record<BayoStampId, number>>(
+    (stampCounts, stamp) => {
+      stampCounts[stamp.id] = 0;
+      return stampCounts;
+    },
+    {} as Record<BayoStampId, number>,
+  );
+
+  members.forEach((member) => {
+    getMemberBayoStamps({ links: member.links }).forEach((stampId) => {
+      counts[stampId] += 1;
+    });
+  });
+
+  return counts;
+}
+
 export async function completeMember(
   memberId: string,
   input: UpdateMemberInput,
@@ -790,7 +1050,7 @@ export async function completeMember(
         ...(memberNumber ? { member_number: memberNumber } : {}),
         name: normalizeName(input.name),
         ref_name: refName,
-        title: normalizeTitle(defaultMemberTitle),
+        title: normalizeTitle(input.title || input.name),
       },
       method: "POST",
       prefer: "return=representation",
@@ -858,6 +1118,29 @@ export async function changeMemberPin(memberId: string, pin: string) {
   });
 
   return rows[0] ? getPublicMemberFromRow(member) : null;
+}
+
+export async function updateMemberTitle(memberId: string, title: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      title: normalizeTitle(title || member.name),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
 }
 
 export async function updateMemberSettings(
@@ -940,14 +1223,12 @@ export async function applyMemberWildCard(memberId: string) {
     return null;
   }
 
-  const availablePoints = Math.max(
-    normalizePointBalance(member.available_points),
-    baySpaceWildCardPointFloor,
-  );
-  const lifetimePoints = Math.max(
-    normalizePointBalance(member.lifetime_points),
-    baySpaceWildCardPointFloor,
-  );
+  const availablePoints =
+    normalizePointBalance(member.available_points) +
+    baySpaceWildCardPointAward;
+  const lifetimePoints =
+    normalizePointBalance(member.lifetime_points) +
+    baySpaceWildCardPointAward;
 
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
@@ -993,6 +1274,49 @@ export async function exchangeMemberPointsForCoins(
       bayo_coins:
         normalizePointBalance(member.bayo_coins) +
         spendablePoints / bayoCoinExchangeRate,
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function exchangeMemberCoinsForTokens(
+  memberId: string,
+  coins: number,
+) {
+  const member = await getMemberRowByNumber(memberId);
+  const normalizedCoins = Math.floor(coins);
+
+  if (!member || normalizedCoins < bayoTokenExchangeRate) {
+    return null;
+  }
+
+  const bayoCoins = normalizePointBalance(member.bayo_coins);
+  const spendableCoins =
+    Math.floor(normalizedCoins / bayoTokenExchangeRate) * bayoTokenExchangeRate;
+
+  if (spendableCoins > bayoCoins) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      bayo_coins: bayoCoins - spendableCoins,
+      links: {
+        ...(member.links ?? {}),
+        _bayoTokens:
+          getMemberBayoTokens(member) + spendableCoins / bayoTokenExchangeRate,
+        _lifetimeBayoTokens:
+          getMemberLifetimeBayoTokens(member) +
+          spendableCoins / bayoTokenExchangeRate,
+      },
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -1067,16 +1391,25 @@ export async function purchaseMemberGateKey(
     return null;
   }
 
+  const usesTokens = isTokenGateKey(gateKey.id);
   const bayoCoins = normalizePointBalance(member.bayo_coins);
+  const bayoTokens = getMemberBayoTokens(member);
 
-  if (bayoCoins < gateKey.coinCost) {
+  if ((usesTokens ? bayoTokens : bayoCoins) < gateKey.coinCost) {
     return null;
   }
 
   const nextGateKeyIds = [...gateKeyIds, gateKey.id];
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      bayo_coins: bayoCoins - gateKey.coinCost,
+      ...(usesTokens
+        ? {
+            links: {
+              ...(member.links ?? {}),
+              _bayoTokens: bayoTokens - gateKey.coinCost,
+            },
+          }
+        : { bayo_coins: bayoCoins - gateKey.coinCost }),
       crypti_rank: getCryptiRankAfterGateKeyPurchase(gateKey.id, member),
       gate_keys: nextGateKeyIds,
       updated_at: new Date().toISOString(),
@@ -1090,6 +1423,227 @@ export async function purchaseMemberGateKey(
   });
 
   return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function purchaseMemberBayoCard(
+  memberId: string,
+  cardId: BayoCardId,
+) {
+  const member = await getMemberRowByNumber(memberId);
+  const card = bayoCards.find((candidate) => candidate.id === cardId);
+
+  if (!member || !card || normalizeBayRank(member.rank) !== "graduation") {
+    return null;
+  }
+
+  const syncedMember = await syncMemberPassiveMoneyPrinter(member);
+  const ownedCards = getMemberBayoCards(syncedMember);
+
+  if (ownedCards.includes(card.id)) {
+    return getPublicMemberFromRow(syncedMember);
+  }
+
+  const bayoTokens = getMemberBayoTokens(syncedMember);
+
+  if (bayoTokens < card.tokenCost) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(syncedMember.links ?? {}),
+        _bayoCards: [...ownedCards, card.id],
+        _bayoTokens: bayoTokens - card.tokenCost,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${syncedMember.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function toggleMemberBayoCard(
+  memberId: string,
+  cardId: BayoCardId,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const syncedMember = await syncMemberPassiveMoneyPrinter(member);
+  const ownedCards = getMemberBayoCards(syncedMember);
+
+  if (!ownedCards.includes(cardId)) {
+    return null;
+  }
+
+  const activeCards = getMemberActiveBayoCards(syncedMember);
+  const isActive = activeCards.includes(cardId);
+  let nextActiveCards: BayoCardId[];
+
+  if (isActive) {
+    nextActiveCards = activeCards.filter((activeCard) => activeCard !== cardId);
+
+    if (cardId === doublayCardId) {
+      nextActiveCards = nextActiveCards.slice(0, 1);
+    }
+  } else if (cardId === doublayCardId) {
+    nextActiveCards = [
+      doublayCardId,
+      ...activeCards.filter((activeCard) => activeCard !== doublayCardId),
+    ].slice(0, 3);
+  } else if (activeCards.includes(doublayCardId)) {
+    if (activeCards.length >= getBayoCardActiveSlotCount(activeCards)) {
+      return null;
+    }
+
+    nextActiveCards = [...activeCards, cardId];
+  } else {
+    nextActiveCards = [cardId];
+  }
+
+  const now = Date.now();
+  const moneyPrinter = getMemberMoneyPrinter(syncedMember);
+  const nextMoneyPrinter = { ...moneyPrinter };
+
+  if (!isActive && cardId === moneyPrinterICardId) {
+    nextMoneyPrinter.activeIAt = now;
+  }
+
+  if (!isActive && cardId === moneyPrinterIICardId) {
+    nextMoneyPrinter.passiveIIAt = now;
+  }
+
+  if (!isActive && cardId === moneyPrinterIIICardId) {
+    nextMoneyPrinter.passiveIIIAt = now;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(syncedMember.links ?? {}),
+        _activeBayoCards: nextActiveCards,
+        _moneyPrinter: nextMoneyPrinter,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${syncedMember.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function purchaseMemberBayoStamp(
+  memberId: string,
+  stampId: BayoStampId,
+) {
+  const member = await getMemberRowByNumber(memberId);
+  const stamp = bayoStamps.find((candidate) => candidate.id === stampId);
+
+  if (!member || !stamp) {
+    return null;
+  }
+
+  const syncedMember = await syncMemberPassiveMoneyPrinter(member);
+  const ownedStamps = getMemberBayoStamps(syncedMember);
+
+  if (ownedStamps.includes(stamp.id)) {
+    return getPublicMemberFromRow(syncedMember);
+  }
+
+  const bayoCoins = normalizePointBalance(syncedMember.bayo_coins);
+
+  if (bayoCoins < stamp.coinCost) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      bayo_coins: bayoCoins - stamp.coinCost,
+      links: {
+        ...(syncedMember.links ?? {}),
+        _bayoStamps: [...ownedStamps, stamp.id],
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${syncedMember.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function claimMemberMoneyPrinterI(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const syncedMember = await syncMemberPassiveMoneyPrinter(member);
+  const activeCards = getMemberActiveBayoCards(syncedMember);
+
+  if (!activeCards.includes(moneyPrinterICardId)) {
+    return {
+      member: await getPublicMemberFromRow(syncedMember),
+      points: 0,
+    };
+  }
+
+  const now = Date.now();
+  const moneyPrinter = getMemberMoneyPrinter(syncedMember);
+  const result = getAccruedMoneyPrinterPoints(
+    moneyPrinter.activeIAt,
+    now,
+    moneyPrinterIIntervalMs,
+    moneyPrinterIPointValue,
+  );
+  const nextMoneyPrinter = {
+    ...moneyPrinter,
+    activeIAt: result.nextAt,
+  };
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      ...(result.points > 0
+        ? getMemberPointAwardBody(syncedMember, result.points)
+        : {}),
+      links: {
+        ...(syncedMember.links ?? {}),
+        _moneyPrinter: nextMoneyPrinter,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${syncedMember.member_number}`,
+      select: "*",
+    },
+  });
+  const updatedMember = rows[0] ?? syncedMember;
+
+  return {
+    member: await getPublicMemberFromRow(updatedMember),
+    points: result.points,
+  };
 }
 
 export async function getMemberProfileVisitCount(memberId: string) {
@@ -1212,8 +1766,15 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
   }
 
   const profileVisits = getMemberProfileVisits(member) + 1;
+  const availablePoints =
+    normalizePointBalance(member.available_points) + profileVisitPointValue;
+  const lifetimePoints =
+    normalizePointBalance(member.lifetime_points) + profileVisitPointValue;
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
+      available_points: availablePoints,
+      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
+      lifetime_points: lifetimePoints,
       links: {
         ...(member.links ?? {}),
         _stats: {
@@ -1221,6 +1782,7 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
           profileVisits,
         },
       },
+      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -1231,7 +1793,13 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
     },
   });
 
-  return rows[0] ? getMemberProfileVisits(rows[0]) : profileVisits;
+  const updatedMember = rows[0] ?? member;
+
+  return {
+    member: await getPublicMemberFromRow(updatedMember),
+    pageVisits: getMemberProfileVisits(updatedMember),
+    points: profileVisitPointValue,
+  };
 }
 
 export async function incrementMemberCryptiProfileVisitCount(memberId: string) {
@@ -1459,7 +2027,9 @@ export async function createMemberSession(memberId: string) {
 export async function getMemberFromSessionToken(token: string) {
   const member = await getMemberRowBySessionToken(token);
 
-  return member ? getPublicMemberFromRow(member) : null;
+  return member
+    ? getPublicMemberFromRow(await syncMemberPassiveMoneyPrinter(member))
+    : null;
 }
 
 export async function revokeMemberSession(token: string) {
@@ -1681,7 +2251,9 @@ export async function togglePostTruthVote(
   } else if (existingVote) {
     await supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
       body: {
-        point_value: getTruthVotePointValue(normalizedScore),
+        point_value:
+          getTruthVotePointValue(normalizedScore) *
+          getTruthVoteCardMultiplier(member, post),
         score: normalizedScore,
         updated_at: new Date().toISOString(),
       },
@@ -1696,7 +2268,9 @@ export async function togglePostTruthVote(
     await supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
       body: {
         member_id: member.id,
-        point_value: getTruthVotePointValue(normalizedScore),
+        point_value:
+          getTruthVotePointValue(normalizedScore) *
+          getTruthVoteCardMultiplier(member, post),
         post_id: post.id,
         score: normalizedScore,
       },

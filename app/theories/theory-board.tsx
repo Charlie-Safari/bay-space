@@ -373,7 +373,7 @@ export default function TheoryBoard() {
                 return !isOpen;
               });
             }}
-            className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+            className={`bay-terminal-copy border px-4 py-2 text-xs transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
               isCategoriesOpen
                 ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
                 : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
@@ -382,13 +382,13 @@ export default function TheoryBoard() {
             Categories
           </button>
           <label className="grid w-fit gap-2">
-            <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+            <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
               organize by
             </span>
             <select
               value={sortMode}
               onChange={(event) => setSortMode(event.target.value as SortMode)}
-              className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+              className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
             >
               <option value="az">A-Z</option>
               <option value="date">Date</option>
@@ -402,7 +402,7 @@ export default function TheoryBoard() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="search"
-              className="w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              className="bay-terminal-field w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm uppercase text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
               aria-label="Search Theories"
             />
             <button
@@ -415,10 +415,10 @@ export default function TheoryBoard() {
           </form>
           {isLoggedIn ? (
             <label className="grid w-fit gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
                 reveal
               </span>
-              <span className="flex h-[38px] w-fit items-center gap-3 border border-[#1d7f12] px-3 text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+              <span className="bay-terminal-copy flex h-[38px] w-fit items-center gap-3 border border-[#1d7f12] px-3 text-xs text-[#d7ffd0]">
                 <input
                   type="checkbox"
                   checked={revealAll}
@@ -432,7 +432,7 @@ export default function TheoryBoard() {
           ) : null}
         </div>
         <label className="grid w-fit gap-2 sm:justify-self-end">
-          <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+          <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
             sort posts by
           </span>
           <select
@@ -440,7 +440,7 @@ export default function TheoryBoard() {
             onChange={(event) =>
               setAuthorFilter(event.target.value as AuthorFilter)
             }
-            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+            className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
@@ -456,7 +456,7 @@ export default function TheoryBoard() {
           <div className="daily-food-categories-grid" aria-hidden="true" />
           <div className="relative z-10 grid gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
+              <p className="bay-terminal-copy text-xs text-[#d7ffd0]">
                 {selectedTheoryCategory || "Categories"}
               </p>
               <button
@@ -465,7 +465,7 @@ export default function TheoryBoard() {
                   setIsCategoriesOpen(false);
                   setSelectedTheoryCategory("");
                 }}
-                className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
               >
                 close
               </button>
@@ -476,7 +476,7 @@ export default function TheoryBoard() {
                 <button
                   type="button"
                   onClick={() => setSelectedTheoryCategory("")}
-                  className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="bay-terminal-copy w-fit border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 >
                   back
                 </button>
@@ -487,10 +487,10 @@ export default function TheoryBoard() {
                       key={category.label}
                       className="border border-[#39ff14]/60 bg-black/80 px-4 py-5 text-[#d7ffd0] shadow-[0_0_14px_rgba(57,255,20,0.14)]"
                     >
-                      <h2 className="text-lg font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                      <h2 className="bay-terminal-copy text-lg text-[#39ff14]">
                         {category.label}
                       </h2>
-                      <p className="mt-3 text-sm font-bold leading-6 tracking-[0.03em]">
+                      <p className="bay-terminal-field mt-3 text-sm leading-6">
                         {category.description}
                       </p>
                     </article>
@@ -505,10 +505,10 @@ export default function TheoryBoard() {
                     onClick={() => setSelectedTheoryCategory(category.label)}
                     className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
-                    <span className="block text-sm font-black uppercase tracking-[0.14em]">
+                    <span className="bay-terminal-copy block text-sm">
                       {category.label}
                     </span>
-                    <span className="mt-2 block text-xs font-bold normal-case leading-5 tracking-[0.02em]">
+                    <span className="bay-terminal-field mt-2 block text-xs leading-5">
                       {category.description}
                     </span>
                   </button>
@@ -539,7 +539,7 @@ export default function TheoryBoard() {
               {openPostId === post.id ? (
                 <>
                   <div className="absolute right-4 top-3 flex items-center gap-3">
-                    <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    <p className="bay-terminal-copy text-right text-xs text-[#39ff14]">
                       {postScore} pts
                     </p>
                     <FavoriteButton
@@ -555,12 +555,12 @@ export default function TheoryBoard() {
                   <button
                     type="button"
                     onClick={closePost}
-                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
                     back
                   </button>
                   {!post.anonymous && getAuthorName(post) ? (
-                    <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                    <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">
                       <Link
                         href={`/profile/${post.author}`}
                         className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
@@ -569,7 +569,7 @@ export default function TheoryBoard() {
                       </Link>
                     </p>
                   ) : post.anonymous ? (
-                    <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                    <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">
                       {canShowOracleAnonProfile(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
@@ -589,21 +589,21 @@ export default function TheoryBoard() {
                       )}
                     </p>
                   ) : null}
-                  <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                  <p className="bay-terminal-copy mt-3 text-xs text-[#7f9f78]">
                     {formatPostTimestamp(post.createdAt)}
                   </p>
-                  <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                  <h2 className="bay-terminal-copy mt-3 text-2xl text-[#39ff14]">
                     {post.title}
                   </h2>
-                  <p className="mt-4 whitespace-pre-wrap font-mono text-base leading-7 text-[#39ff14]">
+                  <p className="bay-terminal-field mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
                     {post.body || "no theory filed"}
                   </p>
                   {getPostSources(post).length ? (
                     <section className="mt-5 border-t border-[#1d7f12] pt-3">
-                      <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                      <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
                         SOURCES
                       </h3>
-                      <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
+                      <ol className="bay-terminal-field mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
                         {getPostSources(post).map((source) => (
                           <li key={source}>
                             <a
@@ -627,6 +627,7 @@ export default function TheoryBoard() {
                     onTruthSummaryChange={(summary) =>
                       syncPostTruthSummary(post.id, summary)
                     }
+                    postCategory={post.category}
                     postId={post.id}
                   />
                 </>
@@ -641,14 +642,14 @@ export default function TheoryBoard() {
                   className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 >
                   <span
-                    className={`theory-title-redacted relative block w-full overflow-hidden text-lg font-black uppercase tracking-[0.12em] text-[#39ff14] ${
+                    className={`bay-terminal-copy theory-title-redacted relative block w-full overflow-hidden text-lg text-[#39ff14] ${
                       isPostRevealed() ? "theory-strip-revealed" : ""
                     }`}
                   >
                     <span>{post.title}</span>
                   </span>
                   <span
-                    className={`theory-date-redacted relative mt-2 block w-full overflow-hidden text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78] ${
+                    className={`bay-terminal-copy theory-date-redacted relative mt-2 block w-full overflow-hidden text-xs text-[#7f9f78] ${
                       isPostRevealed() ? "theory-strip-revealed" : ""
                     }`}
                   >
@@ -661,7 +662,7 @@ export default function TheoryBoard() {
           })}
         </div>
       ) : (
-        <div className="border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm font-bold uppercase tracking-[0.16em] text-[#d7ffd0]">
+        <div className="bay-terminal-copy border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">
           theory board awaiting submissions
         </div>
       )}

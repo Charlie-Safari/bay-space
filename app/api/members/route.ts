@@ -1,4 +1,5 @@
 import {
+  countMemberBayoStamps,
   getMember,
   getMemberByUsername,
   getNextMemberId,
@@ -15,11 +16,16 @@ type ApiMember = Awaited<ReturnType<typeof listMembers>>[number];
 
 function publicMember(member: ApiMember) {
   return {
+    activeBayoCards: member.activeBayoCards,
     availablePoints: member.availablePoints,
+    bayoCards: member.bayoCards,
     bayoCoins: member.bayoCoins,
+    bayoStamps: member.bayoStamps,
+    bayoTokens: member.bayoTokens,
     cryptiRank: member.cryptiRank,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
+    lifetimeTokens: member.lifetimeTokens,
     member: member.member,
     name: member.name,
     purchasedTitles: member.purchasedTitles,
@@ -89,6 +95,10 @@ export async function GET(request: Request) {
 
     if (searchParams.get("next") === "true") {
       return Response.json({ member: await getNextMemberId() });
+    }
+
+    if (searchParams.get("stampCounts") === "true") {
+      return Response.json({ counts: await countMemberBayoStamps() });
     }
 
     return Response.json({ members: (await listMembers()).map(publicMember) });

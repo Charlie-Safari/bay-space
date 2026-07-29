@@ -461,13 +461,13 @@ export default function LibraryBoard() {
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Opening an article for the first time gives +5 available points and +5 lifetime points.</li>
                     <li>Each article can only award those +5 points one time per account.</li>
-                    <li>The profile score section also counts articles read, matching the one-time article read count.</li>
+                    <li>Each recorded profile page visit gives the profile owner +1 available point and +1 lifetime point.</li>
                     <li>Available points can be traded for Bayo Coins in Exchange at 100 points for 1 coin.</li>
                     <li>Lifetime points are never spent; they keep your promotion history moving forward.</li>
                   </ul>
                   <p>Post score is separate from promotion points.</p>
                   <ul className="list-disc space-y-2 pl-5">
-                    <li>Post opens add 0.1 post points.</li>
+                    <li>Post opens add +1 post point per recorded view.</li>
                     <li>Favorite diamonds received add post score and save posts to reader favorites.</li>
                     <li>Tickets and diamonds can move a post forward in the public score system.</li>
                     <li>Deleted posts lose their post score with them.</li>
@@ -484,7 +484,7 @@ export default function LibraryBoard() {
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Trade available points for Bayo Coins at 100 points for 1 coin.</li>
                     <li>Open the Badge Quest dropdown to view unlocks.</li>
-                    <li>Graduation costs 500 Bayo Coins and unlocks the rest of the gate key store.</li>
+                    <li>Graduation costs 500 Bayo Coins and must be owned before any other Badge Quest badge or card.</li>
                     <li>Safari Nation costs 25 coins.</li>
                     <li>Bayo+ costs 100 coins.</li>
                     <li>+CRYPTI costs 250 coins and unlocks the +CRYPTI branch.</li>
@@ -503,8 +503,8 @@ export default function LibraryBoard() {
                     <li>Reader III - 100,000 lifetime points, can read +CRYPTI.</li>
                     <li>Poster IV - 175,000 lifetime points, can post in +CRYPTI.</li>
                     <li>Poster V - 300,000 lifetime points, grand highest rank.</li>
-                    <li>Instant Rank Promotion costs 150 tokens and advances +CRYPTI to Poster IV. Requires +CRYPTI ownership.</li>
-                    <li>Instant Rank Promotion II costs 50 tokens and advances +CRYPTI to Poster V. Requires Instant Rank Promotion.</li>
+                    <li>Instant Rank Promotion I costs 150 tokens and advances +CRYPTI to Poster IV. Requires +CRYPTI ownership.</li>
+                    <li>Instant Rank Promotion II costs 50 tokens and advances +CRYPTI to Poster V. Requires Instant Rank Promotion I.</li>
                     <li>Once +CRYPTI is owned, the blue +CRYPTI nav appears beside Conspiracy.</li>
                   </ul>
                 </div>

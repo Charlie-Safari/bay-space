@@ -33,13 +33,13 @@ export async function POST(request: Request, context: MemberVisitContext) {
   try {
     void request;
     const { member } = await context.params;
-    const pageVisits = await incrementMemberProfileVisitCount(member);
+    const result = await incrementMemberProfileVisitCount(member);
 
-    if (pageVisits === null) {
+    if (!result) {
       return Response.json({ message: "Member not found" }, { status: 404 });
     }
 
-    return Response.json({ pageVisits });
+    return Response.json(result);
   } catch (error) {
     const storageMessage = getStorageErrorMessage(error);
 

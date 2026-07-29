@@ -900,6 +900,7 @@ export default function DfHeadlineTerminal({
               onTruthSummaryChange={(summary) =>
                 syncPostTruthSummary(displayedPost.id, summary)
               }
+              postCategory={displayedPost.category}
               postId={displayedPost.id}
             />
           </article>

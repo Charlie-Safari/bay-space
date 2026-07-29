@@ -2855,18 +2855,18 @@ export default function CryptiTerminal() {
               title: "rank ladder",
               body: [
                 "Reader III is the entry rank after +CRYPTI is owned. It unlocks +CRYPTI reading and starts the blue branch promotion track at 100,000 lifetime points.",
-                "Poster IV unlocks +CRYPTI posting at 175,000 lifetime points. Instant Rank Promotion can also advance the account to Poster IV for 150 tokens after +CRYPTI is owned.",
-                "Poster V is the grand highest rank at 300,000 lifetime points. Instant Rank Promotion II advances to Poster V for 50 tokens, but only after Instant Rank Promotion is owned.",
+                "Poster IV unlocks +CRYPTI posting at 175,000 lifetime points. Instant Rank Promotion I can also advance the account to Poster IV for 150 tokens after +CRYPTI is owned.",
+                "Poster V is the grand highest rank at 300,000 lifetime points. Instant Rank Promotion II advances to Poster V for 50 tokens, but only after Instant Rank Promotion I is owned.",
                 "The ID card shows CRYPTI RANK and points until the next blue-branch promotion once Graduation and +CRYPTI are active.",
               ],
             },
             {
               title: "point system",
               body: [
-                "Every fully opened R News, Q Degen, or S Buzz post adds 0.1 post points to that post. Ten real opens make 1 full post point.",
+                "Every fully opened R News, Q Degen, or S Buzz post adds 1 full post point to that post.",
                 "Favorite diamonds add 10 full post points. If the diamond is removed, those 10 points come back off the board.",
-                "Tickets add 50 full post points. Unticketing pulls 50 points back. The top-right score is visits x 0.1, plus favorites x 10, plus tickets x 50.",
-                "Profile score is separate from Bay Space promotion points. R News posts earn 10 profile points, Q Degen earns 1, S Buzz earns 5, ticker contributions earn 10, favorites received earn 1 each, tickets received earn 10 each, and total post visits add 0.1 each.",
+                "Tickets add 50 full post points. Unticketing pulls 50 points back. The top-right score is visits x 1, plus favorites x 10, plus tickets x 50.",
+                "Profile score is separate from Bay Space promotion points. R News posts earn 10 profile points, Q Degen earns 1, S Buzz earns 5, ticker contributions earn 10, favorites received earn 1 each, tickets received earn 10 each, and total post visits add 1 each.",
               ],
             },
             {

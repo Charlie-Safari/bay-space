@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isCrypti } from "../../lib/bay-space-roles";
+import {
+  moneyPrinterICardId,
+  moneyPrinterIIntervalMs,
+} from "../../lib/bay-space-ranks";
 import type { BayMember } from "../../lib/bay-space-types";
 
 const formatter = new Intl.DateTimeFormat("en-US", {
@@ -27,8 +31,12 @@ function getMountainStandardTime() {
 export default function MountainTimeFooter() {
   const [time, setTime] = useState(getMountainStandardTime);
   const [showVersion, setShowVersion] = useState(false);
-  const [hasCryptiAccess, setHasCryptiAccess] = useState(false);
+  const [activeMemberRecord, setActiveMemberRecord] =
+    useState<BayMember | null>(null);
   const [isAtPageEnd, setIsAtPageEnd] = useState(false);
+  const [moneyPrinterIEarned, setMoneyPrinterIEarned] = useState(0);
+  const moneyPrinterIActiveSinceRef = useRef<number | null>(null);
+  const isMoneyPrinterIClaimingRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -52,13 +60,13 @@ export default function MountainTimeFooter() {
         : { member: null };
 
       if (isMounted) {
-        setHasCryptiAccess(Boolean(data.member && isCrypti(data.member)));
+        setActiveMemberRecord(data.member ?? null);
       }
     }
 
     syncMemberAccess().catch(() => {
       if (isMounted) {
-        setHasCryptiAccess(false);
+        setActiveMemberRecord(null);
       }
     });
     window.addEventListener("bay-space-auth", syncMemberAccess);
@@ -68,6 +76,110 @@ export default function MountainTimeFooter() {
       window.removeEventListener("bay-space-auth", syncMemberAccess);
     };
   }, []);
+
+  const hasCryptiAccess = Boolean(
+    activeMemberRecord && isCrypti(activeMemberRecord),
+  );
+  const hasMoneyPrinterIActive = Boolean(
+    activeMemberRecord?.activeBayoCards.includes(moneyPrinterICardId),
+  );
+
+  useEffect(() => {
+    if (!hasMoneyPrinterIActive || !activeMemberRecord) {
+      moneyPrinterIActiveSinceRef.current = null;
+      return;
+    }
+
+    function canGenerate() {
+      return (
+        document.visibilityState === "visible" &&
+        document.hasFocus() &&
+        hasMoneyPrinterIActive
+      );
+    }
+
+    function startGenerating() {
+      if (canGenerate() && moneyPrinterIActiveSinceRef.current === null) {
+        moneyPrinterIActiveSinceRef.current = Date.now();
+      }
+    }
+
+    function stopGenerating() {
+      moneyPrinterIActiveSinceRef.current = null;
+    }
+
+    async function claimMoneyPrinterI() {
+      if (
+        !activeMemberRecord ||
+        isMoneyPrinterIClaimingRef.current ||
+        !moneyPrinterIActiveSinceRef.current ||
+        Date.now() - moneyPrinterIActiveSinceRef.current < moneyPrinterIIntervalMs
+      ) {
+        return;
+      }
+
+      isMoneyPrinterIClaimingRef.current = true;
+
+      try {
+        const response = await fetch(
+          `/api/members/${activeMemberRecord.member}`,
+          {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "claim-money-printer-i" }),
+          },
+        );
+        const data = (await response.json().catch(() => null)) as {
+          member?: BayMember;
+          points?: number;
+        } | null;
+
+        if (response.ok && data?.member) {
+          setActiveMemberRecord(data.member);
+          setMoneyPrinterIEarned((current) => current + (data.points ?? 0));
+          window.dispatchEvent(new Event("bay-space-auth"));
+        }
+      } finally {
+        moneyPrinterIActiveSinceRef.current = canGenerate() ? Date.now() : null;
+        isMoneyPrinterIClaimingRef.current = false;
+      }
+    }
+
+    function handlePointerOut(event: PointerEvent) {
+      if (!event.relatedTarget) {
+        stopGenerating();
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (canGenerate()) {
+        startGenerating();
+      } else {
+        stopGenerating();
+      }
+    }
+
+    startGenerating();
+    const timer = window.setInterval(() => {
+      startGenerating();
+      claimMoneyPrinterI().catch(() => undefined);
+    }, 60000);
+
+    window.addEventListener("pointermove", startGenerating, { passive: true });
+    window.addEventListener("pointerout", handlePointerOut);
+    window.addEventListener("focus", startGenerating);
+    window.addEventListener("blur", stopGenerating);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("pointermove", startGenerating);
+      window.removeEventListener("pointerout", handlePointerOut);
+      window.removeEventListener("focus", startGenerating);
+      window.removeEventListener("blur", stopGenerating);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [activeMemberRecord, hasMoneyPrinterIActive]);
 
   useEffect(() => {
     let frame = 0;
@@ -131,6 +243,11 @@ export default function MountainTimeFooter() {
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
                 1.22
+              </span>
+            ) : null}
+            {hasMoneyPrinterIActive ? (
+              <span className="text-[#39ff14]" aria-live="polite">
+                💸+{moneyPrinterIEarned.toLocaleString("en-US")}
               </span>
             ) : null}
           </span>

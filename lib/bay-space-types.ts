@@ -1,5 +1,7 @@
 import type {
   BayRank,
+  BayoCardId,
+  BayoStampId,
   BayoTitleId,
   CryptiRank,
   GateKey,
@@ -27,6 +29,7 @@ export type BayPost = {
 };
 
 export type BayPostComment = {
+  authorActiveCards?: BayoCardId[];
   id: string;
   author: string;
   authorName: string;
@@ -43,13 +46,18 @@ export type BayPostTruthVoteSummary = {
 };
 
 export type BayMember = {
+  activeBayoCards: BayoCardId[];
   availablePoints: number;
+  bayoCards: BayoCardId[];
   bayoCoins: number;
+  bayoStamps: BayoStampId[];
+  bayoTokens: number;
   cryptiAgreementAcceptedAt?: string;
   cryptiAgreementVersion?: string;
   cryptiRank: CryptiRank;
   gateKeys: GateKey[];
   lifetimePoints: number;
+  lifetimeTokens: number;
   member: string;
   name: string;
   purchasedTitles: BayoTitleId[];

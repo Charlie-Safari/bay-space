@@ -1,17 +1,23 @@
 import {
   applyMemberWildCard,
   changeMemberPin,
+  claimMemberMoneyPrinterI,
   completeMember,
   createMemberSession,
   deleteMemberAccount,
+  exchangeMemberCoinsForTokens,
   exchangeMemberPointsForCoins,
   getMember,
   getStorageErrorMessage,
   isBaySpaceWildCardAccessKey,
   baySpaceAgreementVersion,
-  baySpaceWildCardPointFloor,
+  baySpaceWildCardPointAward,
+  purchaseMemberBayoCard,
+  purchaseMemberBayoStamp,
   purchaseMemberGateKey,
   purchaseMemberGraduation,
+  toggleMemberBayoCard,
+  updateMemberTitle,
   updateMemberSettings,
   wipeMemberAccount,
   UsernameUnavailableError,
@@ -25,11 +31,13 @@ import {
   getCurrentMember,
   setSessionCookie,
 } from "../../../../lib/bay-space-session";
+import { defaultMemberRole } from "../../../../lib/bay-space-roles";
 import {
-  defaultMemberRole,
-  defaultMemberTitle,
-} from "../../../../lib/bay-space-roles";
-import { gateKeys, type GateKey } from "../../../../lib/bay-space-ranks";
+  gateKeys,
+  isBayoCardId,
+  isBayoStampId,
+  type GateKey,
+} from "../../../../lib/bay-space-ranks";
 
 type MemberContext = {
   params: Promise<{ member: string }>;
@@ -53,13 +61,18 @@ type ApiMember = NonNullable<Awaited<ReturnType<typeof getMember>>>;
 
 function publicMember(member: ApiMember) {
   return {
+    activeBayoCards: member.activeBayoCards,
     availablePoints: member.availablePoints,
+    bayoCards: member.bayoCards,
     bayoCoins: member.bayoCoins,
+    bayoStamps: member.bayoStamps,
+    bayoTokens: member.bayoTokens,
     cryptiAgreementAcceptedAt: member.cryptiAgreementAcceptedAt,
     cryptiAgreementVersion: member.cryptiAgreementVersion,
     cryptiRank: member.cryptiRank,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
+    lifetimeTokens: member.lifetimeTokens,
     member: member.member,
     name: member.name,
     purchasedTitles: member.purchasedTitles,
@@ -81,13 +94,18 @@ function publicMember(member: ApiMember) {
 
 function privateMember(member: ApiMember) {
   return {
+    activeBayoCards: member.activeBayoCards,
     availablePoints: member.availablePoints,
+    bayoCards: member.bayoCards,
     bayoCoins: member.bayoCoins,
+    bayoStamps: member.bayoStamps,
+    bayoTokens: member.bayoTokens,
     cryptiAgreementAcceptedAt: member.cryptiAgreementAcceptedAt,
     cryptiAgreementVersion: member.cryptiAgreementVersion,
     cryptiRank: member.cryptiRank,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
+    lifetimeTokens: member.lifetimeTokens,
     member: member.member,
     name: member.name,
     purchasedTitles: member.purchasedTitles,
@@ -157,7 +175,7 @@ async function saveCompletedMember(request: Request, context: MemberContext) {
       pin,
       refName: pendingMember.refName,
       roles: defaultMemberRole,
-      title: defaultMemberTitle,
+      title: pendingMember.name,
       agreementAcceptedAt: new Date().toISOString(),
       agreementVersion: baySpaceAgreementVersion,
     });
@@ -233,8 +251,11 @@ export async function PATCH(request: Request, context: MemberContext) {
       title?: string;
       action?: string;
       accessKey?: string;
+      card?: string;
+      coins?: unknown;
       gateKey?: string;
       points?: unknown;
+      stamp?: string;
       settings?: {
         email?: string;
         birthdayMonth?: string;
@@ -259,6 +280,16 @@ export async function PATCH(request: Request, context: MemberContext) {
       return Response.json({ member });
     }
 
+    if (body.action === "update-title") {
+      const member = await updateMemberTitle(memberId, body.title ?? "");
+
+      if (!member) {
+        return Response.json({ message: "Member not found" }, { status: 404 });
+      }
+
+      return Response.json({ member });
+    }
+
     if (body.action === "exchange-points") {
       const member = await exchangeMemberPointsForCoins(
         memberId,
@@ -268,6 +299,22 @@ export async function PATCH(request: Request, context: MemberContext) {
       if (!member) {
         return Response.json(
           { message: "not enough points to exchange" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "exchange-coins") {
+      const member = await exchangeMemberCoinsForTokens(
+        memberId,
+        Number(body.coins),
+      );
+
+      if (!member) {
+        return Response.json(
+          { message: "not enough coins to exchange" },
           { status: 400 },
         );
       }
@@ -301,12 +348,73 @@ export async function PATCH(request: Request, context: MemberContext) {
 
       if (!member) {
         return Response.json(
-          { message: "gate key locked or not enough coins" },
+          { message: "gate key locked or not enough balance" },
           { status: 400 },
         );
       }
 
       return Response.json({ member });
+    }
+
+    if (body.action === "purchase-card") {
+      if (!body.card || !isBayoCardId(body.card)) {
+        return Response.json({ message: "Invalid card" }, { status: 400 });
+      }
+
+      const member = await purchaseMemberBayoCard(memberId, body.card);
+
+      if (!member) {
+        return Response.json(
+          { message: "card locked or not enough tokens" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "toggle-card") {
+      if (!body.card || !isBayoCardId(body.card)) {
+        return Response.json({ message: "Invalid card" }, { status: 400 });
+      }
+
+      const member = await toggleMemberBayoCard(memberId, body.card);
+
+      if (!member) {
+        return Response.json(
+          { message: "card locked or no active slots" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "purchase-stamp") {
+      if (!body.stamp || !isBayoStampId(body.stamp)) {
+        return Response.json({ message: "Invalid stamp" }, { status: 400 });
+      }
+
+      const member = await purchaseMemberBayoStamp(memberId, body.stamp);
+
+      if (!member) {
+        return Response.json(
+          { message: "not enough coins for stamp" },
+          { status: 400 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "claim-money-printer-i") {
+      const result = await claimMemberMoneyPrinterI(memberId);
+
+      if (!result) {
+        return Response.json({ message: "Member not found" }, { status: 404 });
+      }
+
+      return Response.json(result);
     }
 
     if (body.action === "wild-card") {
@@ -323,7 +431,7 @@ export async function PATCH(request: Request, context: MemberContext) {
       return Response.json({
         member,
         wildCard: {
-          pointFloor: baySpaceWildCardPointFloor,
+          pointAward: baySpaceWildCardPointAward,
           rank: member.rank,
         },
       });

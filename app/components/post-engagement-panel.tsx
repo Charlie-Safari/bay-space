@@ -2,13 +2,16 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type {
+  BayPostCategory,
   BayPostComment,
   BayPostTruthVoteSummary,
 } from "../../lib/bay-space-types";
+import type { BayoCardId } from "../../lib/bay-space-ranks";
 
 type PostEngagementPanelProps = {
   isLoggedIn: boolean;
   onTruthSummaryChange?: (summary: BayPostTruthVoteSummary) => void;
+  postCategory?: BayPostCategory;
   postId: string;
 };
 
@@ -35,9 +38,14 @@ function getTruthPointLabel(pointValue: number) {
   return `${pointValue} ${pointValue === 1 ? "point" : "points"}`;
 }
 
+function hasActiveCard(comment: BayPostComment, cardId: BayoCardId) {
+  return Boolean(comment.authorActiveCards?.includes(cardId));
+}
+
 export default function PostEngagementPanel({
   isLoggedIn,
   onTruthSummaryChange,
+  postCategory,
   postId,
 }: PostEngagementPanelProps) {
   const [comments, setComments] = useState<BayPostComment[]>([]);
@@ -185,10 +193,10 @@ export default function PostEngagementPanel({
       <div className="grid gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+            <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
               truth vote
             </h3>
-            <p className="mt-2 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            <p className="bay-terminal-copy mt-2 text-sm text-[#d7ffd0]">
               {truthSummary.voteCount} votes / avg{" "}
               {truthSummary.averageScore.toFixed(1)} /{" "}
               {getTruthPointLabel(truthSummary.pointValue)}
@@ -212,18 +220,18 @@ export default function PostEngagementPanel({
           type="button"
           disabled={!isLoggedIn || isVoting}
           onClick={saveTruthVote}
-          className="w-fit border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+          className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
         >
           {isVoting ? "saving" : voteButtonLabel}
         </button>
       </div>
 
       <div className="grid gap-3">
-        <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+        <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
           comments
         </h3>
         {isLoading ? (
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+          <p className="bay-terminal-copy text-xs text-[#7f9f78]">
             loading
           </p>
         ) : comments.length ? (
@@ -233,18 +241,31 @@ export default function PostEngagementPanel({
                 key={comment.id}
                 className="border border-[#1d7f12] bg-black px-3 py-3"
               >
-                <p className="text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
                   {comment.authorName || `member ${comment.author}`} /{" "}
+                  {hasActiveCard(comment, "hero-card") ? (
+                    <span className="text-[#ffd84a]">★★★★★ / </span>
+                  ) : null}
+                  {postCategory === "library-submission" &&
+                  hasActiveCard(comment, "library-card") ? (
+                    <span className="text-[#d7ffd0]">LIBRARY CARD / </span>
+                  ) : null}
                   {formatTimestamp(comment.createdAt)}
                 </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
+                <p
+                  className={`bay-terminal-field mt-2 whitespace-pre-wrap text-sm leading-6 ${
+                    hasActiveCard(comment, "empath-card")
+                      ? "text-[#6f5cff]"
+                      : "text-[#d7ffd0]"
+                  }`}
+                >
                   {comment.body}
                 </p>
               </article>
             ))}
           </div>
         ) : (
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+          <p className="bay-terminal-copy text-xs text-[#7f9f78]">
             no comments
           </p>
         )}
@@ -255,26 +276,26 @@ export default function PostEngagementPanel({
               value={commentBody}
               onChange={(event) => setCommentBody(event.target.value.slice(0, 600))}
               rows={3}
-              className="min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              className="bay-terminal-field min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
               placeholder="comment"
               aria-label="Comment"
             />
             <button
               type="submit"
               disabled={isCommentSaving || !commentBody.trim()}
-              className="w-fit border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+              className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
             >
               {isCommentSaving ? "saving" : "post comment"}
             </button>
           </form>
         ) : (
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+          <p className="bay-terminal-copy text-xs text-[#7f9f78]">
             sign in to comment or vote
           </p>
         )}
 
         {errorMessage ? (
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+          <p className="bay-terminal-copy text-xs text-[#39ff14]">
             {errorMessage}
           </p>
         ) : null}

@@ -12,6 +12,7 @@ type PublicIdCardProps = {
     label: string;
   }[];
   member: {
+    cryptiTitle: string;
     member: string;
     name: string;
     refName: string;
@@ -73,11 +74,12 @@ export default function PublicIdCard({
         <div className="grid gap-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
           <p>EXPLORER NUMBER - #{member.member}</p>
           <p>TITLE: {member.title}</p>
+          <p>+CRYPTI TITLE: {member.cryptiTitle || "-"}</p>
           <p>
             NAME: {member.name}
             {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
           </p>
-          <p>(REFERENCE NAME): {member.refName || "-----"}</p>
+          <p>REFERENCE NAME: {member.refName || "Profile"}</p>
         </div>
         {links.length ? (
           <div className="mt-6 flex flex-wrap gap-3">
