@@ -10,6 +10,7 @@ import {
   type CryptiRank,
   type GateKey,
 } from "./bay-space-ranks";
+import { cryptiAgreementVersion } from "./bay-space-agreement";
 
 type BaySpaceRole = {
   allowedCategories: BayPostCategory[];
@@ -28,6 +29,8 @@ type PermissionSubject =
   | string
   | {
       cryptiRank?: CryptiRank | string;
+      cryptiAgreementAcceptedAt?: string | null;
+      cryptiAgreementVersion?: string | null;
       gateKeys?: Array<GateKey | string>;
       rank?: BayRank | string;
       roles?: string;
@@ -386,6 +389,21 @@ export function isCrypti(subject: PermissionSubject) {
     cryptiRank === "reader-iii" ||
     cryptiRank === "poster-iv" ||
     cryptiRank === "poster-v"
+  );
+}
+
+export function hasAcceptedCurrentCryptiAgreement(subject: PermissionSubject) {
+  return (
+    typeof subject !== "string" &&
+    Boolean(subject?.cryptiAgreementAcceptedAt) &&
+    subject?.cryptiAgreementVersion === cryptiAgreementVersion
+  );
+}
+
+export function canAccessCrypti(subject: PermissionSubject) {
+  return (
+    isCrypti(subject) &&
+    (isAdmin(subject) || hasAcceptedCurrentCryptiAgreement(subject))
   );
 }
 

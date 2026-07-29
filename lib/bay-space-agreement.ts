@@ -13,5 +13,8 @@ export const bayoPlusAgreementHref = "/agreements/crypti";
 
 export const cryptiAgreementHref = bayoPlusAgreementHref;
 
+export const cryptiAgreementAcceptedStorageKey =
+  "bay-space-crypti-agreement-accepted";
+
 export const cryptiAgreementVersion =
   "+CRYPTI User Agreement v2026-05-28";

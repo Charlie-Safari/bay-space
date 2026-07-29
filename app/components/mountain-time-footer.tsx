@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { isCrypti } from "../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../lib/bay-space-roles";
 import {
   moneyPrinterICardId,
   moneyPrinterIIntervalMs,
@@ -78,7 +78,7 @@ export default function MountainTimeFooter() {
   }, []);
 
   const hasCryptiAccess = Boolean(
-    activeMemberRecord && isCrypti(activeMemberRecord),
+    activeMemberRecord && canAccessCrypti(activeMemberRecord),
   );
   const hasMoneyPrinterIActive = Boolean(
     activeMemberRecord?.activeBayoCards.includes(moneyPrinterICardId),
@@ -222,15 +222,6 @@ export default function MountainTimeFooter() {
           >
             join the circle
           </Link>
-          <Link
-            href="/library#how-to"
-            onClick={() => {
-              window.dispatchEvent(new Event(baySpaceHowToOpenEvent));
-            }}
-            className="footer-how-to-link text-left text-[#39ff14] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-          >
-            ▶ how to ◀
-          </Link>
           <span className="flex items-center gap-2">
             <button
               type="button"
@@ -242,7 +233,7 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                1.22
+                1.33
               </span>
             ) : null}
             {hasMoneyPrinterIActive ? (
@@ -251,6 +242,15 @@ export default function MountainTimeFooter() {
               </span>
             ) : null}
           </span>
+          <Link
+            href="/library#how-to"
+            onClick={() => {
+              window.dispatchEvent(new Event(baySpaceHowToOpenEvent));
+            }}
+            className="footer-how-to-link text-left text-[#39ff14] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          >
+            ▶ how to ◀
+          </Link>
           {hasCryptiAccess ? (
             <Link
               href="/crypti?howto=true"

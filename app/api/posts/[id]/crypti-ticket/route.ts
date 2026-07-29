@@ -7,7 +7,7 @@ import {
   toggleCryptiPostTicketVote,
 } from "../../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../../lib/bay-space-session";
-import { isCrypti } from "../../../../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../../../../lib/bay-space-roles";
 
 const cryptiTicketVoteCooldownMs = 24 * 60 * 60 * 1000;
 
@@ -24,7 +24,7 @@ export async function POST(
     const { id } = await context.params;
     const member = await getCurrentMember();
 
-    if (!member || !isCrypti(member.roles)) {
+    if (!member || !canAccessCrypti(member)) {
       return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 

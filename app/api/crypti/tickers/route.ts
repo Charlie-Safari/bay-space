@@ -7,7 +7,7 @@ import {
 } from "../../../../lib/crypti-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
 import { getStorageErrorMessage } from "../../../../lib/bay-space-db";
-import { isCrypti } from "../../../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../../../lib/bay-space-roles";
 
 function cryptiErrorResponse(error: unknown, fallbackMessage: string) {
   const storageMessage = getStorageErrorMessage(error);
@@ -24,7 +24,7 @@ function cryptiErrorResponse(error: unknown, fallbackMessage: string) {
 async function requireCryptiMember() {
   const member = await getCurrentMember();
 
-  return member && isCrypti(member) ? member : null;
+  return member && canAccessCrypti(member) ? member : null;
 }
 
 export async function GET(request: Request) {

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MouseEvent, useEffect, useRef, useState } from "react";
-import { isCrypti } from "../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../lib/bay-space-roles";
 import type { BayMember } from "../../lib/bay-space-types";
 import MemberLookup from "./member-lookup";
 import TerminalLoadingShell from "./terminal-loading-shell";
@@ -174,6 +174,8 @@ export default function HomeBar() {
   function renderTab(tab: HomeTab, wrapperClassName = "") {
     const active = isActiveRoute(tab.href);
     const routeLabel = tab.ariaLabel ?? tab.label;
+    const isTextChannelTab =
+      tab.label === "Conspiracy" || tab.label === "Facts on News";
 
     return (
       <div className={wrapperClassName}>
@@ -183,10 +185,18 @@ export default function HomeBar() {
           aria-label={tab.ariaLabel}
           aria-current={active ? "page" : undefined}
           onClick={(event) => startNavigation(event, tab.href, routeLabel)}
-          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center text-[0.62rem] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] md:min-h-12 md:w-auto md:px-4 md:text-xs ${
-            active
-              ? "border-[#d7ffd0] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
-              : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center leading-none transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] md:min-h-12 md:w-auto md:px-4 ${
+            isTextChannelTab
+              ? "text-[0.9rem] md:text-[1.14rem]"
+              : "text-[0.78rem] md:text-[0.98rem]"
+          } ${
+            isTextChannelTab
+              ? active
+                ? "border-dashed border-[#39ff14] text-[#39ff14] shadow-[0_0_16px_rgba(57,255,20,0.28)]"
+                : "border-solid border-[#39ff14] text-[#39ff14] hover:border-dashed"
+              : active
+                ? "border-[#d7ffd0] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
+                : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
           } ${tab.ariaLabel === "library" ? "text-xl leading-none" : ""}`}
         >
           <span className="hidden md:inline">{tab.label}</span>
@@ -219,7 +229,7 @@ export default function HomeBar() {
     );
   }
 
-  const hasCryptiAccess = isCrypti(activeMemberRecord);
+  const hasCryptiAccess = canAccessCrypti(activeMemberRecord);
 
   return (
     <>

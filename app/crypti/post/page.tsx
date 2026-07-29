@@ -1,7 +1,7 @@
 import HomeBar from "../../components/home-bar";
 import CryptiPostDetail from "./post-detail";
 import { getCurrentMember } from "../../../lib/bay-space-session";
-import { isCrypti } from "../../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../../lib/bay-space-roles";
 
 type CryptiPostPageProps = {
   searchParams: Promise<{
@@ -13,7 +13,7 @@ export default async function CryptiPostPage({
   searchParams,
 }: CryptiPostPageProps) {
   const member = await getCurrentMember();
-  const hasCryptiAccess = Boolean(member && isCrypti(member));
+  const hasCryptiAccess = Boolean(member && canAccessCrypti(member));
   const { id } = await searchParams;
 
   return (

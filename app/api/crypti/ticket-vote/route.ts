@@ -4,12 +4,13 @@ import {
   listMemberCryptiTicketedPostIds,
 } from "../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
+import { canAccessCrypti } from "../../../../lib/bay-space-roles";
 
 export async function GET() {
   try {
     const member = await getCurrentMember();
 
-    if (!member) {
+    if (!member || !canAccessCrypti(member)) {
       return Response.json(
         { member: null, nextAt: 0, postIds: [] },
         { status: 401 },

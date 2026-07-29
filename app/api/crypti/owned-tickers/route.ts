@@ -5,7 +5,7 @@ import {
   removeMemberOwnedCryptiTickerSymbol,
 } from "../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
-import { isCrypti } from "../../../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../../../lib/bay-space-roles";
 import { normalizeCryptiSymbol } from "../../../../lib/crypti-db";
 
 function ownedTickersErrorResponse(error: unknown) {
@@ -26,7 +26,7 @@ function ownedTickersErrorResponse(error: unknown) {
 async function requireCryptiMember() {
   const member = await getCurrentMember();
 
-  return member && isCrypti(member) ? member : null;
+  return member && canAccessCrypti(member) ? member : null;
 }
 
 export async function GET() {

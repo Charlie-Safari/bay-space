@@ -4,7 +4,7 @@ import {
 } from "../../../../lib/crypti-db";
 import { getCurrentMember } from "../../../../lib/bay-space-session";
 import { getStorageErrorMessage } from "../../../../lib/bay-space-db";
-import { isCrypti } from "../../../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../../../lib/bay-space-roles";
 
 function cryptiErrorResponse(error: unknown, fallbackMessage: string) {
   const storageMessage = getStorageErrorMessage(error);
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const member = await getCurrentMember();
 
-    if (!member || !isCrypti(member)) {
+    if (!member || !canAccessCrypti(member)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 

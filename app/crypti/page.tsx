@@ -1,11 +1,11 @@
 import HomeBar from "../components/home-bar";
 import CryptiTerminal from "./crypti-terminal";
 import { getCurrentMember } from "../../lib/bay-space-session";
-import { isCrypti } from "../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../lib/bay-space-roles";
 
 export default async function Crypti() {
   const member = await getCurrentMember();
-  const hasCryptiAccess = Boolean(member && isCrypti(member));
+  const hasCryptiAccess = Boolean(member && canAccessCrypti(member));
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">

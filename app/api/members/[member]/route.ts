@@ -1,4 +1,5 @@
 import {
+  acceptMemberCryptiAgreement,
   applyMemberWildCard,
   changeMemberPin,
   claimMemberMoneyPrinterI,
@@ -17,6 +18,7 @@ import {
   purchaseMemberGateKey,
   purchaseMemberGraduation,
   toggleMemberBayoCard,
+  updateMemberReferenceName,
   updateMemberTitle,
   updateMemberSettings,
   wipeMemberAccount,
@@ -280,8 +282,34 @@ export async function PATCH(request: Request, context: MemberContext) {
       return Response.json({ member });
     }
 
+    if (body.action === "accept-crypti-agreement") {
+      const member = await acceptMemberCryptiAgreement(memberId);
+
+      if (!member) {
+        return Response.json(
+          { message: "+CRYPTI agreement locked" },
+          { status: 403 },
+        );
+      }
+
+      return Response.json({ member });
+    }
+
     if (body.action === "update-title") {
       const member = await updateMemberTitle(memberId, body.title ?? "");
+
+      if (!member) {
+        return Response.json({ message: "Member not found" }, { status: 404 });
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "update-reference-name") {
+      const member = await updateMemberReferenceName(
+        memberId,
+        body.refName ?? "",
+      );
 
       if (!member) {
         return Response.json({ message: "Member not found" }, { status: 404 });
@@ -456,6 +484,13 @@ export async function PATCH(request: Request, context: MemberContext) {
 
     return Response.json({ member });
   } catch (error) {
+    if (error instanceof UsernameUnavailableError) {
+      return Response.json(
+        { message: "reference name unavailable" },
+        { status: 409 },
+      );
+    }
+
     return memberErrorResponse(error, "Unable to update member");
   }
 }

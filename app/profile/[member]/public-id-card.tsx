@@ -5,24 +5,21 @@ import FavoriteAuthorButton from "../../components/favorite-author-button";
 
 type PublicIdCardProps = {
   favoriteAuthorId: string;
-  isBayoClubMember: boolean;
   isCryptiMember: boolean;
   links: {
     href: string;
     label: string;
   }[];
   member: {
-    cryptiTitle: string;
+    cryptiRank: string;
     member: string;
-    name: string;
+    rank: string;
     refName: string;
-    title: string;
   };
 };
 
 export default function PublicIdCard({
   favoriteAuthorId,
-  isBayoClubMember,
   isCryptiMember,
   links,
   member,
@@ -72,14 +69,12 @@ export default function PublicIdCard({
       </summary>
       <div className="border-t border-[#1d7f12] p-4">
         <div className="grid gap-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-          <p>EXPLORER NUMBER - #{member.member}</p>
-          <p>TITLE: {member.title}</p>
-          <p>+CRYPTI TITLE: {member.cryptiTitle || "-"}</p>
-          <p>
-            NAME: {member.name}
-            {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
-          </p>
-          <p>REFERENCE NAME: {member.refName || "Profile"}</p>
+          <p>EXPLORER #{member.member}</p>
+          <p>RANK: {member.rank}</p>
+          {isCryptiMember ? (
+            <p>+CRYPTI RANK: {member.cryptiRank || "-"}</p>
+          ) : null}
+          <p>CODE NAME: {member.refName || "Profile"}</p>
         </div>
         {links.length ? (
           <div className="mt-6 flex flex-wrap gap-3">

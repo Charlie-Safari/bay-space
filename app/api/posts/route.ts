@@ -10,7 +10,7 @@ import {
   canPostCategory,
   canUseAnonymousPosting,
   canUseIncognitoPosting,
-  isCrypti,
+  canAccessCrypti,
 } from "../../../lib/bay-space-roles";
 
 const categories: BayPostCategory[] = [
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") ?? undefined;
     const member = await getCurrentMember();
-    const hasCryptiAccess = Boolean(member && isCrypti(member));
+    const hasCryptiAccess = Boolean(member && canAccessCrypti(member));
 
     if (category && !isPostCategory(category)) {
       return Response.json({ message: "Invalid category" }, { status: 400 });
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
       delete meta.accountMarker;
     }
 
-    if (meta?.cryptiPost === "true" && !isCrypti(member)) {
+    if (meta?.cryptiPost === "true" && !canAccessCrypti(member)) {
       return Response.json({ message: "Forbidden" }, { status: 403 });
     }
 

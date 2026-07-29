@@ -588,6 +588,17 @@ function hasCryptiBranchOwnership(
   );
 }
 
+async function canAcceptCryptiAgreement(member: MemberRow) {
+  const memberRoles = await getMemberRoles(member.id);
+
+  return (
+    hasCryptiBranchOwnership(member) ||
+    memberRoles.some((role) =>
+      ["admin", "crypti", "crypti-plus"].includes(role),
+    )
+  );
+}
+
 function canPurchaseGateKey(
   gateKeyId: GateKey,
   gateKeyIds: GateKey[],
@@ -1143,6 +1154,61 @@ export async function updateMemberTitle(memberId: string, title: string) {
   return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
 }
 
+export async function updateMemberReferenceName(
+  memberId: string,
+  refName: string,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const candidateRefName = refName.trim() || member.name;
+
+  if (!isValidUsername(candidateRefName)) {
+    throw new UsernameUnavailableError();
+  }
+
+  const normalizedRefName = normalizeRefName(candidateRefName);
+  const existingRows = await supabaseRequest<Array<{ id: string }>>("members", {
+    query: {
+      deleted_at: "is.null",
+      limit: 1,
+      ref_name: `ilike.${normalizedRefName}`,
+      select: "id",
+    },
+  });
+  const existingMember = existingRows[0] ?? null;
+
+  if (existingMember && existingMember.id !== member.id) {
+    throw new UsernameUnavailableError();
+  }
+
+  try {
+    const rows = await supabaseRequest<MemberRow[]>("members", {
+      body: {
+        ref_name: normalizedRefName,
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=representation",
+      query: {
+        member_number: `eq.${member.member_number}`,
+        select: "*",
+      },
+    });
+
+    return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+  } catch (error) {
+    if (isRefNameUniqueViolation(error)) {
+      throw new UsernameUnavailableError();
+    }
+
+    throw error;
+  }
+}
+
 export async function updateMemberSettings(
   memberId: string,
   input: MemberSettingsInput,
@@ -1158,7 +1224,7 @@ export async function updateMemberSettings(
     member.crypti_agreement_version === cryptiAgreementVersion;
   const shouldAcceptCryptiAgreement =
     input.cryptiAgreementAccepted === true &&
-    hasCryptiBranchOwnership(member) &&
+    (await canAcceptCryptiAgreement(member)) &&
     !hasAcceptedCurrentCryptiAgreement;
 
   const rows = await supabaseRequest<MemberRow[]>("members", {
@@ -1185,6 +1251,42 @@ export async function updateMemberSettings(
         github: normalizePublicLink(input.links?.github),
         youtube: normalizePublicLink(input.links?.youtube),
       },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function acceptMemberCryptiAgreement(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  const hasAcceptedCurrentCryptiAgreement =
+    Boolean(member.crypti_agreement_accepted_at) &&
+    member.crypti_agreement_version === cryptiAgreementVersion;
+
+  if (hasAcceptedCurrentCryptiAgreement) {
+    return getPublicMemberFromRow(member);
+  }
+
+  if (!(await canAcceptCryptiAgreement(member))) {
+    return null;
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      crypti_agreement_accepted_at: new Date().toISOString(),
+      crypti_agreement_version: cryptiAgreementVersion,
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",

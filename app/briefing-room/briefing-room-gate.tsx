@@ -61,6 +61,7 @@ import {
 import { theoryCategories } from "../../lib/theory-categories";
 import {
   baySpaceAgreementHref,
+  cryptiAgreementAcceptedStorageKey,
   cryptiAgreementHref,
   cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
@@ -207,11 +208,11 @@ const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "MISC";
 const supportEmail = "bayoadmin@protonmail.com";
 const optionRoomPanels: BriefingPanel[] = [
+  "exchange",
+  "circles",
   "my-posts",
   "favorites",
   "lazy-assistant",
-  "circles",
-  "exchange",
   "settings",
 ];
 
@@ -228,12 +229,10 @@ function getSettingsLinks(member: SavedMember | null): Required<SettingsLinks> {
   };
 }
 
-function getEditableMemberTitle(member: SavedMember | null) {
-  const title = member?.title?.trim() ?? "";
+function getEditableMemberReferenceName(member: SavedMember | null) {
+  const refName = member?.refName?.trim() ?? "";
 
-  return title && title.toLowerCase() !== "reader"
-    ? title
-    : member?.name ?? "";
+  return refName || member?.name || "";
 }
 
 function formatPointCount(value: number | null | undefined) {
@@ -642,9 +641,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [wildCardMessage, setWildCardMessage] = useState("");
   const [isWildCardOpen, setIsWildCardOpen] = useState(false);
   const [isWildCardLoading, setIsWildCardLoading] = useState(false);
-  const [memberTitleInput, setMemberTitleInput] = useState("");
-  const [memberTitleMessage, setMemberTitleMessage] = useState("");
-  const [isMemberTitleSaving, setIsMemberTitleSaving] = useState(false);
+  const [memberReferenceNameInput, setMemberReferenceNameInput] = useState("");
+  const [memberReferenceNameMessage, setMemberReferenceNameMessage] =
+    useState("");
+  const [isMemberReferenceNameEditing, setIsMemberReferenceNameEditing] =
+    useState(true);
+  const [isMemberReferenceNameSaving, setIsMemberReferenceNameSaving] =
+    useState(false);
   const [exchangePoints, setExchangePoints] = useState("");
   const [exchangeCoins, setExchangeCoins] = useState("");
   const [exchangeMessage, setExchangeMessage] = useState("");
@@ -666,6 +669,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   });
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState(false);
   const [wipeAccountConfirm, setWipeAccountConfirm] = useState(false);
+  const hasHandledCryptiAgreementReturnRef = useRef(false);
   const [postCategory, setPostCategory] = useState<PostCategory>("daily-food");
   const [topStoryStep, setTopStoryStep] = useState(1);
   const [ticker, setTicker] = useState("");
@@ -892,8 +896,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setEmail(memberRecord?.email ?? "");
     setBirthdayMonth(memberRecord?.birthdayMonth ?? "");
     setBirthdayYear(memberRecord?.birthdayYear ?? "");
-    setMemberTitleInput(getEditableMemberTitle(memberRecord));
-    setMemberTitleMessage("");
+    setMemberReferenceNameInput(getEditableMemberReferenceName(memberRecord));
+    setMemberReferenceNameMessage("");
     setHasAcceptedCryptiAgreement(hasAcceptedCryptiAgreementRecord);
     setHasOpenedCryptiAgreement(hasAcceptedCryptiAgreementRecord);
     setIsCryptiAgreementAlert(false);
@@ -1015,6 +1019,166 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       window.removeEventListener("bay-space-auth", handleStampCountsSync);
     };
   }, [syncStampCounts]);
+
+  useEffect(() => {
+    if (
+      hasHandledCryptiAgreementReturnRef.current ||
+      isCheckingSession ||
+      !resolvedMember ||
+      !savedMember
+    ) {
+      return;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const hasAgreementReadReturn =
+      currentUrl.searchParams.get("agreementRead") === "crypti";
+    const hasStoredAgreementAcceptance =
+      window.localStorage.getItem(cryptiAgreementAcceptedStorageKey) === "true";
+
+    if (!hasAgreementReadReturn && !hasStoredAgreementAcceptance) {
+      return;
+    }
+
+    hasHandledCryptiAgreementReturnRef.current = true;
+    const shouldAcceptCryptiAgreement =
+      currentUrl.searchParams.get("cryptiAgreementAccepted") === "true" ||
+      hasStoredAgreementAcceptance;
+
+    currentUrl.searchParams.delete("agreementRead");
+    currentUrl.searchParams.delete("cryptiAgreementAccepted");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+    );
+
+    const handleTimer = window.setTimeout(() => {
+      setActivePanel("settings");
+      setHasOpenedCryptiAgreement(true);
+
+      if (!shouldAcceptCryptiAgreement) {
+        window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        setHasAcceptedCryptiAgreement(false);
+        setIsCryptiAgreementAlert(true);
+        setSettingsMessage("confirm +CRYPTI user agreement");
+        return;
+      }
+
+      setHasAcceptedCryptiAgreement(true);
+      setIsCryptiAgreementAlert(false);
+
+      if (hasAcceptedCurrentCryptiAgreement) {
+        window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        setSettingsMessage("+CRYPTI user agreement saved");
+        return;
+      }
+
+      if (!hasCryptiGateKeyOrRank) {
+        setSettingsMessage("+CRYPTI gate key required before agreement save");
+        return;
+      }
+
+      async function saveCryptiAgreementReturn() {
+        setSettingsMessage("saving +CRYPTI user agreement");
+
+        const response = await fetch(`/api/members/${resolvedMember}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "accept-crypti-agreement" }),
+        });
+        const data = (await response.json()) as { member?: SavedMember };
+
+        if (!response.ok || !data.member) {
+          setIsCryptiAgreementAlert(true);
+          setSettingsMessage("+CRYPTI agreement confirmation not saved");
+          return;
+        }
+
+        setSavedMember(data.member);
+        applySettingsFields(data.member);
+        window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        setSettingsMessage("+CRYPTI user agreement saved");
+        window.dispatchEvent(new Event("bay-space-auth"));
+      }
+
+      saveCryptiAgreementReturn().catch(() => {
+        setIsCryptiAgreementAlert(true);
+        setSettingsMessage("+CRYPTI agreement confirmation not saved");
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(handleTimer);
+    };
+  }, [
+    hasAcceptedCurrentCryptiAgreement,
+    hasCryptiGateKeyOrRank,
+    isCheckingSession,
+    resolvedMember,
+    savedMember,
+  ]);
+
+  useEffect(() => {
+    function handleCryptiAgreementStorage(event: StorageEvent) {
+      if (
+        event.key !== cryptiAgreementAcceptedStorageKey ||
+        event.newValue !== "true"
+      ) {
+        return;
+      }
+
+      setActivePanel("settings");
+      setHasOpenedCryptiAgreement(true);
+      setHasAcceptedCryptiAgreement(true);
+      setIsCryptiAgreementAlert(false);
+
+      if (hasAcceptedCurrentCryptiAgreement) {
+        window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        setSettingsMessage("+CRYPTI user agreement saved");
+        return;
+      }
+
+      if (!resolvedMember || !savedMember) {
+        setSettingsMessage("+CRYPTI agreement confirmation will save on return");
+        return;
+      }
+
+      async function saveCryptiAgreementFromTab() {
+        setSettingsMessage("saving +CRYPTI user agreement");
+
+        const response = await fetch(`/api/members/${resolvedMember}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "accept-crypti-agreement" }),
+        });
+        const data = (await response.json()) as { member?: SavedMember };
+
+        if (!response.ok || !data.member) {
+          setIsCryptiAgreementAlert(true);
+          setSettingsMessage("+CRYPTI agreement confirmation not saved");
+          return;
+        }
+
+        setSavedMember(data.member);
+        applySettingsFields(data.member);
+        window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        setSettingsMessage("+CRYPTI user agreement saved");
+        window.dispatchEvent(new Event("bay-space-auth"));
+      }
+
+      saveCryptiAgreementFromTab().catch(() => {
+        setIsCryptiAgreementAlert(true);
+        setSettingsMessage("+CRYPTI agreement confirmation not saved");
+      });
+    }
+
+    window.addEventListener("storage", handleCryptiAgreementStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleCryptiAgreementStorage);
+    };
+  }, [hasAcceptedCurrentCryptiAgreement, resolvedMember, savedMember]);
 
   useEffect(() => {
     window.addEventListener(
@@ -1739,6 +1903,40 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setSettingsMessage("open +CRYPTI user agreement");
   }
 
+  async function saveCryptiAgreementConfirmation() {
+    if (!savedMember) {
+      setHasAcceptedCryptiAgreement(false);
+      setIsCryptiAgreementAlert(true);
+      setSettingsMessage("no account found");
+      return;
+    }
+
+    setHasOpenedCryptiAgreement(true);
+    setHasAcceptedCryptiAgreement(true);
+    setIsCryptiAgreementAlert(false);
+    setSettingsMessage("saving +CRYPTI user agreement");
+
+    const response = await fetch(`/api/members/${resolvedMember}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "accept-crypti-agreement" }),
+    });
+    const data = (await response.json()) as { member?: SavedMember };
+
+    if (!response.ok || !data.member) {
+      setHasAcceptedCryptiAgreement(false);
+      setIsCryptiAgreementAlert(true);
+      setSettingsMessage("+CRYPTI agreement confirmation not saved");
+      return;
+    }
+
+    setSavedMember(data.member);
+    applySettingsFields(data.member);
+    window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+    setSettingsMessage("+CRYPTI user agreement saved");
+    window.dispatchEvent(new Event("bay-space-auth"));
+  }
+
   async function saveSettings() {
     if (needsCryptiAgreementAcceptance) {
       if (!hasOpenedCryptiAgreement) {
@@ -1779,6 +1977,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
     setSavedMember(data.member);
     applySettingsFields(data.member);
+    window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
     setSettingsMessage("settings saved");
     window.dispatchEvent(new Event("bay-space-auth"));
   }
@@ -1839,22 +2038,22 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setExchangePoints("");
   }
 
-  async function saveMemberTitle() {
+  async function saveMemberReferenceName() {
     if (!savedMember) {
-      setMemberTitleMessage("no account found");
+      setMemberReferenceNameMessage("no account found");
       return;
     }
 
-    setIsMemberTitleSaving(true);
-    setMemberTitleMessage("");
+    setIsMemberReferenceNameSaving(true);
+    setMemberReferenceNameMessage("");
 
     try {
       const response = await fetch(`/api/members/${resolvedMember}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          action: "update-title",
-          title: memberTitleInput,
+          action: "update-reference-name",
+          refName: memberReferenceNameInput,
         }),
       });
       const data = (await response.json()) as {
@@ -1863,16 +2062,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       };
 
       if (!response.ok || !data.member) {
-        setMemberTitleMessage(data.message ?? "title save failed");
+        setMemberReferenceNameMessage(
+          data.message ?? "code name save failed",
+        );
         return;
       }
 
       setSavedMember(data.member);
       applySettingsFields(data.member);
-      setMemberTitleMessage("title saved");
+      setMemberReferenceNameMessage("code name saved");
+      setIsMemberReferenceNameEditing(false);
       window.dispatchEvent(new Event("bay-space-auth"));
     } finally {
-      setIsMemberTitleSaving(false);
+      setIsMemberReferenceNameSaving(false);
     }
   }
 
@@ -1922,8 +2124,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setHasOpenedCryptiAgreement(openedAgreement);
     setSettingsMessage(
       openedAgreement
-        ? "review +CRYPTI agreement, check the box, then save settings"
-        : "open +CRYPTI agreement, check the box, then save settings",
+        ? "review +CRYPTI agreement, check the box, then press back"
+        : "open +CRYPTI agreement, check the box, then press back",
     );
   }
 
@@ -2111,7 +2313,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const header = isOptionsRoom ? null : (
     <div className="w-full max-w-4xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
+        <h1 className="font-mono text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
           briefing room
         </h1>
         {isUnlocked && canCreatePosts ? (
@@ -2119,7 +2321,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             <button
               type="button"
               onClick={openPostWindow}
-              className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
             >
               new post
             </button>
@@ -2213,8 +2415,34 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              ID card
+              ID CARD
             </button>
+            <button
+              onClick={() => setActivePanel("exchange")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "exchange"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              Exchange
+            </button>
+            <button
+              onClick={() => setActivePanel("circles")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "circles"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              Circles
+            </button>
+            <Link
+              href={`/profile/${resolvedMember}`}
+              className="border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
+            >
+              Profile
+            </Link>
             <button
               onClick={() => {
                 setActivePanel("my-posts");
@@ -2257,32 +2485,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               }`}
             >
               LA Bay-Space
-            </button>
-            <Link
-              href={`/profile/${resolvedMember}`}
-              className="border border-[#1d7f12] px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
-            >
-              profile
-            </Link>
-            <button
-              onClick={() => setActivePanel("circles")}
-              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "circles"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              circles
-            </button>
-            <button
-              onClick={() => setActivePanel("exchange")}
-              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "exchange"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              exchange
             </button>
             {isAdminMember ? (
               <Link
@@ -4079,26 +4281,24 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                               hasAcceptedCurrentCryptiAgreement ||
                               hasAcceptedCryptiAgreement
                             }
-                            disabled={hasAcceptedCurrentCryptiAgreement}
+                            disabled={
+                              hasAcceptedCurrentCryptiAgreement ||
+                              hasAcceptedCryptiAgreement
+                            }
                             onChange={(event) => {
-                              if (hasAcceptedCurrentCryptiAgreement) {
-                                return;
-                              }
-
                               if (
-                                event.target.checked &&
-                                !hasOpenedCryptiAgreement
+                                hasAcceptedCurrentCryptiAgreement ||
+                                hasAcceptedCryptiAgreement
                               ) {
-                                setHasAcceptedCryptiAgreement(false);
-                                setIsCryptiAgreementAlert(true);
-                                setSettingsMessage(
-                                  "open +CRYPTI user agreement first",
-                                );
-                                openCryptiAgreement();
                                 return;
                               }
 
-                              setHasAcceptedCryptiAgreement(event.target.checked);
+                              if (event.target.checked) {
+                                void saveCryptiAgreementConfirmation();
+                                return;
+                              }
+
+                              setHasAcceptedCryptiAgreement(false);
                               setIsCryptiAgreementAlert(false);
                               setSettingsMessage("");
                             }}
@@ -4211,34 +4411,49 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </div>
           ) : activePanel === "id-card" && savedMember ? (
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+              <p className="font-mono text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 EXPLORER NUMBER - #{savedMember.member}
               </p>
               <div className="mt-4 grid max-w-md gap-2">
                 <label className="grid gap-2 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                  <span>Title</span>
+                  <span>CODE NAME</span>
                   <input
-                    value={memberTitleInput}
+                    value={memberReferenceNameInput}
+                    disabled={!isMemberReferenceNameEditing}
                     onChange={(event) => {
-                      setMemberTitleInput(event.target.value.slice(0, 80));
-                      setMemberTitleMessage("");
+                      setMemberReferenceNameInput(
+                        event.target.value.slice(0, 24),
+                      );
+                      setMemberReferenceNameMessage("");
                     }}
                     placeholder={savedMember.name}
-                    className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                    className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14] disabled:text-[#7f9f78]"
                   />
                 </label>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={saveMemberTitle}
-                    disabled={isMemberTitleSaving}
+                    onClick={() => {
+                      if (!isMemberReferenceNameEditing) {
+                        setIsMemberReferenceNameEditing(true);
+                        setMemberReferenceNameMessage("");
+                        return;
+                      }
+
+                      void saveMemberReferenceName();
+                    }}
+                    disabled={isMemberReferenceNameSaving}
                     className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
                   >
-                    {isMemberTitleSaving ? "saving" : "save title"}
+                    {isMemberReferenceNameSaving
+                      ? "saving"
+                      : isMemberReferenceNameEditing
+                        ? "save"
+                        : "edit"}
                   </button>
-                  {memberTitleMessage ? (
+                  {memberReferenceNameMessage ? (
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                      {memberTitleMessage}
+                      {memberReferenceNameMessage}
                     </p>
                   ) : null}
                 </div>
@@ -4344,9 +4559,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   {passwordChangeMessage}
                 </p>
               ) : null}
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                REFERENCE NAME: {savedMember.refName || "Profile"}
-              </p>
             </div>
           ) : (
             <>

@@ -24,6 +24,7 @@ import {
   bayoCards,
   bayoStamps,
   gateKeys,
+  getBayRankLabel,
   getCryptiRankLabel,
 } from "../../../lib/bay-space-ranks";
 
@@ -55,12 +56,6 @@ function getExternalHref(url: string) {
   }
 
   return `https://${url}`;
-}
-
-function getProfileDisplayTitle(member: NonNullable<Awaited<ReturnType<typeof getMember>>>) {
-  const title = member.title.trim();
-
-  return title && title.toLowerCase() !== "reader" ? title : member.name;
 }
 
 function PostList({ posts }: { posts: BayPost[] }) {
@@ -179,15 +174,13 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
             <div className="mt-10 grid w-full gap-4 lg:grid-cols-3 lg:items-start">
               <PublicIdCard
                 favoriteAuthorId={member.member}
-                isBayoClubMember={isBayoClubMember}
                 isCryptiMember={isCryptiMember}
                 links={publicLinks}
                 member={{
-                  cryptiTitle: getCryptiRankLabel(member.cryptiRank),
+                  cryptiRank: getCryptiRankLabel(member.cryptiRank),
                   member: member.member,
-                  name: member.name,
+                  rank: getBayRankLabel(member.rank),
                   refName: member.refName,
-                  title: getProfileDisplayTitle(member),
                 }}
               />
               <ProfileStatsCard
