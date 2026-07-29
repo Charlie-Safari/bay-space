@@ -996,10 +996,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     syncActiveMember();
     window.addEventListener("storage", syncActiveMember);
     window.addEventListener("bay-space-auth", syncActiveMember);
+    window.addEventListener("pageshow", syncActiveMember);
 
     return () => {
       window.removeEventListener("storage", syncActiveMember);
       window.removeEventListener("bay-space-auth", syncActiveMember);
+      window.removeEventListener("pageshow", syncActiveMember);
     };
   }, [clearOpenPostDrafts, member]);
 
@@ -1041,6 +1043,51 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     hasHandledCryptiAgreementReturnRef.current = true;
+
+    if (!hasAgreementReadReturn) {
+      const storedConfirmationTimer = window.setTimeout(() => {
+        setHasOpenedCryptiAgreement(true);
+        setHasAcceptedCryptiAgreement(true);
+
+        if (hasAcceptedCurrentCryptiAgreement) {
+          window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+          return;
+        }
+
+        if (!hasCryptiGateKeyOrRank) {
+          window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+          return;
+        }
+
+        async function saveStoredCryptiAgreementReturn() {
+          const response = await fetch(`/api/members/${resolvedMember}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action: "accept-crypti-agreement" }),
+          });
+          const data = (await response.json()) as { member?: SavedMember };
+
+          if (!response.ok || !data.member) {
+            window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+            return;
+          }
+
+          setSavedMember(data.member);
+          applySettingsFields(data.member);
+          window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+          window.dispatchEvent(new Event("bay-space-auth"));
+        }
+
+        saveStoredCryptiAgreementReturn().catch(() => {
+          window.localStorage.removeItem(cryptiAgreementAcceptedStorageKey);
+        });
+      }, 0);
+
+      return () => {
+        window.clearTimeout(storedConfirmationTimer);
+      };
+    }
+
     const shouldAcceptCryptiAgreement =
       currentUrl.searchParams.get("cryptiAgreementAccepted") === "true" ||
       hasStoredAgreementAcceptance;
@@ -2520,7 +2567,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         </aside>
         )}
         <section
-          className={`border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
+          key={`${activePanel}:${activeDraftId ?? "room"}`}
+          className={`briefing-panel-surface border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
             (isPostOpen && activePanel === "post") || isOptionsRoom
               ? "order-1"
               : "order-1 md:order-2"

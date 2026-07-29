@@ -151,6 +151,23 @@ export default function HomeBar() {
     const targetUrl = new URL(href, window.location.href);
     const currentRoute = `${window.location.pathname}${window.location.search}`;
     const targetRoute = `${targetUrl.pathname}${targetUrl.search}`;
+    const isBasecampNavigation = label === "basecamp";
+
+    if (isBasecampNavigation) {
+      if (
+        targetRoute === currentRoute ||
+        window.location.pathname.startsWith("/briefing-room")
+      ) {
+        event.preventDefault();
+        returnToBriefingRoomHome();
+        setIsBasecampLogoShaking(false);
+        window.requestAnimationFrame(() => {
+          setIsBasecampLogoShaking(true);
+        });
+      }
+
+      return;
+    }
 
     if (targetRoute !== currentRoute) {
       setPendingRouteLabel(label);
@@ -234,7 +251,7 @@ export default function HomeBar() {
   return (
     <>
       {pendingRouteLabel ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[#020402]/95 px-4 text-[#39ff14]">
+        <div className="bay-route-transition fixed inset-0 z-50 grid place-items-center bg-[#020402]/95 px-4 text-[#39ff14]">
           <div className="w-full max-w-4xl">
             <TerminalLoadingShell
               label="c:\\bay-space\\router> switching-channel"

@@ -90,6 +90,43 @@ body {
   }
 }
 
+@keyframes briefing-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.briefing-panel-surface {
+  animation: briefing-panel-enter 180ms ease-out both;
+}
+
+.bay-route-transition {
+  animation: bay-route-transition-enter 140ms ease-out both;
+}
+
+@keyframes bay-route-transition-enter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefing-panel-surface,
+  .bay-route-transition {
+    animation: none;
+  }
+}
+
 @keyframes signup-field-swipe {
   from {
     opacity: 0;
