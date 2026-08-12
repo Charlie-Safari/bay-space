@@ -60,6 +60,7 @@ export async function POST(request: Request, context: PostCommentsContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/theories");
 
     return Response.json({ comment }, { status: 201 });

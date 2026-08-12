@@ -64,6 +64,7 @@ export async function POST(request: Request, context: TruthVoteContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/theories");
     revalidatePath("/profile/[member]", "page");
 

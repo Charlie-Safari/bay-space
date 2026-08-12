@@ -56,6 +56,7 @@ export async function POST(request: Request, context: TicketVoteContext) {
       : nextTicketVoteAt;
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/theories");
     revalidatePath("/library");
     revalidatePath("/news");

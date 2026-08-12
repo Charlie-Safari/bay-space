@@ -40,7 +40,7 @@ function getPostHref(post: BayPost) {
   }
 
   if (post.category === "daily-food") {
-    return `/daily-food#post-${post.id}`;
+    return `/facts-on-news#post-${post.id}`;
   }
 
   if (post.category === "theory") {

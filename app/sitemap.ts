@@ -3,7 +3,7 @@ import { getSiteUrl } from "../lib/site-url";
 
 const staticRoutes = [
   "",
-  "/daily-food",
+  "/facts-on-news",
   "/home-page",
   "/join-the-circle",
   "/library",

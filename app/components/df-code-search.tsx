@@ -12,7 +12,7 @@ export default function DfCodeSearch() {
     const normalizedCode = nextCode.toLowerCase();
 
     if (dfCodes.includes(normalizedCode)) {
-      router.push(`/daily-food?df=${normalizedCode}`);
+      router.push(`/facts-on-news?df=${normalizedCode}`);
     }
   }
 

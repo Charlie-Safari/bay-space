@@ -2298,10 +2298,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
     if (post.category === "daily-food") {
       if (post.incognito && post.shelfCode) {
-        return "/daily-food";
+        return "/facts-on-news";
       }
 
-      return `/daily-food#post-${post.id}`;
+      return `/facts-on-news#post-${post.id}`;
     }
 
     if (post.category === "theory") {
@@ -2376,11 +2376,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               <button
                 type="button"
                 onClick={openLazyBank}
-                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black uppercase leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5"
-                aria-label="Open Lazy Assistant money-bag lane"
-                title="Lazy Assistant ✅💰"
+                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5"
+                aria-label="Open ✅💰 Fast Post"
+                title="✅💰 Fast Post"
               >
-                Lazy Assistant ✅💰
+                <strong>✅💰</strong> Fast Post
               </button>
             ) : null}
             <a

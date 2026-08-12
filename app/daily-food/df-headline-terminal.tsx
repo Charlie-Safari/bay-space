@@ -531,7 +531,7 @@ export default function DfHeadlineTerminal({
   }
 
   function getPostLinkPath(post: BayPost) {
-    return post.incognito ? "/daily-food" : `/daily-food#post-${post.id}`;
+    return post.incognito ? "/facts-on-news" : `/facts-on-news#post-${post.id}`;
   }
 
   function syncPostTruthSummary(

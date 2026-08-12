@@ -19,6 +19,7 @@ export async function POST(request: Request, context: PostShareLinkContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/theories");
     revalidatePath("/library");
     revalidatePath("/crypti");

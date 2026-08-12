@@ -21,6 +21,7 @@ export async function POST(request: Request, context: PostVisitContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/theories");
     revalidatePath("/library");
     revalidatePath("/crypti");

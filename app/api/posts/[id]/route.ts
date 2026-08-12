@@ -28,6 +28,7 @@ export async function DELETE(request: Request, context: PostContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/news");
     revalidatePath("/theories");
     revalidatePath("/library");
@@ -73,6 +74,7 @@ export async function PATCH(request: Request, context: PostContext) {
     }
 
     revalidatePath("/daily-food");
+    revalidatePath("/facts-on-news");
     revalidatePath("/news");
     revalidatePath("/theories");
     revalidatePath("/library");
