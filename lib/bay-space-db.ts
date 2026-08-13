@@ -7,9 +7,13 @@ import {
   BayDirectConversation,
   BayDirectMessage,
   BayDirectMessageMember,
+  BayMemberStats,
   BayMember,
   BayPost,
   BayPostComment,
+  BayStatsMiscRow,
+  BayStatsParticipationRow,
+  BayStatsPostRow,
   BayPostTruthVoteSummary,
   PublicLink,
 } from "./bay-space-types";
@@ -49,8 +53,20 @@ import {
 } from "./bay-space-ranks";
 import {
   articleReadPointValue,
+  formatPointTenths,
+  getBaySpacePostPointTenths,
+  getBaySpacePostTicketCount,
+  getBaySpaceProfilePostBasePoints,
+  getCryptiPostSourceMode,
+  getCryptiProfilePostBasePoints,
   getPositiveInteger,
+  getPostFavoriteCount,
+  getPostPointTenths,
+  getPostShareLinkClickCount as getBayPostShareLinkClickCount,
+  getPostTicketCount,
+  getPostVisitCount as getBayPostVisitCount,
   getTruthVotePointValue,
+  isCryptiPost,
   profileVisitPointValue,
 } from "./bay-space-scoring";
 import {
@@ -186,6 +202,14 @@ type MemberArticleReadRow = {
   member_id: string;
   point_value: number;
   post_id: string;
+};
+
+type MemberPostShareRow = {
+  created_at: string;
+  member_id: string;
+  post_id: string;
+  share_count: number;
+  updated_at: string;
 };
 
 type MemberSessionRow = {
@@ -939,6 +963,21 @@ function isMemberArticleReadUniqueViolation(error: unknown) {
     error instanceof SupabaseServerError &&
     (error.status === 409 ||
       /member_article_reads_pkey|duplicate key/i.test(error.message))
+  );
+}
+
+function isMemberPostShareUniqueViolation(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    (error.status === 409 ||
+      /member_post_shares_pkey|duplicate key/i.test(error.message))
+  );
+}
+
+function isMemberPostShareTableMissing(error: unknown) {
+  return (
+    error instanceof SupabaseServerError &&
+    /member_post_shares|relation .* does not exist/i.test(error.message)
   );
 }
 
@@ -2479,6 +2518,275 @@ export async function listPostsByAuthorForStats(memberId: string) {
   return posts.map(publicPost);
 }
 
+function getStatsPostRow(
+  post: BayPost,
+  favoriteCounts: Record<string, number>,
+): BayStatsPostRow {
+  const cryptiPost = isCryptiPost(post);
+  const engagementPointTenths = cryptiPost
+    ? getPostPointTenths(post, favoriteCounts)
+    : getBaySpacePostPointTenths(post, favoriteCounts);
+  const basePointTenths =
+    (cryptiPost
+      ? getCryptiProfilePostBasePoints(post)
+      : getBaySpaceProfilePostBasePoints(post)) * 10;
+
+  return {
+    diamonds: getPostFavoriteCount(post.id, favoriteCounts),
+    headline: post.title,
+    id: post.id,
+    points: formatPointTenths(basePointTenths + engagementPointTenths),
+    shares: getBayPostShareLinkClickCount(post),
+    tickets: cryptiPost
+      ? getPostTicketCount(post)
+      : getBaySpacePostTicketCount(post),
+    views: getBayPostVisitCount(post),
+  };
+}
+
+function getStatsParticipationRow(
+  post: BayPost,
+  articleReadPointsByPostId: Map<string, number>,
+  favoritePostIds: Set<string>,
+  ticketedPostIds: Set<string>,
+  sharesByPostId: Map<string, number>,
+): BayStatsParticipationRow {
+  const readPoints = getPositiveInteger(articleReadPointsByPostId.get(post.id));
+
+  return {
+    diamond: favoritePostIds.has(post.id),
+    headline: post.title,
+    id: post.id,
+    points: String(readPoints),
+    shares: getPositiveInteger(sharesByPostId.get(post.id)),
+    ticket: ticketedPostIds.has(post.id),
+    views: readPoints > 0 ? 1 : 0,
+  };
+}
+
+async function listMemberArticleReadsForStats(member: MemberRow) {
+  return supabaseRequest<MemberArticleReadRow[]>("member_article_reads", {
+    query: {
+      member_id: `eq.${member.id}`,
+      order: "created_at.desc",
+      select: "*",
+    },
+  });
+}
+
+async function listMemberPostSharesForStats(member: MemberRow) {
+  try {
+    return await supabaseRequest<MemberPostShareRow[]>("member_post_shares", {
+      query: {
+        member_id: `eq.${member.id}`,
+        order: "updated_at.desc",
+        select: "*",
+      },
+    });
+  } catch (error) {
+    if (isMemberPostShareTableMissing(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function recordMemberPostShare(member: MemberRow, post: PostRow) {
+  let existingRows: MemberPostShareRow[];
+
+  try {
+    existingRows = await supabaseRequest<MemberPostShareRow[]>(
+      "member_post_shares",
+      {
+        query: {
+          member_id: `eq.${member.id}`,
+          post_id: `eq.${post.id}`,
+          select: "*",
+        },
+      },
+    );
+  } catch (error) {
+    if (isMemberPostShareTableMissing(error)) {
+      return;
+    }
+
+    throw error;
+  }
+
+  const existing = existingRows[0] ?? null;
+
+  if (existing) {
+    await supabaseRequest<MemberPostShareRow[]>("member_post_shares", {
+      body: {
+        share_count: getPositiveInteger(existing.share_count) + 1,
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=minimal",
+      query: {
+        member_id: `eq.${member.id}`,
+        post_id: `eq.${post.id}`,
+      },
+    });
+    return;
+  }
+
+  try {
+    await supabaseRequest<MemberPostShareRow[]>("member_post_shares", {
+      body: {
+        member_id: member.id,
+        post_id: post.id,
+        share_count: 1,
+      },
+      method: "POST",
+      prefer: "return=minimal",
+    });
+  } catch (error) {
+    if (isMemberPostShareTableMissing(error)) {
+      return;
+    }
+
+    if (!isMemberPostShareUniqueViolation(error)) {
+      throw error;
+    }
+
+    await recordMemberPostShare(member, post);
+  }
+}
+
+function getStatsMiscRows(member: MemberRow): BayStatsMiscRow[] {
+  const baySpaceProfileVisits = getMemberProfileVisits(member);
+  const cryptiProfileVisits = getMemberCryptiProfileVisits(member);
+
+  return [
+    {
+      label: "BaySpace profile visits",
+      points: String(baySpaceProfileVisits * profileVisitPointValue),
+      value: baySpaceProfileVisits.toLocaleString("en-US"),
+    },
+    {
+      label: "+CRYPTI profile visits",
+      points: "0",
+      value: cryptiProfileVisits.toLocaleString("en-US"),
+    },
+    {
+      label: "available points",
+      points: String(normalizePointBalance(member.available_points)),
+      value: normalizePointBalance(member.available_points).toLocaleString(
+        "en-US",
+      ),
+    },
+    {
+      label: "lifetime points",
+      points: String(normalizePointBalance(member.lifetime_points)),
+      value: normalizePointBalance(member.lifetime_points).toLocaleString(
+        "en-US",
+      ),
+    },
+    {
+      label: "Bayo Coins",
+      points: "0",
+      value: normalizePointBalance(member.bayo_coins).toLocaleString("en-US"),
+    },
+    {
+      label: "Bayo Tokens",
+      points: "0",
+      value: getMemberBayoTokens(member).toLocaleString("en-US"),
+    },
+  ];
+}
+
+export async function getMemberStats(memberId: string): Promise<BayMemberStats> {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  const posts = await listPosts();
+  const postIds = posts.map((post) => post.id);
+  const [
+    favoriteCounts,
+    favoritePostIds,
+    articleReads,
+    postShares,
+  ] = await Promise.all([
+    countSavedPosts(postIds),
+    listSavedPostIds(memberId),
+    listMemberArticleReadsForStats(member),
+    listMemberPostSharesForStats(member),
+  ]);
+
+  const favoritePostIdSet = new Set(favoritePostIds);
+  const articleReadPointsByPostId = new Map(
+    articleReads.map((row) => [row.post_id, getPositiveInteger(row.point_value)]),
+  );
+  const baySpaceTicketedPostIds = new Set(getMemberTicketedPostIds(member));
+  const cryptiTicketedPostIds = new Set(getMemberCryptiTicketedPostIds(member));
+  const allTicketedPostIds = new Set([
+    ...baySpaceTicketedPostIds,
+    ...cryptiTicketedPostIds,
+  ]);
+  const sharesByPostId = new Map(
+    postShares.map((row) => [row.post_id, getPositiveInteger(row.share_count)]),
+  );
+  const participatedPostIds = new Set([
+    ...articleReads.map((row) => row.post_id),
+    ...favoritePostIds,
+    ...Array.from(allTicketedPostIds),
+    ...postShares.map((row) => row.post_id),
+  ]);
+
+  const ownPosts = posts.filter((post) => post.author === memberId);
+  const ownCryptiPosts = ownPosts.filter(isCryptiPost);
+  const ownBaySpacePosts = ownPosts.filter((post) => !isCryptiPost(post));
+  const participationPosts = posts.filter((post) =>
+    participatedPostIds.has(post.id),
+  );
+
+  return {
+    baySpaceParticipation: participationPosts
+      .filter((post) => !isCryptiPost(post))
+      .map((post) =>
+        getStatsParticipationRow(
+          post,
+          articleReadPointsByPostId,
+          favoritePostIdSet,
+          baySpaceTicketedPostIds,
+          sharesByPostId,
+        ),
+      ),
+    conspiracyPosts: ownBaySpacePosts
+      .filter((post) => post.category === "theory")
+      .map((post) => getStatsPostRow(post, favoriteCounts)),
+    cryptiBuzzPosts: ownCryptiPosts
+      .filter((post) => getCryptiPostSourceMode(post) === "S")
+      .map((post) => getStatsPostRow(post, favoriteCounts)),
+    cryptiDegenPosts: ownCryptiPosts
+      .filter((post) => getCryptiPostSourceMode(post) === "Q")
+      .map((post) => getStatsPostRow(post, favoriteCounts)),
+    cryptiNewsPosts: ownCryptiPosts
+      .filter((post) => getCryptiPostSourceMode(post) === "R")
+      .map((post) => getStatsPostRow(post, favoriteCounts)),
+    cryptiParticipation: participationPosts
+      .filter(isCryptiPost)
+      .map((post) =>
+        getStatsParticipationRow(
+          post,
+          articleReadPointsByPostId,
+          favoritePostIdSet,
+          cryptiTicketedPostIds,
+          sharesByPostId,
+        ),
+      ),
+    factsPosts: ownBaySpacePosts
+      .filter((post) => post.category === "daily-food")
+      .map((post) => getStatsPostRow(post, favoriteCounts)),
+    miscPoints: getStatsMiscRows(member),
+  };
+}
+
 export async function createPost(input: NewPostInput, authorMember: BayMember) {
   const author = await getMemberRowByNumber(authorMember.member);
 
@@ -2820,7 +3128,10 @@ export async function incrementPostVisitCount(
   };
 }
 
-export async function incrementPostShareLinkClickCount(postId: string) {
+export async function incrementPostShareLinkClickCount(
+  postId: string,
+  sharerMemberId?: string,
+) {
   const posts = await supabaseRequest<PostRow[]>("posts", {
     query: {
       deleted_at: "is.null",
@@ -2851,6 +3162,13 @@ export async function incrementPostShareLinkClickCount(postId: string) {
       select: "*",
     },
   });
+  const sharer = sharerMemberId
+    ? await getMemberRowByNumber(sharerMemberId)
+    : null;
+
+  if (sharer) {
+    await recordMemberPostShare(sharer, post);
+  }
 
   return {
     post: publicPost(updatedPosts[0]),

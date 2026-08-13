@@ -3,6 +3,7 @@ import {
   getStorageErrorMessage,
   incrementPostShareLinkClickCount,
 } from "../../../../../lib/bay-space-db";
+import { getCurrentMember } from "../../../../../lib/bay-space-session";
 
 type PostShareLinkContext = {
   params: Promise<{ id: string }>;
@@ -12,7 +13,8 @@ export async function POST(request: Request, context: PostShareLinkContext) {
   try {
     void request;
     const { id } = await context.params;
-    const result = await incrementPostShareLinkClickCount(id);
+    const member = await getCurrentMember();
+    const result = await incrementPostShareLinkClickCount(id, member?.member);
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });

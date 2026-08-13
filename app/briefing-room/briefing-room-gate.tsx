@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import CirclesPanel from "./circles-panel";
 import InboxPanel from "./inbox-panel";
+import StatsPanel from "./stats-panel";
 import {
   FormEvent,
   useCallback,
@@ -143,6 +144,7 @@ type FavoriteCategory = "daily-food" | "theory" | "library-submission";
 type BriefingPanel =
   | "id-card"
   | "post"
+  | "stats"
   | "my-posts"
   | "favorites"
   | "inbox"
@@ -215,6 +217,7 @@ const supportEmail = "bayoadmin@protonmail.com";
 const optionRoomPanels: BriefingPanel[] = [
   "exchange",
   "circles",
+  "stats",
   "my-posts",
   "favorites",
   "inbox",
@@ -2580,6 +2583,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               Profile
             </Link>
             <button
+              onClick={() => setActivePanel("stats")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "stats"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              stats
+            </button>
+            <button
               onClick={() => {
                 setActivePanel("my-posts");
                 setDeletePostId("");
@@ -3341,6 +3354,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               </div>
               </form>
             )
+          ) : activePanel === "stats" && savedMember ? (
+            <StatsPanel
+              member={{
+                member: savedMember.member,
+                name: savedMember.name,
+              }}
+            />
           ) : activePanel === "my-posts" ? (
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">

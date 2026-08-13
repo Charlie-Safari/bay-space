@@ -71,6 +71,43 @@ export type BayDirectConversation = {
   unreadCount: number;
 };
 
+export type BayStatsPostRow = {
+  diamonds: number;
+  headline: string;
+  id: string;
+  points: string;
+  shares: number;
+  tickets: number;
+  views: number;
+};
+
+export type BayStatsParticipationRow = {
+  diamond: boolean;
+  headline: string;
+  id: string;
+  points: string;
+  shares: number;
+  ticket: boolean;
+  views: number;
+};
+
+export type BayStatsMiscRow = {
+  label: string;
+  points: string;
+  value: string;
+};
+
+export type BayMemberStats = {
+  baySpaceParticipation: BayStatsParticipationRow[];
+  conspiracyPosts: BayStatsPostRow[];
+  cryptiBuzzPosts: BayStatsPostRow[];
+  cryptiDegenPosts: BayStatsPostRow[];
+  cryptiNewsPosts: BayStatsPostRow[];
+  cryptiParticipation: BayStatsParticipationRow[];
+  factsPosts: BayStatsPostRow[];
+  miscPoints: BayStatsMiscRow[];
+};
+
 export type BayMember = {
   activeBayoCards: BayoCardId[];
   availablePoints: number;
