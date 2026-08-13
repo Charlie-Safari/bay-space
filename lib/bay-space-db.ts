@@ -4,6 +4,9 @@ import {
   supabaseRequest,
 } from "./supabase/server";
 import {
+  BayDirectConversation,
+  BayDirectMessage,
+  BayDirectMessageMember,
   BayMember,
   BayPost,
   BayPostComment,
@@ -234,6 +237,22 @@ type PostTruthVoteRow = {
   updated_at: string;
 };
 
+type DirectMessageRow = {
+  body: string;
+  created_at: string;
+  expires_at: string;
+  id: string;
+  read_at: string | null;
+  recipient_member_id: string;
+  sender_member_id: string;
+};
+
+type DirectMessageBlockRow = {
+  blocked_member_id: string;
+  blocker_member_id: string;
+  created_at: string;
+};
+
 type SavedPostRow = {
   member_id: string;
   post_id: string;
@@ -388,6 +407,50 @@ function publicPostComment(
     body: comment.body,
     createdAt: comment.created_at,
     id: comment.id,
+  };
+}
+
+function publicDirectMessageMember(
+  member: MemberRow,
+): BayDirectMessageMember {
+  return {
+    member: formatMemberId(member.member_number),
+    name: member.name,
+    refName: member.ref_name,
+    title: member.title,
+  };
+}
+
+function getDirectMessageMemberNumber(
+  memberId: string,
+  membersById: Map<string, MemberRow>,
+) {
+  const member = membersById.get(memberId);
+
+  return member ? formatMemberId(member.member_number) : "unknown";
+}
+
+function publicDirectMessage(
+  message: DirectMessageRow,
+  currentMemberId: string,
+  membersById: Map<string, MemberRow>,
+  readAtOverride?: string,
+): BayDirectMessage {
+  return {
+    body: message.body,
+    createdAt: message.created_at,
+    expiresAt: message.expires_at,
+    id: message.id,
+    isMine: message.sender_member_id === currentMemberId,
+    readAt: readAtOverride ?? message.read_at ?? undefined,
+    recipientMember: getDirectMessageMemberNumber(
+      message.recipient_member_id,
+      membersById,
+    ),
+    senderMember: getDirectMessageMemberNumber(
+      message.sender_member_id,
+      membersById,
+    ),
   };
 }
 
@@ -2869,6 +2932,345 @@ export async function toggleCryptiPostTicketVote(
     post: publicPost(updatedPosts[0]),
     ticketed: !isTicketed,
     ticketVotes: cryptiTicketVotes,
+  };
+}
+
+const directMessageMaxLength = 1000;
+const directMessageRetentionMs = 7 * 24 * 60 * 60 * 1000;
+
+function getDirectMessageExpiresAt() {
+  return new Date(Date.now() + directMessageRetentionMs).toISOString();
+}
+
+function normalizeDirectMessageBody(body: string) {
+  return body.trim().replace(/\s+\n/g, "\n").slice(0, directMessageMaxLength);
+}
+
+async function cleanupExpiredDirectMessages() {
+  await supabaseRequest<null>("direct_messages", {
+    method: "DELETE",
+    query: {
+      expires_at: `lte.${new Date().toISOString()}`,
+    },
+  });
+}
+
+async function getMemberRowsByIds(memberIds: string[]) {
+  const uniqueMemberIds = Array.from(new Set(memberIds.filter(Boolean)));
+
+  if (!uniqueMemberIds.length) {
+    return [];
+  }
+
+  return supabaseRequest<MemberRow[]>("members", {
+    query: {
+      deleted_at: "is.null",
+      id: `in.(${uniqueMemberIds.join(",")})`,
+      select: "*",
+    },
+  });
+}
+
+async function getDirectMessageBlocksForMember(memberId: string) {
+  return supabaseRequest<DirectMessageBlockRow[]>("direct_message_blocks", {
+    query: {
+      or: `(blocker_member_id.eq.${memberId},blocked_member_id.eq.${memberId})`,
+      select: "*",
+    },
+  });
+}
+
+async function getDirectMessageBlocksBetween(
+  firstMemberId: string,
+  secondMemberId: string,
+) {
+  if (firstMemberId === secondMemberId) {
+    return [];
+  }
+
+  return supabaseRequest<DirectMessageBlockRow[]>("direct_message_blocks", {
+    query: {
+      or: `(and(blocker_member_id.eq.${firstMemberId},blocked_member_id.eq.${secondMemberId}),and(blocker_member_id.eq.${secondMemberId},blocked_member_id.eq.${firstMemberId}))`,
+      select: "*",
+    },
+  });
+}
+
+function getDirectMessageBlockFlags(
+  blocks: DirectMessageBlockRow[],
+  currentMemberId: string,
+  otherMemberId: string,
+) {
+  return {
+    hasBlockedMe: blocks.some(
+      (block) =>
+        block.blocker_member_id === otherMemberId &&
+        block.blocked_member_id === currentMemberId,
+    ),
+    isBlockedByMe: blocks.some(
+      (block) =>
+        block.blocker_member_id === currentMemberId &&
+        block.blocked_member_id === otherMemberId,
+    ),
+  };
+}
+
+export async function listDirectConversations(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return [];
+  }
+
+  await cleanupExpiredDirectMessages();
+
+  const [messages, blocks] = await Promise.all([
+    supabaseRequest<DirectMessageRow[]>("direct_messages", {
+      query: {
+        expires_at: `gt.${new Date().toISOString()}`,
+        or: `(sender_member_id.eq.${member.id},recipient_member_id.eq.${member.id})`,
+        order: "created_at.desc",
+        select: "*",
+      },
+    }),
+    getDirectMessageBlocksForMember(member.id),
+  ]);
+  const conversationsByMemberId = new Map<string, DirectMessageRow>();
+
+  messages.forEach((message) => {
+    const otherMemberId =
+      message.sender_member_id === member.id
+        ? message.recipient_member_id
+        : message.sender_member_id;
+
+    if (!conversationsByMemberId.has(otherMemberId)) {
+      conversationsByMemberId.set(otherMemberId, message);
+    }
+  });
+
+  const conversationMemberIds = Array.from(conversationsByMemberId.keys());
+  const members = await getMemberRowsByIds([member.id, ...conversationMemberIds]);
+  const membersById = new Map(members.map((memberRow) => [memberRow.id, memberRow]));
+
+  return conversationMemberIds
+    .map<BayDirectConversation | null>((otherMemberId) => {
+      const otherMember = membersById.get(otherMemberId);
+      const latestMessage = conversationsByMemberId.get(otherMemberId);
+
+      if (!otherMember || !latestMessage) {
+        return null;
+      }
+
+      const unreadCount = messages.filter(
+        (message) =>
+          message.sender_member_id === otherMemberId &&
+          message.recipient_member_id === member.id &&
+          !message.read_at,
+      ).length;
+      const blockFlags = getDirectMessageBlockFlags(
+        blocks,
+        member.id,
+        otherMemberId,
+      );
+
+      return {
+        ...blockFlags,
+        latestMessage: publicDirectMessage(latestMessage, member.id, membersById),
+        member: publicDirectMessageMember(otherMember),
+        unreadCount,
+      };
+    })
+    .filter(
+      (conversation): conversation is BayDirectConversation =>
+        Boolean(conversation),
+    );
+}
+
+export async function getDirectConversation(
+  memberId: string,
+  otherMemberId: string,
+) {
+  const [member, otherMember] = await Promise.all([
+    getMemberRowByNumber(memberId),
+    getMemberRowByNumber(otherMemberId),
+  ]);
+
+  if (!member || !otherMember) {
+    return null;
+  }
+
+  await cleanupExpiredDirectMessages();
+
+  const [messages, blocks] = await Promise.all([
+    supabaseRequest<DirectMessageRow[]>("direct_messages", {
+      query: {
+        expires_at: `gt.${new Date().toISOString()}`,
+        or: `(and(sender_member_id.eq.${member.id},recipient_member_id.eq.${otherMember.id}),and(sender_member_id.eq.${otherMember.id},recipient_member_id.eq.${member.id}))`,
+        order: "created_at.asc",
+        select: "*",
+      },
+    }),
+    getDirectMessageBlocksBetween(member.id, otherMember.id),
+  ]);
+  const unreadIncomingMessages = messages.filter(
+    (message) =>
+      message.sender_member_id === otherMember.id &&
+      message.recipient_member_id === member.id &&
+      !message.read_at,
+  );
+  const markedReadAt = unreadIncomingMessages.length
+    ? new Date().toISOString()
+    : "";
+
+  if (markedReadAt) {
+    await supabaseRequest<DirectMessageRow[]>("direct_messages", {
+      body: { read_at: markedReadAt },
+      method: "PATCH",
+      prefer: "return=minimal",
+      query: {
+        read_at: "is.null",
+        recipient_member_id: `eq.${member.id}`,
+        sender_member_id: `eq.${otherMember.id}`,
+      },
+    });
+  }
+
+  const membersById = new Map([
+    [member.id, member],
+    [otherMember.id, otherMember],
+  ]);
+  const blockFlags = getDirectMessageBlockFlags(blocks, member.id, otherMember.id);
+
+  return {
+    ...blockFlags,
+    member: publicDirectMessageMember(otherMember),
+    messages: messages.map((message) =>
+      publicDirectMessage(
+        message,
+        member.id,
+        membersById,
+        markedReadAt &&
+          message.sender_member_id === otherMember.id &&
+          message.recipient_member_id === member.id
+          ? markedReadAt
+          : undefined,
+      ),
+    ),
+  };
+}
+
+export async function createDirectMessage(
+  senderMemberId: string,
+  recipientMemberId: string,
+  body: string,
+) {
+  const [sender, recipient] = await Promise.all([
+    getMemberRowByNumber(senderMemberId),
+    getMemberRowByNumber(recipientMemberId),
+  ]);
+  const messageBody = normalizeDirectMessageBody(body);
+
+  if (!sender) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  if (!recipient || !messageBody) {
+    return { blocked: false, message: null, recipient: null };
+  }
+
+  await cleanupExpiredDirectMessages();
+
+  const blocks = await getDirectMessageBlocksBetween(sender.id, recipient.id);
+
+  if (blocks.length) {
+    return {
+      ...getDirectMessageBlockFlags(blocks, sender.id, recipient.id),
+      blocked: true,
+      message: null,
+      recipient: publicDirectMessageMember(recipient),
+    };
+  }
+
+  const rows = await supabaseRequest<DirectMessageRow[]>("direct_messages", {
+    body: {
+      body: messageBody,
+      expires_at: getDirectMessageExpiresAt(),
+      recipient_member_id: recipient.id,
+      sender_member_id: sender.id,
+    },
+    method: "POST",
+    prefer: "return=representation",
+    query: { select: "*" },
+  });
+  const membersById = new Map([
+    [sender.id, sender],
+    [recipient.id, recipient],
+  ]);
+
+  return {
+    blocked: false,
+    hasBlockedMe: false,
+    isBlockedByMe: false,
+    message: publicDirectMessage(rows[0], sender.id, membersById),
+    recipient: publicDirectMessageMember(recipient),
+  };
+}
+
+export async function setDirectMessageBlock(
+  blockerMemberId: string,
+  blockedMemberId: string,
+  blocked: boolean,
+) {
+  const [blocker, blockedMember] = await Promise.all([
+    getMemberRowByNumber(blockerMemberId),
+    getMemberRowByNumber(blockedMemberId),
+  ]);
+
+  if (!blocker) {
+    throw new BaySpaceStorageError("Authenticated member not found.");
+  }
+
+  if (!blockedMember || blocker.id === blockedMember.id) {
+    return null;
+  }
+
+  if (!blocked) {
+    await supabaseRequest<null>("direct_message_blocks", {
+      method: "DELETE",
+      query: {
+        blocked_member_id: `eq.${blockedMember.id}`,
+        blocker_member_id: `eq.${blocker.id}`,
+      },
+    });
+  } else {
+    const existingBlocks = await supabaseRequest<DirectMessageBlockRow[]>(
+      "direct_message_blocks",
+      {
+        query: {
+          blocked_member_id: `eq.${blockedMember.id}`,
+          blocker_member_id: `eq.${blocker.id}`,
+          select: "*",
+        },
+      },
+    );
+
+    if (!existingBlocks.length) {
+      await supabaseRequest<DirectMessageBlockRow[]>("direct_message_blocks", {
+        body: {
+          blocked_member_id: blockedMember.id,
+          blocker_member_id: blocker.id,
+        },
+        method: "POST",
+        prefer: "return=minimal",
+      });
+    }
+  }
+
+  const blocks = await getDirectMessageBlocksBetween(blocker.id, blockedMember.id);
+
+  return {
+    member: publicDirectMessageMember(blockedMember),
+    ...getDirectMessageBlockFlags(blocks, blocker.id, blockedMember.id),
   };
 }
 

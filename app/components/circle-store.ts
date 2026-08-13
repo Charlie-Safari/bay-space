@@ -244,6 +244,41 @@ export function isFollowingPersonalCircle(
   );
 }
 
+function uniqueCircleMembers(members: CircleMember[]) {
+  const seenMembers = new Set<string>();
+
+  return members.filter((member) => {
+    if (seenMembers.has(member.member)) {
+      return false;
+    }
+
+    seenMembers.add(member.member);
+    return true;
+  });
+}
+
+export function listPersonalCircleFollowers(profileMember: string) {
+  return uniqueCircleMembers(
+    readCircleState()
+      .personalFollows.filter((follow) => follow.profileMember === profileMember)
+      .map((follow) => ({
+        member: follow.followerMember,
+        name: follow.followerName,
+      })),
+  );
+}
+
+export function listPersonalCircleFollowing(followerMember: string) {
+  return uniqueCircleMembers(
+    readCircleState()
+      .personalFollows.filter((follow) => follow.followerMember === followerMember)
+      .map((follow) => ({
+        member: follow.profileMember,
+        name: follow.profileName,
+      })),
+  );
+}
+
 export function getMutualPersonalCircleConnections(memberId: string) {
   const follows = readCircleState().personalFollows;
   const outgoing = follows.filter((follow) => follow.followerMember === memberId);

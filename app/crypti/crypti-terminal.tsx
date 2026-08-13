@@ -2766,9 +2766,9 @@ export default function CryptiTerminal() {
               type="button"
               onClick={openCryptiBank}
               className="min-h-24 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-sm font-black tracking-[0.18em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open ✅💰 Fast Post"
+              aria-label="Open 🌀 PASTE & GO 🎢"
             >
-              <strong>✅💰</strong> Fast Post
+              🌀 PASTE &amp; GO 🎢
             </button>
             <a
               href={lazyAssistantUrl}

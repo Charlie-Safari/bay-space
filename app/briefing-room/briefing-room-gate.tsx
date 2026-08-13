@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import CirclesPanel from "./circles-panel";
+import InboxPanel from "./inbox-panel";
 import {
   FormEvent,
   useCallback,
@@ -65,6 +66,7 @@ import {
   cryptiAgreementHref,
   cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
+import { getPostTopicTags } from "../../lib/bay-space-tags";
 import TicketVoteCounter from "../components/ticket-vote-counter";
 import { openExternalBrowser } from "../components/open-external-browser";
 
@@ -143,6 +145,7 @@ type BriefingPanel =
   | "post"
   | "my-posts"
   | "favorites"
+  | "inbox"
   | "lazy-assistant"
   | "circles"
   | "exchange"
@@ -184,10 +187,12 @@ type ParsedBankPost = {
   body: string;
   category: BankPostCategory;
   dailyFoodCategory: string;
+  skepticDebunkEvidence: string;
   sources: string[];
   tags: string[];
   theoryCategory: string;
   title: string;
+  topicTags: string;
 };
 
 function isCryptiPost(post: BayPost) {
@@ -195,8 +200,8 @@ function isCryptiPost(post: BayPost) {
 }
 
 const postCategories: { id: PostCategory; label: string }[] = [
-  { id: "daily-food", label: "Daily food" },
-  { id: "theory", label: "Theory" },
+  { id: "daily-food", label: "Facts on News" },
+  { id: "theory", label: "Conspiracy" },
   { id: "library-submission", label: "Library submission" },
 ];
 
@@ -212,6 +217,7 @@ const optionRoomPanels: BriefingPanel[] = [
   "circles",
   "my-posts",
   "favorites",
+  "inbox",
   "lazy-assistant",
   "settings",
 ];
@@ -269,12 +275,12 @@ function getDailyFoodCategoryLabel(post: Pick<BayPost, "category" | "meta">) {
   const dailyFoodCategory = post.meta?.dailyFoodCategory;
 
   if (post.category !== "daily-food") {
-    return post.category.replace("-", " ");
+    return post.category === "theory" ? "Conspiracy" : post.category.replace("-", " ");
   }
 
   return typeof dailyFoodCategory === "string" && dailyFoodCategory
-    ? `Daily Food - ${dailyFoodCategory}`
-    : "Daily Food";
+    ? `Facts on News - ${dailyFoodCategory}`
+    : "Facts on News";
 }
 
 function limitWords(value: string, limit: number) {
@@ -306,8 +312,21 @@ function cleanBankUrl(value: string) {
   const duplicatedMarkdownUrl = normalizedUrl.match(
     /^(https?:\/\/.+)\]\(\1$/i,
   );
+  const url = duplicatedMarkdownUrl?.[1] ?? normalizedUrl;
 
-  return duplicatedMarkdownUrl?.[1] ?? normalizedUrl;
+  try {
+    const parsedUrl = new URL(url);
+
+    Array.from(parsedUrl.searchParams.keys()).forEach((key) => {
+      if (key.toLowerCase().startsWith("utm_")) {
+        parsedUrl.searchParams.delete(key);
+      }
+    });
+
+    return parsedUrl.toString();
+  } catch {
+    return url;
+  }
 }
 
 function extractBankUrls(value: string) {
@@ -315,7 +334,11 @@ function extractBankUrls(value: string) {
     value.matchAll(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/g),
     (match) => match[1],
   );
-  const urls = value.match(/https?:\/\/[^\s<>"']+/g) ?? [];
+  const valueWithoutMarkdownLinks = value.replace(
+    /\[[^\]]+\]\(https?:\/\/[^)\s]+\)/g,
+    "",
+  );
+  const urls = valueWithoutMarkdownLinks.match(/https?:\/\/[^\s<>"']+/g) ?? [];
 
   return Array.from(new Set([...markdownUrls, ...urls].map(cleanBankUrl)));
 }
@@ -342,9 +365,20 @@ function findBankCategoryLabel(value: string, labels: readonly string[]) {
   );
 }
 
+function extractBankCategoryLine(value: string) {
+  return value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i)?.[1] ?? "";
+}
+
+function hasBankCategoryScale(value: string, categoryTotal: number) {
+  const categoryLine = extractBankCategoryLine(value);
+
+  return new RegExp(`\\b\\d+\\s*/\\s*${categoryTotal}\\b`).test(
+    categoryLine || value,
+  );
+}
+
 function extractBankDailyFoodCategory(value: string) {
-  const categoryMatch = value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i);
-  const categoryLine = categoryMatch?.[1] ?? "";
+  const categoryLine = extractBankCategoryLine(value);
   const matchedCategory =
     findBankCategoryLabel(categoryLine, dailyFoodCategories) ||
     findBankCategoryLabel(value, dailyFoodCategories);
@@ -353,8 +387,7 @@ function extractBankDailyFoodCategory(value: string) {
 }
 
 function extractBankTheoryCategory(value: string) {
-  const categoryMatch = value.match(/(?:^|\n)\s*category\s*:\s*([^\n]+)/i);
-  const categoryLine = categoryMatch?.[1] ?? "";
+  const categoryLine = extractBankCategoryLine(value);
 
   return (
     findBankCategoryLabel(categoryLine, theoryCategories.map((category) => category.label)) ||
@@ -366,13 +399,18 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
   const normalizedValue = value.toLowerCase();
   const dailyFoodCategory = extractBankDailyFoodCategory(value);
   const theoryCategory = extractBankTheoryCategory(value);
+  const hasFactsCategoryScale = hasBankCategoryScale(value, 17);
+  const hasConspiracyCategoryScale = hasBankCategoryScale(value, 9);
   const dailyFoodSignals = [
-    /\bdaily\s*food\b/.test(normalizedValue),
-    dailyFoodCategory !== defaultDailyFoodCategory,
+    /\bfacts?(?:\s+on\s+news)?\b/.test(normalizedValue),
+    hasFactsCategoryScale,
+    /\btag\s*1\s*:/i.test(value) && /\bsource\s+link\s*:/i.test(value),
   ].filter(Boolean).length;
   const theorySignals = [
     /\b(?:conspiracy|theor(?:y|ies))\b/.test(normalizedValue),
-    Boolean(theoryCategory),
+    hasConspiracyCategoryScale,
+    /\bskeptic\s*(?:\/\s*)?debunk(?:\s+evidence)?\s*:/i.test(value),
+    Boolean(theoryCategory) && !hasFactsCategoryScale,
   ].filter(Boolean).length;
   const hasDailyFoodAccess = allowedCategories.includes("daily-food");
   const hasTheoryAccess = allowedCategories.includes("theory");
@@ -380,13 +418,13 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
   if (dailyFoodSignals && !theorySignals) {
     return hasDailyFoodAccess
       ? { category: "daily-food" as const, dailyFoodCategory, theoryCategory }
-      : { error: "daily food route unavailable for this account" };
+      : { error: "facts on news route unavailable for this account" };
   }
 
   if (theorySignals && !dailyFoodSignals) {
     return hasTheoryAccess
       ? { category: "theory" as const, dailyFoodCategory, theoryCategory }
-      : { error: "theory route unavailable for this account" };
+      : { error: "conspiracy route unavailable for this account" };
   }
 
   if (dailyFoodSignals && theorySignals) {
@@ -398,7 +436,7 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
       return { category: "daily-food" as const, dailyFoodCategory, theoryCategory };
     }
 
-    return { error: "post route unclear: daily food and theory signals found" };
+    return { error: "post route unclear: facts on news and conspiracy signals found" };
   }
 
   if (allowedCategories.length === 1) {
@@ -409,7 +447,7 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
     };
   }
 
-  return { error: "post route missing: include Daily Food or a theory category" };
+  return { error: "post route missing: include Facts on News or a Conspiracy category" };
 }
 
 function extractBankHeadline(value: string) {
@@ -431,10 +469,10 @@ function extractBankHeadline(value: string) {
 
     return (
       !/^https?:\/\//i.test(line) &&
-      !/^(daily\s*food|theor(?:y|ies)|conspiracy|top\s*story|library)[.!]?$/.test(
+      !/^(facts?(?:\s+on\s+news)?|daily\s*food|theor(?:y|ies)|conspiracy|top\s*story|library)[.!]?$/.test(
         normalizedLine,
       ) &&
-      !/^(next|sources?|source links?|details?|body|tags?)\b/.test(
+      !/^(next|sources?|source links?|details?|body|tags?|topic\s+tags?|category|links?)\b/.test(
         normalizedLine,
       ) &&
       !/^(?:[·*•-]\s*)?(?:for\s+)?tag\s*\d+\b/.test(normalizedLine)
@@ -472,9 +510,25 @@ function extractBankTagBlocks(value: string) {
 
 function extractBankSection(value: string, labels: string[]) {
   const labelPattern = labels.join("|");
+  const boundaryLabels = [
+    "headline",
+    "title",
+    "details?",
+    "body",
+    "theory",
+    "post",
+    "skeptic\\s*(?:/\\s*)?debunk\\s+link",
+    "skeptic\\s*(?:/\\s*)?debunk(?:\\s+evidence)?",
+    "links?",
+    "sources?",
+    "source(?:\\s+link)?",
+    "topic\\s+tags?",
+    "category",
+    "tag\\s*\\d+",
+  ].join("|");
   const sectionMatch = value.match(
     new RegExp(
-      `(?:^|\\n)\\s*(?:${labelPattern})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:headline|title|details?|body|tags?|sources?|source links?)\\s*:|$)`,
+      `(?:^|\\n)\\s*(?:${labelPattern})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:${boundaryLabels})\\s*:|$)`,
       "i",
     ),
   );
@@ -509,11 +563,44 @@ function stripBankSourceLines(value: string) {
       return (
         trimmedLine &&
         !/^https?:\/\//i.test(trimmedLine) &&
-        !/^(sources?|source links?)\s*:/.test(trimmedLine)
+        !/^(links?|sources?|source links?|skeptic\s*(?:\/\s*)?debunk\s+link)\s*:/.test(
+          trimmedLine,
+        )
       );
     })
     .join("\n")
     .trim();
+}
+
+function extractBankTopicTags(value: string) {
+  return cleanBankLine(
+    stripBankSourceText(extractBankSection(value, ["topic\\s+tags?"])),
+  );
+}
+
+function getBankConspiracyBody(value: string, fallbackBody: string) {
+  const bodySection = stripBankSourceLines(
+    extractBankSection(value, ["body", "theory", "post"]),
+  ).slice(0, 10000);
+  const skepticDebunkEvidence = stripBankSourceLines(
+    extractBankSection(value, [
+      "skeptic\\s*(?:/\\s*)?debunk(?:\\s+evidence)?",
+    ]),
+  );
+  const body = bodySection || stripBankSourceLines(fallbackBody).slice(0, 10000);
+
+  return {
+    body: [
+      body,
+      skepticDebunkEvidence
+        ? `SKEPTIC / DEBUNK EVIDENCE:\n${skepticDebunkEvidence}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 50000),
+    skepticDebunkEvidence,
+  };
 }
 
 function parseBankPostInput(
@@ -535,12 +622,14 @@ function parseBankPostInput(
     return { error: detectedCategory.error ?? "post route missing" };
   }
 
-  const title = extractBankHeadline(trimmedValue).slice(0, 75);
+  const title = extractBankHeadline(trimmedValue).slice(
+    0,
+    detectedCategory.category === "theory" ? 150 : 75,
+  );
   const sources = extractBankUrls(trimmedValue);
   const tagBlocks = extractBankTagBlocks(trimmedValue);
   const detailLines = tagBlocks.length ? tagBlocks : extractBankDetailLines(trimmedValue);
-  const tags = detailLines.map((tag) => tag.slice(0, 150)).slice(0, 3);
-  const bodySection = extractBankSection(trimmedValue, ["body", "theory", "post"]);
+  const tags = detailLines.map((tag) => tag.slice(0, 300)).slice(0, 3);
   const fallbackBody = tags.length
     ? tags.join("\n")
     : stripBankSourceLines(
@@ -548,25 +637,27 @@ function parseBankPostInput(
           .replace(/https?:\/\/[^\s<>"']+/g, "")
           .replace(/(?:headline|title)[\s\S]{0,120}?(?:with|:|-)\s*[\s\S]*?(?=\s+Confirm\b|\n|$)/i, ""),
       );
+  const conspiracyBody = getBankConspiracyBody(trimmedValue, fallbackBody);
   const body =
     detectedCategory.category === "daily-food"
       ? tags.join("\n")
-      : stripBankSourceLines(bodySection || fallbackBody).slice(0, 50000);
+      : conspiracyBody.body;
+  const topicTags = extractBankTopicTags(trimmedValue);
 
   if (!title) {
     return { error: "headline missing" };
   }
 
   if (detectedCategory.category === "daily-food" && !tags.length) {
-    return { error: "daily food details missing" };
+    return { error: "facts tags missing" };
   }
 
   if (detectedCategory.category === "theory" && !body) {
-    return { error: "theory body missing" };
+    return { error: "conspiracy body missing" };
   }
 
   if (detectedCategory.category === "theory" && !detectedCategory.theoryCategory) {
-    return { error: "theory category label missing" };
+    return { error: "conspiracy category label missing" };
   }
 
   return {
@@ -574,10 +665,12 @@ function parseBankPostInput(
       body,
       category: detectedCategory.category,
       dailyFoodCategory: detectedCategory.dailyFoodCategory,
+      skepticDebunkEvidence: conspiracyBody.skepticDebunkEvidence,
       sources,
       tags,
       theoryCategory: detectedCategory.theoryCategory,
       title,
+      topicTags,
     },
   };
 }
@@ -1520,7 +1613,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
       return {
         category: activePostCategory,
-        title: dailyFoodHeadline || "untitled daily food",
+        title: dailyFoodHeadline || "untitled facts post",
         body: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3]
           .filter(Boolean)
           .join("\n"),
@@ -1553,7 +1646,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     if (activePostCategory === "theory") {
       return {
         category: activePostCategory,
-        title: theoryHeadline || "untitled theory",
+        title: theoryHeadline || "untitled conspiracy",
         body: theoryPost,
         anonymous: canPostAnon,
         incognito: canPostIncognito,
@@ -1658,17 +1751,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     const author = resolvedMember || "unknown";
 
     if (parsedPost.category === "daily-food") {
-      const dateKey = getDateKey();
-      const dailyFoodOrder =
-        allPosts.filter(
-          (post) => post.category === "daily-food" && post.dateKey === dateKey,
-        ).length + 1;
       const tags = parsedPost.tags.slice(0, 3);
       const tagSources = tags.map((_, index) => parsedPost.sources[index] ?? "");
 
       return {
         category: "daily-food",
-        title: parsedPost.title || "untitled daily food",
+        title: parsedPost.title || "untitled facts post",
         body: tags.join("\n"),
         anonymous: false,
         incognito: false,
@@ -1676,24 +1764,25 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         meta: {
           tags,
           tagSources,
-          dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
           dailyFoodCategory: parsedPost.dailyFoodCategory,
-          dailyFoodOrder: dailyFoodOrder.toString(),
           sources: parsedPost.sources.filter(Boolean),
+          topicTags: parsedPost.topicTags,
         },
       };
     }
 
     return {
       category: "theory",
-      title: parsedPost.title || "untitled theory",
+      title: parsedPost.title || "untitled conspiracy",
       body: parsedPost.body,
       anonymous: false,
       incognito: false,
       author,
       meta: {
+        skepticDebunkEvidence: parsedPost.skepticDebunkEvidence,
         sources: parsedPost.sources.filter(Boolean),
         theoryCategory: parsedPost.theoryCategory,
+        topicTags: parsedPost.topicTags,
       },
     };
   }
@@ -2370,17 +2459,17 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               onClick={openPostWindow}
               className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
             >
-              new post
+              📝 NEW POST
             </button>
             {availableBankCategories.length ? (
               <button
                 type="button"
                 onClick={openLazyBank}
                 className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5"
-                aria-label="Open ✅💰 Fast Post"
-                title="✅💰 Fast Post"
+                aria-label="Open 🌀 PASTE & GO 🎢"
+                title="🌀 PASTE & GO 🎢"
               >
-                <strong>✅💰</strong> Fast Post
+                🌀 PASTE &amp; GO 🎢
               </button>
             ) : null}
             <a
@@ -2515,6 +2604,16 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               }`}
             >
               favorites
+            </button>
+            <button
+              onClick={() => setActivePanel("inbox")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "inbox"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              inbox
             </button>
             <button
               onClick={() => {
@@ -2657,6 +2756,23 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                           >
                             {source}
                           </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {getPostTopicTags(postPreview).length ? (
+                    <div className="mt-5 border-t border-[#1d7f12] pt-3">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                        TAGS
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {getPostTopicTags(postPreview).map((tag) => (
+                          <span
+                            key={tag}
+                            className="border border-[#1d7f12] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]"
+                          >
+                            {tag}
+                          </span>
                         ))}
                       </div>
                     </div>
@@ -2880,7 +2996,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 <div className="mt-6 grid gap-5">
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      rolling headline{" "}
+                      headline{" "}
                       <span className="text-xs text-[#7f9f78]">
                         ({75 - dailyFoodHeadline.length})
                       </span>
@@ -2992,7 +3108,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 <div className="mt-6 grid gap-5">
                   <label className="grid max-w-sm gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      categories
+                      conspiracy category
                     </span>
                     <select
                       value={theoryCategory}
@@ -3023,7 +3139,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                   </label>
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                      theory{" "}
+                      body{" "}
                       <span className="text-xs text-[#7f9f78]">
                         ({50000 - theoryPost.length})
                       </span>
@@ -3379,8 +3495,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
               {!activeFavoriteCategory ? (
                 <div className="mt-5 grid gap-3">
                   {[
-                    { id: "daily-food", label: "Daily Food" },
-                    { id: "theory", label: "Theories" },
+                    { id: "daily-food", label: "Facts on News" },
+                    { id: "theory", label: "Conspiracy" },
                     { id: "library-submission", label: "Library" },
                   ].map((category) => (
                     <button
@@ -3499,14 +3615,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     {lazyPostPreview.category === "daily-food" &&
                     typeof lazyPostPreview.meta?.dailyFoodCategory === "string" ? (
                       <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                        Daily Food - {lazyPostPreview.meta.dailyFoodCategory}
+                        Facts on News - {lazyPostPreview.meta.dailyFoodCategory}
                       </p>
                     ) : null}
                     {lazyPostPreview.category === "theory" &&
                     typeof lazyPostPreview.meta?.theoryCategory === "string" &&
                     lazyPostPreview.meta.theoryCategory ? (
                       <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                        Theories - {lazyPostPreview.meta.theoryCategory}
+                        Conspiracy - {lazyPostPreview.meta.theoryCategory}
                       </p>
                     ) : null}
                     <h2 className="mt-3 text-xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
@@ -3531,6 +3647,23 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                             >
                               {source}
                             </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {getPostTopicTags(lazyPostPreview).length ? (
+                      <div className="mt-5 border-t border-[#1d7f12] pt-3">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                          TAGS
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {getPostTopicTags(lazyPostPreview).map((tag) => (
+                            <span
+                              key={tag}
+                              className="border border-[#1d7f12] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]"
+                            >
+                              {tag}
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -3576,7 +3709,8 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                     </button>
                   </div>
                   <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
-                    Paste draft. Press ✅💰 or hit Enter; Thiago does the rest 😎𝌗
+                    Paste Thiago output from Conspiracy - Top 10, Facts - Top 10,
+                    or Fact Check. Press ✅💰 or hit Enter.
                   </p>
                   <textarea
                     aria-label="BaySpace Thiago money-bag intake"
@@ -3683,6 +3817,13 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 </div>
               )}
             </div>
+          ) : activePanel === "inbox" && savedMember ? (
+            <InboxPanel
+              member={{
+                member: savedMember.member,
+                name: savedMember.name,
+              }}
+            />
           ) : activePanel === "circles" && savedMember ? (
             <CirclesPanel
               member={{

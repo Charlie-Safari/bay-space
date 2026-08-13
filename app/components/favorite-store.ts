@@ -86,9 +86,17 @@ export async function getFavoriteAuthorIds() {
     return [];
   }
 
+  return getFavoriteAuthorIdsForMember(activeMemberId);
+}
+
+export function getFavoriteAuthorIdsForMember(memberId: string) {
+  if (!memberId) {
+    return [];
+  }
+
   try {
     return JSON.parse(
-      window.localStorage.getItem(getFavoriteAuthorsStorageKey(activeMemberId)) ??
+      window.localStorage.getItem(getFavoriteAuthorsStorageKey(memberId)) ??
         "[]",
     ) as string[];
   } catch {

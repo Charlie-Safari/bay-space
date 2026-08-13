@@ -76,7 +76,7 @@ export const baySpaceRoles: BaySpaceRole[] = [
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
-    description: "Can read Library in addition to Theories and News.",
+    description: "Can read Library in addition to Conspiracy and Facts on News.",
     id: "reader-ii",
     label: "Reader II",
     title: "Reader II",
@@ -108,7 +108,7 @@ export const baySpaceRoles: BaySpaceRole[] = [
     ],
     canUseAnonymous: true,
     canUseIncognito: true,
-    description: "Can post in Theories, Library, and News.",
+    description: "Can post in Conspiracy, Library, and Facts on News.",
     id: "poster-iii",
     label: "Poster III",
     title: "Poster III",
@@ -133,27 +133,27 @@ export const baySpaceRoles: BaySpaceRole[] = [
     canUseAnonymous: false,
     canUseIncognito: false,
     description:
-      "Can only post in Daily Food and Library. Anon and incog unavailable.",
+      "Can only post in Facts on News and Library. Anon and incog unavailable.",
     id: "influencer - daily food",
-    label: "Author/influencer - Daily Food",
-    title: "Author/influencer - Daily Food",
+    label: "Author/influencer - Facts on News",
+    title: "Author/influencer - Facts on News",
   },
   {
     allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Can only post in Theories and Library. Anon and incog available.",
+      "Can only post in Conspiracy and Library. Anon and incog available.",
     id: "influencer - theories",
-    label: "Author/influencer - Theories",
-    title: "Author/influencer - Theories",
+    label: "Author/influencer - Conspiracy",
+    title: "Author/influencer - Conspiracy",
   },
   {
     allowedCategories: ["daily-food", "theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Can post in Daily Food, Theories, and Library. Anon posts link to the user profile.",
+      "Can post in Facts on News, Conspiracy, and Library. Anon posts link to the user profile.",
     id: "bayo club",
     label: "Oracle",
     requiresBayoGate: true,
@@ -400,10 +400,19 @@ export function hasAcceptedCurrentCryptiAgreement(subject: PermissionSubject) {
   );
 }
 
+export function hasOwnedCryptiAccessBadges(subject: PermissionSubject) {
+  return (
+    typeof subject !== "string" &&
+    normalizeBayRank(subject?.rank) === "graduation" &&
+    getGateKeys(subject).includes("crypti-plus")
+  );
+}
+
 export function canAccessCrypti(subject: PermissionSubject) {
   return (
-    isCrypti(subject) &&
-    (isAdmin(subject) || hasAcceptedCurrentCryptiAgreement(subject))
+    isAdmin(subject) ||
+    hasOwnedCryptiAccessBadges(subject) ||
+    (isCrypti(subject) && hasAcceptedCurrentCryptiAgreement(subject))
   );
 }
 

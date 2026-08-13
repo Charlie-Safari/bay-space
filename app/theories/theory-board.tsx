@@ -27,6 +27,10 @@ import {
   getBaySpacePostPointTenths,
 } from "../../lib/bay-space-scoring";
 import { theoryCategories } from "../../lib/theory-categories";
+import {
+  getPostTopicTags,
+  getPostTopicTagSearchText,
+} from "../../lib/bay-space-tags";
 
 type SortMode = "az" | "date";
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
@@ -340,7 +344,17 @@ export default function TheoryBoard() {
           });
     const filteredPosts = searchWords.length
       ? authorFilteredPosts.filter((post) => {
-          const searchableText = `${post.title} ${post.body}`.toLowerCase();
+          const searchableText = [
+            post.title,
+            post.body,
+            getPostSources(post).join(" "),
+            typeof post.meta?.theoryCategory === "string"
+              ? post.meta.theoryCategory
+              : "",
+            getPostTopicTagSearchText(post),
+          ]
+            .join(" ")
+            .toLowerCase();
 
           return searchWords.every((word) => searchableText.includes(word));
         })
@@ -403,12 +417,12 @@ export default function TheoryBoard() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="search"
               className="bay-terminal-field w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm uppercase text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-              aria-label="Search Theories"
+              aria-label="Search Conspiracy"
             />
             <button
               type="submit"
               className="grid h-10 w-10 place-items-center border border-[#39ff14] text-xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Search Theories"
+              aria-label="Search Conspiracy"
             >
               🌀
             </button>
@@ -619,6 +633,23 @@ export default function TheoryBoard() {
                       </ol>
                     </section>
                   ) : null}
+                  {getPostTopicTags(post).length ? (
+                    <section className="mt-5 border-t border-[#1d7f12] pt-3">
+                      <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
+                        TAGS
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {getPostTopicTags(post).map((tag) => (
+                          <span
+                            key={tag}
+                            className="bay-terminal-copy border border-[#1d7f12] px-2 py-1 text-xs text-[#39ff14]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
                   <div className="mt-5">
                     <CopyPostLinkButton path={`/theories#post-${post.id}`} />
                   </div>
@@ -663,7 +694,7 @@ export default function TheoryBoard() {
         </div>
       ) : (
         <div className="bay-terminal-copy border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">
-          theory board awaiting submissions
+          conspiracy board awaiting submissions
         </div>
       )}
     </div>

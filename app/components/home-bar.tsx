@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MouseEvent, useEffect, useRef, useState } from "react";
-import { isCrypti } from "../../lib/bay-space-roles";
+import { canAccessCrypti } from "../../lib/bay-space-roles";
 import type { BayMember } from "../../lib/bay-space-types";
 import MemberLookup from "./member-lookup";
 import TerminalLoadingShell from "./terminal-loading-shell";
@@ -246,7 +246,7 @@ export default function HomeBar() {
     );
   }
 
-  const hasCryptiUnlock = isCrypti(activeMemberRecord);
+  const hasCryptiAccess = canAccessCrypti(activeMemberRecord);
 
   return (
     <>
@@ -266,7 +266,7 @@ export default function HomeBar() {
         className="border-b-2 border-[#39ff14] bg-black px-4 py-3 shadow-[0_0_22px_rgba(57,255,20,0.28)]"
       >
         <div className="mx-auto flex w-full max-w-sm flex-wrap items-center justify-center gap-2 md:max-w-6xl md:gap-3">
-          {hasCryptiUnlock
+          {hasCryptiAccess
             ? renderCryptiTab(
                 "order-1 w-full max-w-36 md:order-1 md:w-auto md:max-w-none",
               )

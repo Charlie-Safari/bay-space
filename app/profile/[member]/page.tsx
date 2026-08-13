@@ -210,13 +210,13 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">
                 <h2 className="text-sm font-black uppercase tracking-[0.16em]">
-                  Daily Food
+                  Facts on News
                 </h2>
                 <PostList posts={dailyFoodPosts} />
               </section>
               <section className="border border-[#1d7f12] bg-black p-4">
                 <h2 className="text-sm font-black uppercase tracking-[0.16em]">
-                  theories
+                  Conspiracy
                 </h2>
                 <PostList posts={theoryPosts} />
               </section>

@@ -19,7 +19,7 @@ export default async function CompletePage({ searchParams }: CompletePageProps) 
           reader online
         </h1>
         <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
-          you entered Bay Space as Reader. Explore theories and news, earn
+          you entered Bay Space as Reader. Explore Conspiracy and Facts on News, earn
           points, and climb toward Graduation.
         </p>
         <Link

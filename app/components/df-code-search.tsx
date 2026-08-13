@@ -18,10 +18,10 @@ export default function DfCodeSearch() {
 
   return (
     <DosCodeBox
-      ariaLabel="Open Daily Food code"
+      ariaLabel="Open Facts on News code"
       autoFocus
       id="df-code"
-      label="daily food code"
+      label="facts on news code"
       maxLength={7}
       onSubmitCode={openCode}
       shouldSubmitCode={(nextCode) => dfCodes.includes(nextCode.toLowerCase())}

@@ -108,7 +108,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   if (!post) {
     return (
       <div className="mt-10 max-w-3xl border-2 border-[#1d7f12] bg-black px-4 py-5 text-sm font-bold uppercase tracking-[0.16em] text-[#d7ffd0]">
-        diamond chamber awaiting daily food saves
+        diamond chamber awaiting facts saves
       </div>
     );
   }

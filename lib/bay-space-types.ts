@@ -45,6 +45,32 @@ export type BayPostTruthVoteSummary = {
   voteCount: number;
 };
 
+export type BayDirectMessageMember = {
+  member: string;
+  name: string;
+  refName: string;
+  title: string;
+};
+
+export type BayDirectMessage = {
+  body: string;
+  createdAt: string;
+  expiresAt: string;
+  id: string;
+  isMine: boolean;
+  readAt?: string;
+  recipientMember: string;
+  senderMember: string;
+};
+
+export type BayDirectConversation = {
+  hasBlockedMe: boolean;
+  isBlockedByMe: boolean;
+  latestMessage: BayDirectMessage;
+  member: BayDirectMessageMember;
+  unreadCount: number;
+};
+
 export type BayMember = {
   activeBayoCards: BayoCardId[];
   availablePoints: number;

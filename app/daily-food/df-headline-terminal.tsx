@@ -35,6 +35,10 @@ import {
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
+import {
+  getPostTopicTags,
+  getPostTopicTagSearchText,
+} from "../../lib/bay-space-tags";
 
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
 
@@ -383,23 +387,26 @@ export default function DfHeadlineTerminal({
   }
 
   function doesPostMatchLookup(post: BayPost) {
-    const normalizedTitle = normalizeLookupText(post.title);
-    const normalizedAuthorName = normalizeLookupText(getAuthorName(post));
-    const normalizedAuthorRef = normalizeLookupText(
-      members.find((member) => member.member === post.author)?.refName ?? "",
+    const authorRef =
+      members.find((member) => member.member === post.author)?.refName ?? "";
+    const searchableText = normalizeLookupText(
+      [
+        post.title,
+        post.body,
+        getAuthorName(post),
+        authorRef,
+        getMetaString(post, "dailyFoodCode"),
+        post.shelfCode ?? "",
+        getDailyFoodTags(post)
+          .map((tag) => tag.text)
+          .join(" "),
+        getPostSources(post).join(" "),
+        getDailyFoodCategoryLabel(post),
+        getPostTopicTagSearchText(post),
+      ].join(" "),
     );
-    const normalizedCode = normalizeLookupText(
-      getMetaString(post, "dailyFoodCode"),
-    );
-    const normalizedShelfCode = normalizeLookupText(post.shelfCode ?? "");
 
-    return [
-      normalizedTitle,
-      normalizedAuthorName,
-      normalizedAuthorRef,
-      normalizedCode,
-      normalizedShelfCode,
-    ].some((value) => value.includes(normalizedReferenceQuery));
+    return searchableText.includes(normalizedReferenceQuery);
   }
 
   function filterPostsByAuthorMode(filteredPosts: BayPost[]) {
@@ -645,7 +652,7 @@ export default function DfHeadlineTerminal({
                           setIsCategoryListLayout(event.target.checked)
                         }
                         className="peer sr-only"
-                        aria-label="Toggle Daily Food category list layout"
+                        aria-label="Toggle Facts on News category list layout"
                       />
                       <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
                     </label>
@@ -657,7 +664,7 @@ export default function DfHeadlineTerminal({
                       setSelectedDailyFoodCategory("");
                     }}
                     className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Close Daily Food categories"
+                    aria-label="Close Facts on News categories"
                   >
                     close
                   </button>
@@ -887,6 +894,23 @@ export default function DfHeadlineTerminal({
                 </ol>
               </section>
             ) : null}
+            {getPostTopicTags(displayedPost).length ? (
+              <section className="mt-5 border-t border-[#1d7f12] pt-3">
+                <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                  TAGS
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {getPostTopicTags(displayedPost).map((tag) => (
+                    <span
+                      key={tag}
+                      className="border border-[#1d7f12] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <CopyPostLinkButton path={getPostLinkPath(displayedPost)} />
               {getMetaString(displayedPost, "dailyFoodCode") ? (
@@ -939,7 +963,7 @@ export default function DfHeadlineTerminal({
               type="button"
               onClick={() => scrollList(-1)}
               className="w-fit border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-              aria-label="Scroll Daily Food posts up"
+              aria-label="Scroll Facts on News posts up"
             >
               ^
             </button>
@@ -1006,7 +1030,7 @@ export default function DfHeadlineTerminal({
               type="button"
               onClick={() => scrollList(1)}
               className="w-fit border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-              aria-label="Scroll Daily Food posts down"
+              aria-label="Scroll Facts on News posts down"
             >
               ⌄
             </button>

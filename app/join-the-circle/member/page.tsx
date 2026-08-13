@@ -36,7 +36,7 @@ export default async function CircleMember({ searchParams }: CircleMemberProps) 
             Rank: {defaultMemberTitle}
           </p>
           <p className="mt-3 text-xs font-black uppercase leading-6 tracking-[0.18em] text-[#7f9f78]">
-            Reader can read theories and news. Promotions unlock Library,
+            Reader can read Conspiracy and Facts on News. Promotions unlock Library,
             posting, Graduation, and the Bayo Coin exchange.
           </p>
           <PasswordConfirmForm

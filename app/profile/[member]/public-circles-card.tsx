@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BayCircle,
@@ -9,38 +11,79 @@ import {
   getActiveMember,
   isFollowingPersonalCircle,
   joinCircle,
-  listCirclesCreatedBy,
+  listCirclesForMember,
+  listPersonalCircleFollowers,
+  listPersonalCircleFollowing,
 } from "../../components/circle-store";
+import {
+  favoriteStoreEvent,
+  getFavoriteAuthorIdsForMember,
+} from "../../components/favorite-store";
 
 type PublicCirclesCardProps = {
   member: CircleMember;
 };
 
+type PublicCircleMember = CircleMember & {
+  label?: string;
+};
+
 export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const [activeMember, setActiveMember] = useState<CircleMember | null>(null);
-  const [circles, setCircles] = useState<BayCircle[]>([]);
+  const [memberCircles, setMemberCircles] = useState<BayCircle[]>([]);
+  const [followers, setFollowers] = useState<CircleMember[]>([]);
+  const [following, setFollowing] = useState<CircleMember[]>([]);
+  const [favoriteAuthors, setFavoriteAuthors] = useState<PublicCircleMember[]>(
+    [],
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileFollowed, setIsProfileFollowed] = useState(false);
   const [selectedCircleId, setSelectedCircleId] = useState("");
   const [accessCircleId, setAccessCircleId] = useState("");
   const [accessCode, setAccessCode] = useState("");
+  const [hasSyncedProfileControls, setHasSyncedProfileControls] =
+    useState(false);
   const [joinMessage, setJoinMessage] = useState("");
 
   const loadCircles = useCallback(async () => {
     const nextActiveMember = await getActiveMember();
-    const nextCircles = listCirclesCreatedBy(member.member);
+    const nextMemberCircles = listCirclesForMember(member.member);
+    const nextFollowers = listPersonalCircleFollowers(member.member);
+    const nextFollowing = listPersonalCircleFollowing(member.member);
+    const knownMembers = [
+      member,
+      ...nextFollowers,
+      ...nextFollowing,
+      ...nextMemberCircles.flatMap((circle) => circle.members),
+    ];
+    const nextFavoriteAuthors = getFavoriteAuthorIdsForMember(member.member).map(
+      (favoriteAuthorId) => {
+        const knownMember = knownMembers.find(
+          (candidate) => candidate.member === favoriteAuthorId,
+        );
+
+        return {
+          member: favoriteAuthorId,
+          name: knownMember?.name ?? favoriteAuthorId,
+          label: knownMember ? "" : "member",
+        };
+      },
+    );
 
     return {
       activeMember: nextActiveMember
         ? { member: nextActiveMember.member, name: nextActiveMember.name }
         : null,
-      circles: nextCircles,
+      favoriteAuthors: nextFavoriteAuthors,
+      followers: nextFollowers,
+      following: nextFollowing,
       isProfileFollowed: nextActiveMember
         ? isFollowingPersonalCircle(member.member, nextActiveMember.member)
         : false,
+      memberCircles: nextMemberCircles,
     };
-  }, [member.member]);
+  }, [member]);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,20 +96,26 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
       }
 
       setActiveMember(nextState.activeMember);
-      setCircles(nextState.circles);
+      setMemberCircles(nextState.memberCircles);
+      setFollowers(nextState.followers);
+      setFollowing(nextState.following);
+      setFavoriteAuthors(nextState.favoriteAuthors);
       setIsProfileFollowed(nextState.isProfileFollowed);
+      setHasSyncedProfileControls(true);
     }
 
     syncMountedCircles();
     window.addEventListener("storage", syncMountedCircles);
     window.addEventListener("bay-space-auth", syncMountedCircles);
     window.addEventListener(circleStoreEvent, syncMountedCircles);
+    window.addEventListener(favoriteStoreEvent, syncMountedCircles);
 
     return () => {
       isMounted = false;
       window.removeEventListener("storage", syncMountedCircles);
       window.removeEventListener("bay-space-auth", syncMountedCircles);
       window.removeEventListener(circleStoreEvent, syncMountedCircles);
+      window.removeEventListener(favoriteStoreEvent, syncMountedCircles);
     };
   }, [loadCircles]);
 
@@ -105,7 +154,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
 
     followPersonalCircle(member, activeMember);
     setIsProfileFollowed(true);
-    setJoinMessage("profile circle followed");
+    setJoinMessage("following");
   }
 
   function followCircle(circle: BayCircle, code = "") {
@@ -131,14 +180,48 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
     setAccessCode("");
   }
 
-  const publicCircles = circles.filter(
+  const publicCircles = memberCircles.filter(
     (circle) => circle.visibility === "public",
   );
-  const privateCircles = circles.filter(
+  const privateCircles = memberCircles.filter(
     (circle) => circle.visibility === "private",
   );
   const selectedCircle =
-    circles.find((circle) => circle.id === selectedCircleId) ?? null;
+    memberCircles.find((circle) => circle.id === selectedCircleId) ?? null;
+  const isOwnProfile = activeMember?.member === member.member;
+  const canViewSelectedCircle =
+    selectedCircle?.visibility === "public" ||
+    Boolean(
+      activeMember &&
+        selectedCircle?.members.some(
+          (circleMember) => circleMember.member === activeMember.member,
+        ),
+    );
+
+  function renderMemberList(memberList: PublicCircleMember[]) {
+    if (!memberList.length) {
+      return (
+        <p className="border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+          empty
+        </p>
+      );
+    }
+
+    return (
+      <div className="grid gap-2">
+        {memberList.map((listMember) => (
+          <Link
+            key={listMember.member}
+            href={`/profile/${listMember.member}`}
+            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          >
+            {listMember.name}
+            {listMember.label ? ` (${listMember.label})` : ""}
+          </Link>
+        ))}
+      </div>
+    );
+  }
 
   function renderCircleList(circleList: BayCircle[], locked: boolean) {
     if (!circleList.length) {
@@ -160,24 +243,38 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                 : "border-[#1d7f12] bg-[#001100]"
             }`}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCircleId(circle.id);
-                setAccessCircleId("");
-                setJoinMessage("");
-              }}
-              className={`block w-full text-left text-sm font-black uppercase tracking-[0.14em] transition focus:outline-none focus:ring-2 ${
-                locked
-                  ? "text-[#f5d76e] hover:text-[#fff2a8] focus:ring-[#f5d76e]"
-                  : "text-[#d7ffd0] hover:text-[#39ff14] focus:ring-[#d7ffd0]"
-              }`}
-            >
-              {locked ? "🔒 " : ""}
-              {circle.circleLogo ? `${circle.circleLogo} ` : ""}
-              {circle.name}
-              {circle.ownerMember === member.member ? " (FOUNDER)" : ""}
-            </button>
+            {locked ? (
+              <p className="text-sm font-black uppercase tracking-[0.14em] text-[#f5d76e]">
+                🔒 {circle.circleLogo ? `${circle.circleLogo} ` : ""}
+                {circle.name}
+                {circle.ownerMember === member.member ? " (FOUNDER)" : ""}
+              </p>
+            ) : (
+              <Link
+                href={`/circles/${encodeURIComponent(circle.id)}`}
+                className="block w-full text-left text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                {circle.circleLogo ? `${circle.circleLogo} ` : ""}
+                {circle.name}
+                {circle.ownerMember === member.member ? " (FOUNDER)" : ""}
+              </Link>
+            )}
+            <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+              {circle.ownerName} / {circle.visibility} circle
+            </p>
+            {locked ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCircleId(circle.id);
+                  setAccessCircleId("");
+                  setJoinMessage("");
+                }}
+                className="mt-3 border border-[#7f6d12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
+              >
+                Open private circle
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => followCircle(circle)}
@@ -217,6 +314,33 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
           </div>
         ))}
       </div>
+    );
+  }
+
+  function renderDropdown(
+    title: string,
+    content: ReactNode,
+    tone: "green" | "gold" = "green",
+  ) {
+    const isGold = tone === "gold";
+
+    return (
+      <details
+        className={`border px-3 py-3 ${
+          isGold ? "border-[#7f6d12] bg-[#140f00]" : "border-[#1d7f12] bg-black"
+        }`}
+      >
+        <summary
+          className={`cursor-pointer list-none text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 [&::-webkit-details-marker]:hidden ${
+            isGold
+              ? "text-[#f5d76e] hover:text-[#fff2a8] focus:ring-[#f5d76e]"
+              : "text-[#d7ffd0] hover:text-[#39ff14] focus:ring-[#d7ffd0]"
+          }`}
+        >
+          {title}
+        </summary>
+        <div className="mt-3">{content}</div>
+      </details>
     );
   }
 
@@ -278,21 +402,29 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                   : ""}
               </p>
               <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                <p>Circle owner: {member.name}</p>
-                <p>Visibility: {selectedCircle.visibility}</p>
-                <p>
-                  Join mode:{" "}
-                  {selectedCircle.joinMode === "invite"
-                    ? "invite only"
-                    : "anyone can join"}
-                </p>
-                <p>
-                  Group Description:{" "}
-                  {selectedCircle.groupDescription || "empty"}
-                </p>
-                <p>
-                  Circle theme: {selectedCircle.circleTheme || "empty"}
-                </p>
+                {canViewSelectedCircle ? (
+                  <>
+                    <p>Circle owner: {selectedCircle.ownerName}</p>
+                    <p>Visibility: {selectedCircle.visibility}</p>
+                    <p>
+                      Join mode:{" "}
+                      {selectedCircle.joinMode === "invite"
+                        ? "invite only"
+                        : "anyone can join"}
+                    </p>
+                    <p>
+                      Group Description:{" "}
+                      {selectedCircle.groupDescription || "empty"}
+                    </p>
+                    <p>
+                      Circle theme: {selectedCircle.circleTheme || "empty"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="border-l-2 border-[#f5d76e] pl-3 text-[#f5d76e]">
+                    Private circle access requires accepted membership.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => followCircle(selectedCircle)}
@@ -328,24 +460,38 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
           </div>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={followProfile}
-              disabled={!activeMember || activeMember.member === member.member}
-              className="w-full border border-[#39ff14] px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#1d7f12] disabled:hover:bg-black"
-            >
-              {isProfileFollowed ? "profile circle followed" : "Follow this profile"}
-            </button>
+            {hasSyncedProfileControls && !isOwnProfile ? (
+              <button
+                type="button"
+                onClick={followProfile}
+                disabled={isProfileFollowed}
+                className={`w-full border px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                  isProfileFollowed
+                    ? "border-[#39ff14] bg-[#39ff14] text-black"
+                    : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#1d7f12] disabled:hover:bg-black"
+                }`}
+              >
+                {isProfileFollowed ? "Following" : "Follow this user"}
+              </button>
+            ) : null}
 
-            <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-              Public Circles
-            </p>
-            <div className="mt-3">{renderCircleList(publicCircles, false)}</div>
-
-            <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#f5d76e]">
-              🔒 Private Circles
-            </p>
-            <div className="mt-3">{renderCircleList(privateCircles, true)}</div>
+            <div className="mt-5 grid gap-3">
+              {renderDropdown(
+                "Public Circles",
+                renderCircleList(publicCircles, false),
+              )}
+              {renderDropdown(
+                "Private Circles",
+                renderCircleList(privateCircles, true),
+                "gold",
+              )}
+              {renderDropdown("Followers", renderMemberList(followers))}
+              {renderDropdown("Following", renderMemberList(following))}
+              {renderDropdown(
+                "Favorite Authors",
+                renderMemberList(favoriteAuthors),
+              )}
+            </div>
           </>
         )}
 
