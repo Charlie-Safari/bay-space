@@ -36,6 +36,7 @@ import {
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
 import {
+  doPostTopicTagsIncludeTag,
   getPostTopicTags,
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
@@ -134,6 +135,32 @@ function getPostHashId() {
   return postId === window.location.hash ? "" : postId;
 }
 
+function getTopicTagParam() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return new URLSearchParams(window.location.search).get("tag") ?? "";
+}
+
+function getUrlWithoutTopicTag() {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  searchParams.delete("tag");
+
+  const queryString = searchParams.toString();
+
+  return `${window.location.pathname}${queryString ? `?${queryString}` : ""}`;
+}
+
+function getTopicTagUrl(tag: string) {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  searchParams.set("tag", tag);
+
+  return `${window.location.pathname}?${searchParams.toString()}`;
+}
+
 function normalizeLookupText(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -157,6 +184,7 @@ export default function DfHeadlineTerminal({
   const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
+  const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
   const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
@@ -353,12 +381,24 @@ export default function DfHeadlineTerminal({
       return nextDate > today ? today : nextDate;
     });
     setExpandedPostId("");
+    if (selectedTopicTag) {
+      clearTopicTag();
+    }
   }
 
   function getVisiblePosts() {
     const sortNewestFirst = (leftPost: BayPost, rightPost: BayPost) =>
       new Date(rightPost.createdAt).getTime() -
       new Date(leftPost.createdAt).getTime();
+
+    if (selectedTopicTag) {
+      return posts
+        .filter(
+          (post) =>
+            !post.incognito && doPostTopicTagsIncludeTag(post, selectedTopicTag),
+        )
+        .sort(sortNewestFirst);
+    }
 
     if (!isReferenceMode) {
       return filterPostsByAuthorMode(posts)
@@ -452,6 +492,23 @@ export default function DfHeadlineTerminal({
       behavior: "smooth",
       top: direction * 160,
     });
+  }
+
+  function clearTopicTag() {
+    setSelectedTopicTag("");
+    setExpandedPostId("");
+    setHashPostId("");
+    window.history.replaceState(null, "", getUrlWithoutTopicTag());
+  }
+
+  function openTopicTag(tag: string) {
+    setSelectedTopicTag(tag);
+    setExpandedPostId("");
+    setHashPostId("");
+    setIsCategoriesOpen(false);
+    setSelectedDailyFoodCategory("");
+    onClearReference();
+    window.history.replaceState(null, "", getTopicTagUrl(tag));
   }
 
   function getPostSources(post: BayPost) {
@@ -566,12 +623,13 @@ export default function DfHeadlineTerminal({
   function openCategoryPost(post: BayPost) {
     setExpandedPostId("");
     setHashPostId(post.id);
+    setSelectedTopicTag("");
     setIsCategoriesOpen(false);
     setSelectedDailyFoodCategory("");
     window.history.replaceState(
       null,
       "",
-      `${window.location.pathname}${window.location.search}#post-${post.id}`,
+      `${getUrlWithoutTopicTag()}#post-${post.id}`,
     );
   }
 
@@ -901,12 +959,14 @@ export default function DfHeadlineTerminal({
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {getPostTopicTags(displayedPost).map((tag) => (
-                    <span
+                    <button
                       key={tag}
-                      className="border border-[#1d7f12] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]"
+                      type="button"
+                      onClick={() => openTopicTag(tag)}
+                      className="border border-[#1d7f12] px-2 py-1 text-xs font-black uppercase tracking-[0.12em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                     >
                       {tag}
-                    </span>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -930,6 +990,20 @@ export default function DfHeadlineTerminal({
           </article>
         ) : activePosts.length ? (
           <div className="grid gap-3">
+            {selectedTopicTag ? (
+              <div className="flex flex-wrap items-center gap-3 border border-[#1d7f12] px-3 py-3">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                  TAG RESULTS : {selectedTopicTag}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearTopicTag}
+                  className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  clear tag
+                </button>
+              </div>
+            ) : null}
             {isLoggedIn || isReferenceMode ? (
               <div className="flex flex-wrap gap-2">
                 {isLoggedIn || isReferenceMemberMode ? (
@@ -1033,6 +1107,19 @@ export default function DfHeadlineTerminal({
               aria-label="Scroll Facts on News posts down"
             >
               ⌄
+            </button>
+          </div>
+        ) : selectedTopicTag ? (
+          <div className="grid gap-4">
+            <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              no facts posts match {selectedTopicTag}
+            </p>
+            <button
+              type="button"
+              onClick={clearTopicTag}
+              className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+            >
+              clear tag
             </button>
           </div>
         ) : isReferenceMode ? (

@@ -171,10 +171,14 @@ type PostDraft = {
   dailyFoodTag3: string;
   dailyFoodSource3: string;
   dailyFoodSourceOpen3: boolean;
+  dailyFoodSkepticDebunkEvidence: string;
+  dailyFoodSkepticDebunkSource: string;
+  dailyFoodSkepticDebunkSourceOpen: boolean;
   dailyFoodCategory: string;
   theoryCategory: string;
   theoryHeadline: string;
   theoryPost: string;
+  theorySkepticDebunkEvidence: string;
   theorySources: string[];
   libraryTitle: string;
   librarySubmission: string;
@@ -196,6 +200,75 @@ type ParsedBankPost = {
   title: string;
   topicTags: string;
 };
+
+function createBlankPostDraft(id: number, postCategory: PostCategory): PostDraft {
+  return {
+    id,
+    postCategory,
+    topStoryStep: 1,
+    ticker: "",
+    report: "",
+    sources: "",
+    sourceDrafts: [],
+    dailyFoodHeadline: "",
+    dailyFoodTag1: "",
+    dailyFoodSource1: "",
+    dailyFoodSourceOpen1: false,
+    dailyFoodTag2: "",
+    dailyFoodSource2: "",
+    dailyFoodSourceOpen2: false,
+    dailyFoodTag3: "",
+    dailyFoodSource3: "",
+    dailyFoodSourceOpen3: false,
+    dailyFoodSkepticDebunkEvidence: "",
+    dailyFoodSkepticDebunkSource: "",
+    dailyFoodSkepticDebunkSourceOpen: false,
+    dailyFoodCategory: defaultDailyFoodCategory,
+    theoryCategory: defaultTheoryCategory,
+    theoryHeadline: "",
+    theoryPost: "",
+    theorySkepticDebunkEvidence: "",
+    theorySources: ["", ""],
+    libraryTitle: "",
+    librarySubmission: "",
+    librarySources: ["", ""],
+    postAnonymously: false,
+    postIncognito: false,
+    incognitoShelfLabel: "",
+    isIncognitoShelfSet: false,
+  };
+}
+
+function normalizePostDraft(
+  draft: Partial<PostDraft>,
+  fallbackId: number,
+  postCategory: PostCategory,
+): PostDraft {
+  const normalizedDraft = {
+    ...createBlankPostDraft(
+      typeof draft.id === "number" ? draft.id : fallbackId,
+      postCategory,
+    ),
+    ...draft,
+  };
+
+  return {
+    ...normalizedDraft,
+    sourceDrafts: Array.isArray(normalizedDraft.sourceDrafts)
+      ? normalizedDraft.sourceDrafts
+      : [],
+    theorySources:
+      Array.isArray(normalizedDraft.theorySources) &&
+      normalizedDraft.theorySources.length
+        ? normalizedDraft.theorySources
+        : ["", ""],
+    librarySources:
+      Array.isArray(normalizedDraft.librarySources) &&
+      normalizedDraft.librarySources.length
+        ? normalizedDraft.librarySources
+        : ["", ""],
+  };
+}
 
 function isCryptiPost(post: BayPost) {
   return post.meta?.cryptiPost === "true";
@@ -782,12 +855,24 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const [dailyFoodTag3, setDailyFoodTag3] = useState("");
   const [dailyFoodSource3, setDailyFoodSource3] = useState("");
   const [dailyFoodSourceOpen3, setDailyFoodSourceOpen3] = useState(false);
+  const [
+    dailyFoodSkepticDebunkEvidence,
+    setDailyFoodSkepticDebunkEvidence,
+  ] = useState("");
+  const [dailyFoodSkepticDebunkSource, setDailyFoodSkepticDebunkSource] =
+    useState("");
+  const [
+    dailyFoodSkepticDebunkSourceOpen,
+    setDailyFoodSkepticDebunkSourceOpen,
+  ] = useState(false);
   const [dailyFoodCategory, setDailyFoodCategory] = useState(
     defaultDailyFoodCategory,
   );
   const [theoryCategory, setTheoryCategory] = useState(defaultTheoryCategory);
   const [theoryHeadline, setTheoryHeadline] = useState("");
   const [theoryPost, setTheoryPost] = useState("");
+  const [theorySkepticDebunkEvidence, setTheorySkepticDebunkEvidence] =
+    useState("");
   const [theorySources, setTheorySources] = useState(["", ""]);
   const [libraryTitle, setLibraryTitle] = useState("");
   const [librarySubmission, setLibrarySubmission] = useState("");
@@ -803,9 +888,11 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
   const availablePostCategories = postCategories.filter((category) =>
     allowedPostCategories.includes(category.id),
   );
+  const defaultPostDraftCategory =
+    availablePostCategories[0]?.id ?? "library-submission";
   const activePostCategory = allowedPostCategories.includes(postCategory)
     ? postCategory
-    : availablePostCategories[0]?.id ?? "library-submission";
+    : defaultPostDraftCategory;
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
   const isAdminMember = canAccessAdminAnalytics(savedMember);
@@ -845,10 +932,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             dailyFoodTag3,
             dailyFoodSource3,
             dailyFoodSourceOpen3,
+            dailyFoodSkepticDebunkEvidence,
+            dailyFoodSkepticDebunkSource,
+            dailyFoodSkepticDebunkSourceOpen,
             dailyFoodCategory,
             theoryCategory,
             theoryHeadline,
             theoryPost,
+            theorySkepticDebunkEvidence,
             theorySources,
             libraryTitle,
             librarySubmission,
@@ -867,40 +958,6 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       0,
     ) + 1;
   const openDraftsJson = JSON.stringify(openDrafts);
-
-  function createBlankDraft(id: number): PostDraft {
-    return {
-      id,
-      postCategory: availablePostCategories[0]?.id ?? "library-submission",
-      topStoryStep: 1,
-      ticker: "",
-      report: "",
-      sources: "",
-      sourceDrafts: [],
-      dailyFoodHeadline: "",
-      dailyFoodTag1: "",
-      dailyFoodSource1: "",
-      dailyFoodSourceOpen1: false,
-      dailyFoodTag2: "",
-      dailyFoodSource2: "",
-      dailyFoodSourceOpen2: false,
-      dailyFoodTag3: "",
-      dailyFoodSource3: "",
-      dailyFoodSourceOpen3: false,
-      dailyFoodCategory: defaultDailyFoodCategory,
-      theoryCategory: defaultTheoryCategory,
-      theoryHeadline: "",
-      theoryPost: "",
-      theorySources: ["", ""],
-      libraryTitle: "",
-      librarySubmission: "",
-      librarySources: ["", ""],
-      postAnonymously: false,
-      postIncognito: false,
-      incognitoShelfLabel: "",
-      isIncognitoShelfSet: false,
-    };
-  }
 
   function getCurrentDraft(): PostDraft | null {
     if (!activeDraftId) {
@@ -925,10 +982,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
       dailyFoodTag3,
       dailyFoodSource3,
       dailyFoodSourceOpen3,
+      dailyFoodSkepticDebunkEvidence,
+      dailyFoodSkepticDebunkSource,
+      dailyFoodSkepticDebunkSourceOpen,
       dailyFoodCategory,
       theoryCategory,
       theoryHeadline,
       theoryPost,
+      theorySkepticDebunkEvidence,
       theorySources,
       libraryTitle,
       librarySubmission,
@@ -958,10 +1019,18 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodTag3(draft.dailyFoodTag3);
     setDailyFoodSource3(draft.dailyFoodSource3);
     setDailyFoodSourceOpen3(draft.dailyFoodSourceOpen3);
+    setDailyFoodSkepticDebunkEvidence(
+      draft.dailyFoodSkepticDebunkEvidence ?? "",
+    );
+    setDailyFoodSkepticDebunkSource(draft.dailyFoodSkepticDebunkSource ?? "");
+    setDailyFoodSkepticDebunkSourceOpen(
+      Boolean(draft.dailyFoodSkepticDebunkSourceOpen),
+    );
     setDailyFoodCategory(draft.dailyFoodCategory || defaultDailyFoodCategory);
     setTheoryCategory(draft.theoryCategory || defaultTheoryCategory);
     setTheoryHeadline(draft.theoryHeadline);
     setTheoryPost(draft.theoryPost);
+    setTheorySkepticDebunkEvidence(draft.theorySkepticDebunkEvidence ?? "");
     setTheorySources(
       Array.isArray(draft.theorySources) && draft.theorySources.length
         ? draft.theorySources
@@ -1353,11 +1422,19 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     try {
-      const drafts = JSON.parse(savedDrafts) as PostDraft[];
+      const drafts = JSON.parse(savedDrafts) as Partial<PostDraft>[];
 
       if (Array.isArray(drafts)) {
         loadDraftsFrame = window.requestAnimationFrame(() => {
-          setMinimizedDrafts(drafts);
+          setMinimizedDrafts(
+            drafts.map((draft, index) =>
+              normalizePostDraft(
+                draft,
+                index + 1,
+                defaultPostDraftCategory,
+              ),
+            ),
+          );
         });
       }
     } catch {
@@ -1371,7 +1448,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         window.cancelAnimationFrame(loadDraftsFrame);
       }
     };
-  }, [isUnlocked, resolvedMember]);
+  }, [defaultPostDraftCategory, isUnlocked, resolvedMember]);
 
   useEffect(() => {
     if (!resolvedMember || !isUnlocked) {
@@ -1498,7 +1575,10 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     }
 
     const currentDraft = getCurrentDraft();
-    const newDraft = createBlankDraft(nextDraftId);
+    const newDraft = createBlankPostDraft(
+      nextDraftId,
+      defaultPostDraftCategory,
+    );
     setMinimizedDrafts((drafts) =>
       currentDraft ? [...drafts, currentDraft] : drafts,
     );
@@ -1613,13 +1693,28 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
         allPosts.filter(
           (post) => post.category === "daily-food" && post.dateKey === dateKey,
         ).length + 1;
+      const dailyFoodEntries = [
+        { source: dailyFoodSource1, text: dailyFoodTag1 },
+        { source: dailyFoodSource2, text: dailyFoodTag2 },
+        { source: dailyFoodSource3, text: dailyFoodTag3 },
+        {
+          source: dailyFoodSkepticDebunkSource,
+          text: dailyFoodSkepticDebunkEvidence,
+        },
+      ]
+        .map((entry) => ({
+          source: entry.source.trim(),
+          text: entry.text.trim(),
+        }))
+        .filter((entry) => entry.text);
+      const dailyFoodSourceList = dailyFoodEntries
+        .map((entry) => entry.source)
+        .filter(Boolean);
 
       return {
         category: activePostCategory,
         title: dailyFoodHeadline || "untitled facts post",
-        body: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3]
-          .filter(Boolean)
-          .join("\n"),
+        body: dailyFoodEntries.map((entry) => entry.text).join("\n"),
         anonymous: canPostAnon,
         incognito: canPostIncognito,
         author,
@@ -1628,29 +1723,43 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           ? normalizeShelfLabel(incognitoShelfLabel)
           : undefined,
         meta: {
-          tags: [dailyFoodTag1, dailyFoodTag2, dailyFoodTag3],
-          tagSources: [
-            dailyFoodSource1,
-            dailyFoodSource2,
-            dailyFoodSource3,
-          ],
+          tags: dailyFoodEntries.map((entry) => entry.text),
+          tagSources: dailyFoodEntries.map((entry) => entry.source),
           dailyFoodCode: formatDailyFoodCode(dateKey, dailyFoodOrder),
           dailyFoodCategory,
           dailyFoodOrder: dailyFoodOrder.toString(),
-          sources: [
-            dailyFoodSource1,
-            dailyFoodSource2,
-            dailyFoodSource3,
-          ].filter(Boolean),
+          sources: dailyFoodSourceList,
+          ...(dailyFoodSkepticDebunkEvidence.trim()
+            ? {
+                skepticDebunkEvidence: dailyFoodSkepticDebunkEvidence.trim(),
+              }
+            : {}),
+          ...(dailyFoodSkepticDebunkSource.trim()
+            ? {
+                skepticDebunkSources: [
+                  dailyFoodSkepticDebunkSource.trim(),
+                ],
+              }
+            : {}),
         },
       };
     }
 
     if (activePostCategory === "theory") {
+      const skepticDebunkEvidence = theorySkepticDebunkEvidence.trim();
+      const theoryBody = [
+        theoryPost,
+        skepticDebunkEvidence
+          ? `SKEPTIC / DEBUNK EVIDENCE:\n${skepticDebunkEvidence}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
       return {
         category: activePostCategory,
         title: theoryHeadline || "untitled conspiracy",
-        body: theoryPost,
+        body: theoryBody,
         anonymous: canPostAnon,
         incognito: canPostIncognito,
         author,
@@ -1660,6 +1769,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           : undefined,
         meta: {
           sources: theorySources.map((source) => source.trim()).filter(Boolean),
+          ...(skepticDebunkEvidence ? { skepticDebunkEvidence } : {}),
           theoryCategory,
         },
       };
@@ -1894,7 +2004,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setMinimizedDrafts(nextDrafts);
     saveOpenPostDrafts(nextDrafts);
     setActivePanel("id-card");
-    setPostCategory(availablePostCategories[0]?.id ?? "library-submission");
+    setPostCategory(defaultPostDraftCategory);
     setTopStoryStep(1);
     setTicker("");
     setReport("");
@@ -1910,10 +2020,14 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
     setDailyFoodTag3("");
     setDailyFoodSource3("");
     setDailyFoodSourceOpen3(false);
+    setDailyFoodSkepticDebunkEvidence("");
+    setDailyFoodSkepticDebunkSource("");
+    setDailyFoodSkepticDebunkSourceOpen(false);
     setDailyFoodCategory(defaultDailyFoodCategory);
     setTheoryCategory(defaultTheoryCategory);
     setTheoryHeadline("");
     setTheoryPost("");
+    setTheorySkepticDebunkEvidence("");
     setTheorySources(["", ""]);
     setLibraryTitle("");
     setLibrarySubmission("");
@@ -2456,30 +2570,12 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
           briefing room
         </h1>
         {isUnlocked && canCreatePosts ? (
-          <div className="flex w-fit flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={openPostWindow}
-              className="w-fit border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              📝 NEW POST
-            </button>
-            {availableBankCategories.length ? (
-              <button
-                type="button"
-                onClick={openLazyBank}
-                className="w-fit border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:px-5"
-                aria-label="Open 🌀 PASTE & GO 🎢"
-                title="🌀 PASTE & GO 🎢"
-              >
-                🌀 PASTE &amp; GO 🎢
-              </button>
-            ) : null}
+          <div className="grid w-full gap-3 sm:w-fit sm:grid-cols-[repeat(3,max-content)] sm:items-center">
             <a
               href={lazyPostGptUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-[52px] items-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:justify-start"
               aria-label="Open Find A Story"
               title="Find A Story"
             >
@@ -2494,6 +2590,24 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                 Find A Story
               </span>
             </a>
+            {availableBankCategories.length ? (
+              <button
+                type="button"
+                onClick={openLazyBank}
+                className="min-h-[52px] w-full border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:px-5"
+                aria-label="Open 🌀 PASTE & GO 🎢"
+                title="🌀 PASTE & GO 🎢"
+              >
+                🌀 PASTE &amp; GO 🎢
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={openPostWindow}
+              className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
+            >
+              📝 START FROM SCRATCH
+            </button>
           </div>
         ) : null}
       </div>
@@ -3027,7 +3141,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
                   {[
                     {
-                      label: "tag 1",
+                      label: "Supporting summary 1",
                       value: dailyFoodTag1,
                       setValue: setDailyFoodTag1,
                       source: dailyFoodSource1,
@@ -3036,7 +3150,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       setSourceOpen: setDailyFoodSourceOpen1,
                     },
                     {
-                      label: "tag 2",
+                      label: "Supporting summary 2",
                       value: dailyFoodTag2,
                       setValue: setDailyFoodTag2,
                       source: dailyFoodSource2,
@@ -3045,7 +3159,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       setSourceOpen: setDailyFoodSourceOpen2,
                     },
                     {
-                      label: "tag 3",
+                      label: "Supporting summary 3",
                       value: dailyFoodTag3,
                       setValue: setDailyFoodTag3,
                       source: dailyFoodSource3,
@@ -3096,6 +3210,49 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       )}
                     </div>
                   ))}
+                  <div className="grid gap-3">
+                    <label className="grid gap-2">
+                      <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                        SKEPTIC, DEBUNK, ANTI-THESIS [optional]{" "}
+                        <span className="text-xs text-[#7f9f78]">
+                          ({1000 - dailyFoodSkepticDebunkEvidence.length})
+                        </span>
+                      </span>
+                      <textarea
+                        value={dailyFoodSkepticDebunkEvidence}
+                        onChange={(event) =>
+                          setDailyFoodSkepticDebunkEvidence(
+                            event.target.value.slice(0, 1000),
+                          )
+                        }
+                        onInput={(event) => expandTextarea(event.currentTarget)}
+                        rows={1}
+                        className="min-h-[3rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      />
+                    </label>
+                    {dailyFoodSkepticDebunkSourceOpen ? (
+                      <label className="grid gap-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                          Source - link
+                        </span>
+                        <input
+                          value={dailyFoodSkepticDebunkSource}
+                          onChange={(event) =>
+                            setDailyFoodSkepticDebunkSource(event.target.value)
+                          }
+                          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                        />
+                      </label>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setDailyFoodSkepticDebunkSourceOpen(true)}
+                        className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                      >
+                        ADD SOURCE
+                      </button>
+                    )}
+                  </div>
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                       category
@@ -3161,6 +3318,25 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       value={theoryPost}
                       onChange={(event) =>
                         setTheoryPost(event.target.value.slice(0, 50000))
+                      }
+                      onInput={(event) => expandTextarea(event.currentTarget)}
+                      rows={1}
+                      className="min-h-[3rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      SKEPTIC / DEBUNK EVIDENCE (1000) - [optional]{" "}
+                      <span className="text-xs text-[#7f9f78]">
+                        ({1000 - theorySkepticDebunkEvidence.length})
+                      </span>
+                    </span>
+                    <textarea
+                      value={theorySkepticDebunkEvidence}
+                      onChange={(event) =>
+                        setTheorySkepticDebunkEvidence(
+                          event.target.value.slice(0, 1000),
+                        )
                       }
                       onInput={(event) => expandTextarea(event.currentTarget)}
                       rows={1}
@@ -3297,7 +3473,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
                       />
                       Incog
                       <span className="text-[0.65rem] tracking-[0.12em] text-[#7f9f78]">
-                        wont show up on public page
+                        WONT BE LISTED ON YOUR PROFILE
                       </span>
                     </label>
                   ) : null}

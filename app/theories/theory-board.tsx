@@ -28,6 +28,7 @@ import {
 } from "../../lib/bay-space-scoring";
 import { theoryCategories } from "../../lib/theory-categories";
 import {
+  doPostTopicTagsIncludeTag,
   getPostTopicTags,
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
@@ -49,6 +50,32 @@ function getPostHashId() {
   const postId = window.location.hash.replace(/^#post-/, "");
 
   return postId === window.location.hash ? "" : postId;
+}
+
+function getTopicTagParam() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return new URLSearchParams(window.location.search).get("tag") ?? "";
+}
+
+function getUrlWithoutTopicTag() {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  searchParams.delete("tag");
+
+  const queryString = searchParams.toString();
+
+  return `${window.location.pathname}${queryString ? `?${queryString}` : ""}`;
+}
+
+function getTopicTagUrl(tag: string) {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  searchParams.set("tag", tag);
+
+  return `${window.location.pathname}?${searchParams.toString()}`;
 }
 
 function getPostSources(post: BayPost) {
@@ -97,6 +124,7 @@ export default function TheoryBoard() {
     Record<string, number>
   >({});
   const [openPostId, setOpenPostId] = useState(getPostHashId);
+  const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
   const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(false);
@@ -189,6 +217,9 @@ export default function TheoryBoard() {
   useEffect(() => {
     function syncPostHash() {
       const postId = getPostHashId();
+      const topicTag = getTopicTagParam();
+
+      setSelectedTopicTag(topicTag);
 
       if (postId) {
         setOpenPostId(postId);
@@ -284,8 +315,25 @@ export default function TheoryBoard() {
     window.history.replaceState(
       null,
       "",
-      `${window.location.pathname}${window.location.search}`,
+      selectedTopicTag ? getTopicTagUrl(selectedTopicTag) : getUrlWithoutTopicTag(),
     );
+  }
+
+  function clearTopicTag() {
+    setSelectedTopicTag("");
+    setOpenPostId("");
+    window.history.replaceState(null, "", getUrlWithoutTopicTag());
+  }
+
+  function openTopicTag(tag: string) {
+    setSelectedTopicTag(tag);
+    setOpenPostId("");
+    setIsCategoriesOpen(false);
+    setSelectedTheoryCategory("");
+    setQuery("");
+    setAuthorFilter("all");
+    setSortMode("date");
+    window.history.replaceState(null, "", getTopicTagUrl(tag));
   }
 
   function isPostRevealed() {
@@ -315,6 +363,16 @@ export default function TheoryBoard() {
   }
 
   const sortedPosts = useMemo(() => {
+    if (selectedTopicTag) {
+      return posts
+        .filter((post) => doPostTopicTagsIncludeTag(post, selectedTopicTag))
+        .sort(
+          (leftPost, rightPost) =>
+            new Date(rightPost.createdAt).getTime() -
+            new Date(leftPost.createdAt).getTime(),
+        );
+    }
+
     const searchWords = query
       .trim()
       .toLowerCase()
@@ -370,7 +428,15 @@ export default function TheoryBoard() {
         new Date(leftPost.createdAt).getTime()
       );
     });
-  }, [authorFilter, favoriteAuthorIds, members, posts, query, sortMode]);
+  }, [
+    authorFilter,
+    favoriteAuthorIds,
+    members,
+    posts,
+    query,
+    selectedTopicTag,
+    sortMode,
+  ]);
 
   return (
     <div className="mt-10 grid max-w-4xl gap-6">
@@ -535,6 +601,20 @@ export default function TheoryBoard() {
 
       {sortedPosts.length ? (
         <div className="grid gap-3">
+          {selectedTopicTag ? (
+            <div className="flex flex-wrap items-center gap-3 border border-[#1d7f12] px-3 py-3">
+              <p className="bay-terminal-copy text-xs text-[#d7ffd0]">
+                TAG RESULTS : {selectedTopicTag}
+              </p>
+              <button
+                type="button"
+                onClick={clearTopicTag}
+                className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                clear tag
+              </button>
+            </div>
+          ) : null}
           {sortedPosts.map((post) => {
             const postScore = formatPointTenths(
               getBaySpacePostPointTenths(post, favoritePostCounts),
@@ -546,8 +626,8 @@ export default function TheoryBoard() {
               id={`post-${post.id}`}
               className={`theory-card relative bg-black px-4 py-4 ${
                 openPostId === post.id
-                  ? "border-2 border-[#39ff14] bg-[#020402] shadow-[0_0_18px_rgba(57,255,20,0.2)]"
-                  : "border-2 border-[#1d7f12]"
+                ? "border-2 border-[#39ff14] bg-[#020402] shadow-[0_0_18px_rgba(57,255,20,0.2)]"
+                : "border-2 border-[#1d7f12]"
               }`}
             >
               {openPostId === post.id ? (
@@ -640,12 +720,14 @@ export default function TheoryBoard() {
                       </h3>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {getPostTopicTags(post).map((tag) => (
-                          <span
+                          <button
                             key={tag}
-                            className="bay-terminal-copy border border-[#1d7f12] px-2 py-1 text-xs text-[#39ff14]"
+                            type="button"
+                            onClick={() => openTopicTag(tag)}
+                            className="bay-terminal-copy border border-[#1d7f12] px-2 py-1 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                           >
                             {tag}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     </section>
@@ -691,6 +773,17 @@ export default function TheoryBoard() {
             </article>
             );
           })}
+        </div>
+      ) : selectedTopicTag ? (
+        <div className="bay-terminal-copy grid gap-4 border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">
+          <p>no conspiracy posts match {selectedTopicTag}</p>
+          <button
+            type="button"
+            onClick={clearTopicTag}
+            className="w-fit border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          >
+            clear tag
+          </button>
         </div>
       ) : (
         <div className="bay-terminal-copy border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">

@@ -22,6 +22,15 @@ function topicTagSearchText(tag: string) {
     .trim();
 }
 
+export function getPostTopicTagKey(tag: string) {
+  return cleanTopicTag(tag)
+    .replace(/^#/, "")
+    .replace(/[+_-]+/g, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 function normalizeSearchPhrase(value: string) {
   return value
     .toLowerCase()
@@ -81,4 +90,15 @@ export function getMatchingPostTopicTags(post: TopicTagPost, query: string) {
       queryWords.every((word) => tagSearchText.includes(word))
     );
   });
+}
+
+export function doPostTopicTagsIncludeTag(post: TopicTagPost, tag: string) {
+  const tagKey = getPostTopicTagKey(tag);
+
+  return Boolean(
+    tagKey &&
+      getPostTopicTags(post).some(
+        (candidateTag) => getPostTopicTagKey(candidateTag) === tagKey,
+      ),
+  );
 }
