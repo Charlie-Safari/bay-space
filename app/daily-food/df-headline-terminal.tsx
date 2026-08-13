@@ -1066,7 +1066,7 @@ export default function DfHeadlineTerminal({
                     className="block w-full origin-left text-left transition duration-150 group-hover:scale-[1.015] group-hover:bg-[#031403] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
                     <span
-                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-right text-base font-black uppercase leading-6 tracking-[0.12em] transition sm:text-xl sm:leading-7 ${
+                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-left text-base font-black uppercase leading-6 tracking-[0.12em] transition sm:text-xl sm:leading-7 ${
                         isPostRevealed(post)
                           ? "daily-food-headline-revealed"
                           : ""
@@ -1148,48 +1148,52 @@ export default function DfHeadlineTerminal({
 
       <aside
         aria-label="Facts on News timeline"
-        className="justify-self-start lg:justify-self-end"
+        className="w-full justify-self-stretch lg:w-auto lg:justify-self-end"
       >
-        <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">
+        <div className="flex w-full items-center gap-3 text-[#39ff14] lg:w-28 lg:flex-col">
           {canMoveForward ? (
             <button
               type="button"
               onClick={() => moveDate(1)}
-              className="border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+              className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[#1d7f12] text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black lg:h-auto lg:w-auto lg:px-3 lg:py-1"
               aria-label="Move timeline forward one day"
             >
-              ^
+              <span className="lg:hidden">←</span>
+              <span className="hidden lg:inline">^</span>
             </button>
-          ) : null}
-          <div className="flex h-24 flex-col items-center justify-center gap-3">
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+          ) : (
+            <span className="h-10 w-10 shrink-0 lg:hidden" aria-hidden="true" />
+          )}
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 lg:h-24 lg:flex-none lg:flex-col lg:gap-3">
+            <span className="whitespace-nowrap text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {nextTimelineDate <= today
                 ? formatTimelineDate(nextTimelineDate)
                 : "current"}
             </span>
-            <span className="h-12 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
+            <span className="h-px min-w-6 flex-1 bg-[#39ff14] shadow-[0_0_12px_#39ff14] lg:h-12 lg:w-px lg:min-w-0 lg:flex-none" />
           </div>
-          <div className="text-center">
+          <div className="shrink-0 text-center">
             <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
               {formatMonth(activeDate)}
             </div>
-            <div className="mt-1 text-5xl font-black leading-none [text-shadow:0_0_14px_#39ff14]">
+            <div className="mt-1 text-4xl font-black leading-none [text-shadow:0_0_14px_#39ff14] lg:text-5xl">
               {activeDate.getDate()}
             </div>
           </div>
-          <div className="flex h-24 flex-col items-center justify-center gap-3">
-            <span className="h-12 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
-            <span className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 lg:h-24 lg:flex-none lg:flex-col lg:gap-3">
+            <span className="h-px min-w-6 flex-1 bg-[#39ff14] shadow-[0_0_12px_#39ff14] lg:h-12 lg:w-px lg:min-w-0 lg:flex-none" />
+            <span className="whitespace-nowrap text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimelineDate(previousTimelineDate)}
             </span>
           </div>
           <button
             type="button"
             onClick={() => moveDate(-1)}
-            className="border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+            className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[#1d7f12] text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black lg:h-auto lg:w-auto lg:px-3 lg:py-1"
             aria-label="Move timeline back one day"
           >
-            ⌄
+            <span className="lg:hidden">→</span>
+            <span className="hidden lg:inline">⌄</span>
           </button>
         </div>
       </aside>

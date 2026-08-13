@@ -3,12 +3,15 @@ import BriefingRoomGate from "./briefing-room-gate";
 
 type BriefingRoomProps = {
   searchParams: Promise<{
+    inboxMember?: string;
     member?: string;
+    panel?: string;
   }>;
 };
 
 export default async function BriefingRoom({ searchParams }: BriefingRoomProps) {
-  const { member = "" } = await searchParams;
+  const { inboxMember = "", member = "", panel = "" } = await searchParams;
+  const shouldOpenInbox = panel === "inbox" || Boolean(inboxMember.trim());
 
   return (
     <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
@@ -18,7 +21,11 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
         <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
           c:\bay-space\briefing-room&gt; gate
         </p>
-        <BriefingRoomGate member={member} />
+        <BriefingRoomGate
+          initialInboxMember={inboxMember}
+          initialPanel={shouldOpenInbox ? "inbox" : "id-card"}
+          member={member}
+        />
       </section>
     </main>
   );

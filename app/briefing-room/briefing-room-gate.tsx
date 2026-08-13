@@ -72,6 +72,8 @@ import TicketVoteCounter from "../components/ticket-vote-counter";
 import { openExternalBrowser } from "../components/open-external-browser";
 
 type BriefingRoomGateProps = {
+  initialInboxMember?: string;
+  initialPanel?: BriefingPanel;
   member: string;
 };
 
@@ -765,14 +767,21 @@ function getBankPostCategories(allowedCategories: PostCategory[]) {
   return bankCategories;
 }
 
-export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
+export default function BriefingRoomGate({
+  initialInboxMember = "",
+  initialPanel = "id-card",
+  member,
+}: BriefingRoomGateProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const [resolvedMember, setResolvedMember] = useState(member);
   const [gatePassword, setGatePassword] = useState("");
   const [gateErrorMessage, setGateErrorMessage] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [activePanel, setActivePanel] = useState<BriefingPanel>("id-card");
+  const [activePanel, setActivePanel] =
+    useState<BriefingPanel>(initialPanel);
+  const [targetInboxMember, setTargetInboxMember] =
+    useState(initialInboxMember);
   const [savedMember, setSavedMember] = useState<SavedMember | null>(null);
   const [isPostOpen, setIsPostOpen] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<number | null>(null);
@@ -1120,6 +1129,23 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
 
     setStampCounts(data.counts ?? {});
   }, []);
+
+  useEffect(() => {
+    const requestedInboxMember = initialInboxMember.trim();
+
+    if (initialPanel !== "inbox" && !requestedInboxMember) {
+      return;
+    }
+
+    const openPanelTimer = window.setTimeout(() => {
+      setActivePanel("inbox");
+      setTargetInboxMember(requestedInboxMember);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(openPanelTimer);
+    };
+  }, [initialInboxMember, initialPanel]);
 
   useEffect(() => {
     async function syncActiveMember() {
@@ -4015,6 +4041,7 @@ export default function BriefingRoomGate({ member }: BriefingRoomGateProps) {
             </div>
           ) : activePanel === "inbox" && savedMember ? (
             <InboxPanel
+              initialMember={targetInboxMember}
               member={{
                 member: savedMember.member,
                 name: savedMember.name,

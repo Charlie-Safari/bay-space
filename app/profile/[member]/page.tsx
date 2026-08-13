@@ -2,6 +2,7 @@ import Link from "next/link";
 import HomeBar from "../../components/home-bar";
 import PublicCirclesCard from "./public-circles-card";
 import PublicIdCard from "./public-id-card";
+import ProfileQuickActions from "./profile-quick-actions";
 import ProfileTrophyCase from "./profile-trophy-case";
 import ProfileStatsCard from "./profile-stats-card";
 import {
@@ -164,10 +165,20 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
         <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
           C:\BAY-SPACE\PROFILE&gt; PUBLIC
         </p>
-        <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
-          {member?.name ?? "profile not found"}
-          {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
-        </h1>
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
+            {member?.name ?? "profile not found"}
+            {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
+          </h1>
+          {member ? (
+            <ProfileQuickActions
+              member={{
+                member: member.member,
+                name: member.name,
+              }}
+            />
+          ) : null}
+        </div>
 
         {member ? (
           <>

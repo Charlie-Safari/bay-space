@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   BayDirectConversation,
   BayDirectMessage,
@@ -8,6 +8,7 @@ import type {
 } from "../../lib/bay-space-types";
 
 type InboxPanelProps = {
+  initialMember?: string;
   member: {
     member: string;
     name: string;
@@ -37,7 +38,14 @@ function formatInboxTimestamp(value: string) {
   });
 }
 
-export default function InboxPanel({ member }: InboxPanelProps) {
+export default function InboxPanel({
+  initialMember = "",
+  member,
+}: InboxPanelProps) {
+  const chatSurfaceRef = useRef<HTMLElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const focusComposerTimerRef = useRef<number | null>(null);
+  const openedInitialMemberRef = useRef("");
   const [conversations, setConversations] = useState<BayDirectConversation[]>(
     [],
   );
@@ -52,6 +60,7 @@ export default function InboxPanel({ member }: InboxPanelProps) {
   const [hasBlockedMe, setHasBlockedMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0);
 
   const syncConversations = useCallback(async () => {
     const response = await fetch("/api/inbox", { cache: "no-store" });
@@ -113,7 +122,61 @@ export default function InboxPanel({ member }: InboxPanelProps) {
       .slice(0, 8);
   }, [memberQuery, members]);
 
-  async function openConversation(memberId: string) {
+  const focusMessageComposer = useCallback(() => {
+    if (focusComposerTimerRef.current) {
+      window.clearTimeout(focusComposerTimerRef.current);
+    }
+
+    focusComposerTimerRef.current = window.setTimeout(() => {
+      focusComposerTimerRef.current = null;
+      window.requestAnimationFrame(() => {
+        const composerElement = composerRef.current;
+
+        if (!composerElement) {
+          return;
+        }
+
+        chatSurfaceRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        composerElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        composerElement.focus();
+        composerElement.setSelectionRange(
+          composerElement.value.length,
+          composerElement.value.length,
+        );
+      });
+    }, 0);
+  }, []);
+
+  const requestComposerFocus = useCallback(() => {
+    setComposerFocusRequest((requestCount) => requestCount + 1);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (focusComposerTimerRef.current) {
+        window.clearTimeout(focusComposerTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!composerFocusRequest || !selectedMember) {
+      return;
+    }
+
+    focusMessageComposer();
+  }, [composerFocusRequest, focusMessageComposer, selectedMember]);
+
+  const openConversation = useCallback(async (
+    memberId: string,
+    options: { focusComposer?: boolean } = {},
+  ) => {
     setIsLoading(true);
     setStatusMessage("");
 
@@ -139,7 +202,33 @@ export default function InboxPanel({ member }: InboxPanelProps) {
     setHasBlockedMe(data.conversation.hasBlockedMe);
     setMemberQuery("");
     syncConversations();
-  }
+
+    if (options.focusComposer) {
+      requestComposerFocus();
+    }
+  }, [requestComposerFocus, syncConversations]);
+
+  useEffect(() => {
+    const requestedMember = initialMember.trim();
+
+    if (
+      !requestedMember ||
+      requestedMember === member.member ||
+      openedInitialMemberRef.current === requestedMember
+    ) {
+      return;
+    }
+
+    openedInitialMemberRef.current = requestedMember;
+
+    const openTimer = window.setTimeout(() => {
+      openConversation(requestedMember, { focusComposer: true });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(openTimer);
+    };
+  }, [initialMember, member.member, openConversation]);
 
   async function sendMessage() {
     if (!selectedMember || !composer.trim() || isSending) {
@@ -173,7 +262,7 @@ export default function InboxPanel({ member }: InboxPanelProps) {
     }
 
     setComposer("");
-    await openConversation(selectedMember.member);
+    await openConversation(selectedMember.member, { focusComposer: true });
   }
 
   async function toggleBlock() {
@@ -228,7 +317,7 @@ export default function InboxPanel({ member }: InboxPanelProps) {
           onClick={() => {
             syncConversations();
             if (selectedMember?.member) {
-              openConversation(selectedMember.member);
+              openConversation(selectedMember.member, { focusComposer: true });
             }
           }}
           className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
@@ -257,7 +346,11 @@ export default function InboxPanel({ member }: InboxPanelProps) {
                 <button
                   key={candidate.member}
                   type="button"
-                  onClick={() => openConversation(candidate.member)}
+                  onClick={() =>
+                    openConversation(candidate.member, {
+                      focusComposer: true,
+                    })
+                  }
                   className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-left text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 >
                   <span className="block">{candidate.name}</span>
@@ -282,7 +375,11 @@ export default function InboxPanel({ member }: InboxPanelProps) {
                 <button
                   key={conversation.member.member}
                   type="button"
-                  onClick={() => openConversation(conversation.member.member)}
+                  onClick={() =>
+                    openConversation(conversation.member.member, {
+                      focusComposer: true,
+                    })
+                  }
                   className={`border px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
                     selectedMember?.member === conversation.member.member
                       ? "border-[#39ff14] bg-[#39ff14] text-black"
@@ -308,7 +405,10 @@ export default function InboxPanel({ member }: InboxPanelProps) {
           </div>
         </section>
 
-        <section className="min-h-[34rem] border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.16)]">
+        <section
+          ref={chatSurfaceRef}
+          className="min-h-[34rem] border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.16)]"
+        >
           {selectedMember ? (
             <div className="flex h-full min-h-[32rem] flex-col">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#1d7f12] pb-4">
@@ -378,6 +478,7 @@ export default function InboxPanel({ member }: InboxPanelProps) {
 
               <div className="mt-4 grid gap-3 border-t border-[#1d7f12] pt-4">
                 <textarea
+                  ref={composerRef}
                   value={composer}
                   onChange={(event) =>
                     setComposer(event.target.value.slice(0, 1000))
