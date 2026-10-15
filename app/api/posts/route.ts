@@ -1,8 +1,13 @@
 import {
   createPost,
   getStorageErrorMessage,
+  getStorageErrorStatus,
   listPosts,
 } from "../../../lib/bay-space-db";
+import {
+  dailyFoodCategories,
+  defaultDailyFoodCategory,
+} from "../../../lib/daily-food-categories";
 import { getCurrentMember } from "../../../lib/bay-space-session";
 import { BayPostCategory } from "../../../lib/bay-space-types";
 import {
@@ -26,10 +31,14 @@ function isPostCategory(value: string): value is BayPostCategory {
 
 function postsErrorResponse(error: unknown, fallbackMessage: string) {
   const storageMessage = getStorageErrorMessage(error);
+  const storageStatus = getStorageErrorStatus(error);
 
   if (storageMessage) {
     console.error(storageMessage);
-    return Response.json({ message: storageMessage }, { status: 503 });
+    return Response.json(
+      { message: storageMessage },
+      { status: storageStatus ?? 503 },
+    );
   }
 
   console.error(error);
@@ -81,10 +90,20 @@ export async function POST(request: Request) {
     const meta =
       body.meta && typeof body.meta === "object" && !Array.isArray(body.meta)
         ? { ...body.meta }
-        : undefined;
+        : {};
 
-    if (meta) {
-      delete meta.accountMarker;
+    delete meta.accountMarker;
+
+    if (body.category === "daily-food") {
+      const submittedCategory =
+        typeof meta?.dailyFoodCategory === "string"
+          ? meta.dailyFoodCategory.trim()
+          : "";
+      const dailyFoodCategory = dailyFoodCategories.includes(submittedCategory)
+        ? submittedCategory
+        : defaultDailyFoodCategory;
+
+      meta.dailyFoodCategory = dailyFoodCategory;
     }
 
     if (meta?.cryptiPost === "true" && !canAccessCrypti(member)) {

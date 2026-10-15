@@ -1,5 +1,6 @@
 import {
   acceptMemberCryptiAgreement,
+  applyMemberNamasteReward,
   applyMemberWildCard,
   changeMemberPin,
   claimMemberMoneyPrinterI,
@@ -11,8 +12,11 @@ import {
   getMember,
   getStorageErrorMessage,
   isBaySpaceWildCardAccessKey,
+  isNamasteAccessKey,
   baySpaceAgreementVersion,
   baySpaceWildCardPointAward,
+  namastePointAward,
+  namasteTokenAward,
   purchaseMemberBayoCard,
   purchaseMemberBayoStamp,
   purchaseMemberGateKey,
@@ -446,6 +450,30 @@ export async function PATCH(request: Request, context: MemberContext) {
     }
 
     if (body.action === "wild-card") {
+      if (isNamasteAccessKey(body.accessKey ?? "")) {
+        const result = await applyMemberNamasteReward(memberId);
+
+        if (!result) {
+          return Response.json({ message: "Member not found" }, { status: 404 });
+        }
+
+        if (result.alreadyRedeemed) {
+          return Response.json(
+            { message: "namaste already redeemed" },
+            { status: 409 },
+          );
+        }
+
+        return Response.json({
+          member: result.member,
+          wildCard: {
+            pointAward: namastePointAward,
+            rank: result.member.rank,
+            tokenAward: namasteTokenAward,
+          },
+        });
+      }
+
       if (!isBaySpaceWildCardAccessKey(body.accessKey ?? "")) {
         return Response.json({ message: "access key rejected" }, { status: 403 });
       }

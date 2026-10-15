@@ -795,6 +795,7 @@ export default function BriefingRoomGate({
   const [activeFavoriteCategory, setActiveFavoriteCategory] =
     useState<FavoriteCategory | "">("");
   const [postPreview, setPostPreview] = useState<PostPreviewDraft | null>(null);
+  const [postSubmitError, setPostSubmitError] = useState("");
   const [lazyMode, setLazyMode] = useState<LazyAssistantMode>("chat");
   const [lazyPrompt, setLazyPrompt] = useState("");
   const [lazyResponse, setLazyResponse] = useState("LA Bay-Space: coming soon");
@@ -1681,6 +1682,7 @@ export default function BriefingRoomGate({
       return;
     }
 
+    setPostSubmitError("");
     setPostPreview(buildCurrentPost());
   }
 
@@ -1822,7 +1824,15 @@ export default function BriefingRoomGate({
       canCreatePosts &&
       allowedPostCategories.includes(postPreview.category)
     ) {
-      await saveBayPost(postPreview);
+      try {
+        setPostSubmitError("");
+        await saveBayPost(postPreview);
+      } catch (error) {
+        setPostSubmitError(
+          error instanceof Error ? error.message : "Unable to save post",
+        );
+        return;
+      }
     }
 
     resetPostDraft();
@@ -1960,7 +1970,14 @@ export default function BriefingRoomGate({
       canCreatePosts &&
       allowedPostCategories.includes(lazyPostPreview.category)
     ) {
-      await saveBayPost(lazyPostPreview);
+      try {
+        await saveBayPost(lazyPostPreview);
+      } catch (error) {
+        setLazyBankError(
+          error instanceof Error ? error.message : "Unable to save post",
+        );
+        return;
+      }
       setLazyPostPreview(null);
       setLazyBankInput("");
       setLazyBankError("");
@@ -2015,6 +2032,7 @@ export default function BriefingRoomGate({
   }
 
   function editPost() {
+    setPostSubmitError("");
     setPostPreview(null);
     setPreviewWarning(false);
   }
@@ -2063,6 +2081,7 @@ export default function BriefingRoomGate({
     setIncognitoShelfLabel("");
     setIsIncognitoShelfSet(false);
     setPostPreview(null);
+    setPostSubmitError("");
     setPreviewWarning(false);
     setDeletePostId("");
   }
@@ -2460,7 +2479,11 @@ export default function BriefingRoomGate({
       const data = (await response.json()) as {
         member?: SavedMember;
         message?: string;
-        wildCard?: { pointAward?: number; rank?: string };
+        wildCard?: {
+          pointAward?: number;
+          rank?: string;
+          tokenAward?: number;
+        };
       };
 
       if (!response.ok || !data.member) {
@@ -2475,8 +2498,14 @@ export default function BriefingRoomGate({
       setSavedMember(data.member);
       applySettingsFields(data.member);
       setWildCardAccessKey("");
+      const pointAward = formatPointCount(
+        data.wildCard?.pointAward ?? data.member.availablePoints,
+      );
+      const tokenAward = data.wildCard?.tokenAward;
       setWildCardMessage(
-        `wild card accepted - ${formatPointCount(data.wildCard?.pointAward ?? data.member.availablePoints)} points loaded`,
+        tokenAward
+          ? `wild card accepted - ${pointAward} points + ${formatPointCount(tokenAward)} tokens loaded`
+          : `wild card accepted - ${pointAward} points loaded`,
       );
       window.dispatchEvent(new Event("bay-space-auth"));
     } finally {
@@ -2931,6 +2960,11 @@ export default function BriefingRoomGate({
                     </div>
                   ) : null}
                 </article>
+                {postSubmitError ? (
+                  <p className="mt-4 border border-[#ff3b3b] px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#ff6b6b]">
+                    {postSubmitError}
+                  </p>
+                ) : null}
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     type="button"

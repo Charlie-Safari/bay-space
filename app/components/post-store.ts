@@ -64,7 +64,11 @@ export async function saveBayPost(
   });
 
   if (!response.ok) {
-    throw new Error("Unable to save post");
+    const data = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+
+    throw new Error(data?.message ?? "Unable to save post");
   }
 
   const data = (await response.json()) as { post: BayPost };

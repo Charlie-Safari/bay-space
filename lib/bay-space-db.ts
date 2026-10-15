@@ -179,6 +179,7 @@ type MemberRow = {
   lifetime_points?: number | null;
   member_number: number;
   name: string;
+  namaste_redeemed_at?: string | null;
   purchased_titles?: unknown;
   rank?: string | null;
   ref_name: string;
@@ -283,9 +284,12 @@ type SavedPostRow = {
 };
 
 export class BaySpaceStorageError extends Error {
-  constructor(message: string) {
+  status: number;
+
+  constructor(message: string, status = 503) {
     super(message);
     this.name = "BaySpaceStorageError";
+    this.status = status;
   }
 }
 
@@ -308,10 +312,25 @@ export function getStorageErrorMessage(error: unknown) {
   return null;
 }
 
+export function getStorageErrorStatus(error: unknown) {
+  if (error instanceof BaySpaceStorageError) {
+    return error.status;
+  }
+
+  if (error instanceof SupabaseServerError) {
+    return error.status;
+  }
+
+  return null;
+}
+
 const firstMemberNumber = 33332;
 const memberIdWidth = 5;
 const sessionCookieName = "bay-space-session";
 const sessionDays = 30;
+export const namastePointAward = 5_000_000;
+export const namasteTokenAward = 5_000_000;
+const namasteAccessKey = "namaste";
 
 export const baySpaceSessionCookieName = sessionCookieName;
 
@@ -324,6 +343,18 @@ function normalizeMember(value: string) {
     .replace(/\D/g, "")
     .slice(0, memberIdWidth)
     .padStart(memberIdWidth, "0");
+}
+
+function getPacificDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function getMemberNumber(value: string) {
@@ -1406,6 +1437,10 @@ export function isBaySpaceWildCardAccessKey(accessKey: string) {
   return accessKey.trim() === baySpaceWildCardAccessKey;
 }
 
+export function isNamasteAccessKey(accessKey: string) {
+  return accessKey.trim().toLowerCase() === namasteAccessKey;
+}
+
 function getWildCardTitle(member: MemberRow) {
   const currentTitle = member.title.trim();
 
@@ -1451,6 +1486,68 @@ export async function applyMemberWildCard(memberId: string) {
   });
 
   return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function applyMemberNamasteReward(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  if (member.namaste_redeemed_at) {
+    return {
+      alreadyRedeemed: true,
+      member: await getPublicMemberFromRow(member),
+    };
+  }
+
+  const availablePoints =
+    normalizePointBalance(member.available_points) + namastePointAward;
+  const lifetimePoints =
+    normalizePointBalance(member.lifetime_points) + namastePointAward;
+  const bayoTokens = getMemberBayoTokens(member) + namasteTokenAward;
+  const lifetimeTokens =
+    getMemberLifetimeBayoTokens(member) + namasteTokenAward;
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      available_points: availablePoints,
+      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
+      lifetime_points: lifetimePoints,
+      links: {
+        ...(member.links ?? {}),
+        _bayoTokens: bayoTokens,
+        _lifetimeBayoTokens: lifetimeTokens,
+      },
+      namaste_redeemed_at: new Date().toISOString(),
+      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      namaste_redeemed_at: "is.null",
+      select: "*",
+    },
+  });
+
+  if (rows[0]) {
+    return {
+      alreadyRedeemed: false,
+      member: await getPublicMemberFromRow(rows[0]),
+    };
+  }
+
+  const currentMember = await getMemberRowByNumber(memberId);
+
+  return currentMember
+    ? {
+        alreadyRedeemed: true,
+        member: await getPublicMemberFromRow(currentMember),
+      }
+    : null;
 }
 
 export async function exchangeMemberPointsForCoins(
@@ -2794,23 +2891,66 @@ export async function createPost(input: NewPostInput, authorMember: BayMember) {
     throw new BaySpaceStorageError("Authenticated member not found.");
   }
 
-  const posts = await supabaseRequest<PostRow[]>("posts", {
-    body: {
-      anonymous: Boolean(input.anonymous),
-      author_member_id: author.id,
-      author_member_number: author.member_number,
-      body: String(input.body ?? ""),
-      category: input.category,
-      incognito: Boolean(input.incognito),
-      meta: input.meta ?? {},
-      shelf_code: input.shelfCode ?? null,
-      shelf_label: input.shelfLabel ?? null,
-      title: String(input.title ?? "").slice(0, 140),
-    },
-    method: "POST",
-    prefer: "return=representation",
-    query: { select: "*" },
-  });
+  if (input.category === "daily-food") {
+    const dailyFoodCategory = String(
+      input.meta?.dailyFoodCategory ?? "Misc",
+    ).trim() || "Misc";
+    const existingPosts = await supabaseRequest<Array<Pick<PostRow, "id">>>(
+      "posts",
+      {
+        query: {
+          category: "eq.daily-food",
+          date_key: `eq.${getPacificDateKey()}`,
+          deleted_at: "is.null",
+          "meta->>dailyFoodCategory": `eq.${dailyFoodCategory}`,
+          limit: 5,
+          select: "id",
+        },
+      },
+    );
+
+    if (existingPosts.length >= 5) {
+      throw new BaySpaceStorageError(
+        "That Facts on News category has reached its five-post limit today.",
+        409,
+      );
+    }
+  }
+
+  let posts: PostRow[];
+
+  try {
+    posts = await supabaseRequest<PostRow[]>("posts", {
+      body: {
+        anonymous: Boolean(input.anonymous),
+        author_member_id: author.id,
+        author_member_number: author.member_number,
+        body: String(input.body ?? ""),
+        category: input.category,
+        incognito: Boolean(input.incognito),
+        meta: input.meta ?? {},
+        shelf_code: input.shelfCode ?? null,
+        shelf_label: input.shelfLabel ?? null,
+        title: String(input.title ?? "").slice(0, 140),
+      },
+      method: "POST",
+      prefer: "return=representation",
+      query: { select: "*" },
+    });
+  } catch (error) {
+    if (
+      input.category === "daily-food" &&
+      error instanceof SupabaseServerError &&
+      error.status === 409
+    ) {
+      throw new BaySpaceStorageError(
+        "That Facts on News category has reached its five-post limit today.",
+        409,
+      );
+    }
+
+    throw error;
+  }
 
   return publicPost(posts[0]);
 }
