@@ -76,7 +76,7 @@ function isTagSearchPost(post: BayPost) {
 
 function getPostChannelLabel(post: BayPost) {
   if (post.category === "daily-food") {
-    return "Facts on News";
+    return "Current Events";
   }
 
   if (post.category === "theory") {
@@ -486,7 +486,7 @@ export default function LibraryBoard() {
                   <li>Press join the circle.</li>
                   <li>Enter a name, create a password, and enter Bay Space as Reader.</li>
                   <li>No account type choice and no access code are needed for normal signup.</li>
-                  <li>Use Conspiracy for theory material, Facts on News for Top Story and fact-based news, and the book button for Library.</li>
+                  <li>Use Conspiracy for theory material, Current Events for Top Story and fact-based news, and the book button for Library.</li>
                   <li>The Bay Space logo is Basecamp. From the Briefing Room, it also brings you back from any options room.</li>
                 </ul>
               </details>
@@ -511,7 +511,7 @@ export default function LibraryBoard() {
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>Conspiracy opens the conspiracy board.</li>
-                  <li>Facts on News opens the facts feed with Top Story controls.</li>
+                  <li>Current Events opens the facts feed with Top Story controls.</li>
                   <li>The book button opens Library.</li>
                   <li>The Bay Space logo opens Basecamp / Briefing Room.</li>
                   <li>On mobile or a condensed window, the layout stacks as +CRYPTI, logo, Conspiracy and Facts, then Library.</li>
@@ -539,11 +539,11 @@ export default function LibraryBoard() {
                 <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <p>Everyone starts as Reader. Lifetime points move the account through the regular Bay Space ladder.</p>
                   <ul className="list-disc space-y-2 pl-5">
-                    <li>Reader - can read Conspiracy and Facts on News.</li>
+                    <li>Reader - can read Conspiracy and Current Events.</li>
                     <li>Reader II - 250 lifetime points, unlocks Library reading.</li>
                     <li>Poster - 1,000 lifetime points, can post in Conspiracy.</li>
                     <li>Poster II - 3,500 lifetime points, can post in Conspiracy and Library.</li>
-                    <li>Poster III - 10,000 lifetime points, can post in Conspiracy, Library, and Facts on News.</li>
+                    <li>Poster III - 10,000 lifetime points, can post in Conspiracy, Library, and Current Events.</li>
                     <li>Graduation - purchased in Badge Quest for 500 Bayo Coins.</li>
                   </ul>
                 </div>
@@ -612,7 +612,7 @@ export default function LibraryBoard() {
                   comments and truth votes
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Conspiracy and Facts on News posts include comments.</li>
+                  <li>Conspiracy and Current Events posts include comments.</li>
                   <li>The truth scale runs from 0 to 11.</li>
                   <li>Press vote to cast a truth vote.</li>
                   <li>Pressing vote again on the same score undoes your vote.</li>
@@ -629,7 +629,7 @@ export default function LibraryBoard() {
                   <li>Open a post and press the green diamond to save it.</li>
                   <li>Diamond posts are added to your favorites folder.</li>
                   <li>Open the Briefing Room and press favorites to view saved posts.</li>
-                  <li>Favorites are grouped by Facts on News, Conspiracy, Library, and +CRYPTI when available.</li>
+                  <li>Favorites are grouped by Current Events, Conspiracy, Library, and +CRYPTI when available.</li>
                 </ul>
               </details>
 
@@ -639,7 +639,7 @@ export default function LibraryBoard() {
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
                   <li>Conspiracy is for theories, conspiracies, hypotheses, dreams, strange signals, and speculation.</li>
-                  <li>Facts on News is for fact-based news and Top Story posts with supporting details.</li>
+                  <li>Current Events is for fact-based news and Top Story posts with supporting details.</li>
                   <li>Library is for longer reading material, sources, archives, and items that belong on the shelf.</li>
                   <li>Add sources when available. If it is your own idea, source yourself clearly.</li>
                   <li>Anon keeps the post public while hiding your displayed name.</li>
@@ -661,7 +661,7 @@ export default function LibraryBoard() {
                     Create
                   </a>
                   <p>LA Bay-Space helps find and shape stories.</p>
-                  <p>Ask for a Conspiracy, Facts on News, Top Story, or Library draft.</p>
+                  <p>Ask for a Conspiracy, Current Events, Top Story, or Library draft.</p>
                   <p>It can search, check the story, give you a numbered list, and turn the selected item into a clean post.</p>
                   <div>
                     <p>The finished draft should include:</p>

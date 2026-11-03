@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, randomInt } from "crypto";
 import {
   SupabaseServerError,
   supabaseRequest,
@@ -152,7 +152,10 @@ type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
   _bayoCards?: string[];
   _bayoStamps?: string[];
   _bayoTokens?: number;
+  _dailySpinDate?: string;
+  _dailySpinPoints?: number;
   _lifetimeBayoTokens?: number;
+  _onboardingCompletedAt?: string;
   _cryptiStats?: MemberCryptiStats;
   _moneyPrinter?: MemberMoneyPrinter;
   _stats?: MemberStats;
@@ -591,7 +594,10 @@ function normalizePointBalance(value: unknown) {
 }
 
 function normalizeCryptiRank(rank: string | null | undefined): CryptiRank {
-  return rank === "reader-iii" || rank === "poster-iv" || rank === "poster-v"
+  return rank === "reader-iii" ||
+    rank === "poster-iv" ||
+    rank === "poster-v" ||
+    rank === "oracle"
     ? rank
     : "";
 }
@@ -722,6 +728,13 @@ function canPurchaseGateKey(
   gateKeyIds: GateKey[],
   member: MemberRow,
 ) {
+  if (gateKeyId === "oracle-badge") {
+    return (
+      gateKeyIds.includes("crypti-plus") &&
+      normalizeCryptiRank(member.crypti_rank) === "poster-v"
+    );
+  }
+
   if (gateKeyId === instantRankPromotionGateKeyId) {
     return hasCryptiBranchOwnership(member);
   }
@@ -748,6 +761,10 @@ function getCryptiRankAfterGateKeyPurchase(
       lifetimePoints,
       currentCryptiRank || "reader-iii",
     );
+  }
+
+  if (gateKeyId === "oracle-badge") {
+    return "oracle";
   }
 
   if (gateKeyId === instantRankPromotionGateKeyId) {
@@ -1548,6 +1565,98 @@ export async function applyMemberNamasteReward(memberId: string) {
         member: await getPublicMemberFromRow(currentMember),
       }
     : null;
+}
+
+export async function claimMemberDailySpin(memberId: string) {
+  const dateKey = getPacificDateKey();
+
+  async function attemptClaim(attempt: number): Promise<{
+    alreadyClaimed: boolean;
+    member: BayMember;
+    points: number;
+  } | null> {
+    const member = await getMemberRowByNumber(memberId);
+
+    if (!member) {
+      return null;
+    }
+
+    if (member.links?._dailySpinDate === dateKey) {
+      return {
+        alreadyClaimed: true,
+        member: await getPublicMemberFromRow(member),
+        points: normalizePointBalance(member.links?._dailySpinPoints),
+      };
+    }
+
+    const points = randomInt(50, 501);
+    const rows = await supabaseRequest<MemberRow[]>("members", {
+      body: {
+        ...getMemberPointAwardBody(member, points),
+        links: {
+          ...(member.links ?? {}),
+          _dailySpinDate: dateKey,
+          _dailySpinPoints: points,
+        },
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=representation",
+      query: {
+        member_number: `eq.${member.member_number}`,
+        select: "*",
+        updated_at: `eq.${member.updated_at}`,
+      },
+    });
+
+    if (rows[0]) {
+      return {
+        alreadyClaimed: false,
+        member: await getPublicMemberFromRow(rows[0]),
+        points,
+      };
+    }
+
+    return attempt < 2 ? attemptClaim(attempt + 1) : null;
+  }
+
+  return attemptClaim(0);
+}
+
+export async function hasMemberCompletedOnboarding(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  return Boolean(member?.links?._onboardingCompletedAt);
+}
+
+export async function completeMemberOnboarding(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member) {
+    return null;
+  }
+
+  if (member.links?._onboardingCompletedAt) {
+    return getPublicMemberFromRow(member);
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _onboardingCompletedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
 }
 
 export async function exchangeMemberPointsForCoins(
@@ -2536,6 +2645,32 @@ export async function createPostComment(
   return publicPostComment(comments[0], member ?? undefined);
 }
 
+export async function deleteRecentPostComment(
+  postId: string,
+  commentId: string,
+) {
+  const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const deletedAt = new Date().toISOString();
+  const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
+    body: {
+      deleted_at: deletedAt,
+      updated_at: deletedAt,
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      created_at: `gte.${cutoff}`,
+      deleted_at: "is.null",
+      id: `eq.${commentId}`,
+      moderation_status: "eq.active",
+      post_id: `eq.${postId}`,
+      select: "*",
+    },
+  });
+
+  return comments.length > 0;
+}
+
 export async function getPostTruthVoteSummary(
   postId: string,
   memberId?: string,
@@ -2951,7 +3086,7 @@ export async function createPost(input: NewPostInput, authorMember: BayMember) {
 
     if (existingPosts.length >= 5) {
       throw new BaySpaceStorageError(
-        "That Facts on News category has reached its five-post limit today.",
+        "That Current Events category has reached its five-post limit today.",
         409,
       );
     }
@@ -2984,7 +3119,7 @@ export async function createPost(input: NewPostInput, authorMember: BayMember) {
       error.status === 409
     ) {
       throw new BaySpaceStorageError(
-        "That Facts on News category has reached its five-post limit today.",
+        "That Current Events category has reached its five-post limit today.",
         409,
       );
     }

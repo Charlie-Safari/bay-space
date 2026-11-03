@@ -28,6 +28,7 @@ type TruthVoteResponse = {
 };
 
 const defaultTruthScore = 6;
+const publicCommentDeleteWindowMs = 2 * 60 * 1000;
 
 function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -55,8 +56,10 @@ export default function PostEngagementPanel({
   const [commentBody, setCommentBody] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isCommentSaving, setIsCommentSaving] = useState(false);
+  const [deletingCommentIds, setDeletingCommentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
+  const [now, setNow] = useState(Date.now);
   const [truthScore, setTruthScore] = useState(defaultTruthScore);
   const [truthSummary, setTruthSummary] = useState<BayPostTruthVoteSummary>({
     averageScore: 0,
@@ -111,6 +114,12 @@ export default function PostEngagementPanel({
       isMounted = false;
     };
   }, [postId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function saveComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -189,6 +198,44 @@ export default function PostEngagementPanel({
     }
   }
 
+  async function deleteComment(commentId: string) {
+    if (deletingCommentIds.includes(commentId)) {
+      return;
+    }
+
+    setDeletingCommentIds((current) => [...current, commentId]);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/posts/${encodeURIComponent(postId)}/comments`,
+        {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ commentId }),
+        },
+      );
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        setErrorMessage(data?.message ?? "comment not deleted");
+        return;
+      }
+
+      setComments((current) =>
+        current.filter((comment) => comment.id !== commentId),
+      );
+    } catch {
+      setErrorMessage("comment not deleted");
+    } finally {
+      setDeletingCommentIds((current) =>
+        current.filter((id) => id !== commentId),
+      );
+    }
+  }
+
   const voteButtonLabel =
     truthSummary.userScore === truthScore ? "undo vote" : "vote";
 
@@ -243,8 +290,21 @@ export default function PostEngagementPanel({
             {comments.map((comment) => (
               <article
                 key={comment.id}
-                className="border border-[#1d7f12] bg-black px-3 py-3"
+                className="relative border border-[#1d7f12] bg-black px-3 py-3 pr-11"
               >
+                {now - new Date(comment.createdAt).getTime() <
+                publicCommentDeleteWindowMs ? (
+                  <button
+                    type="button"
+                    onClick={() => deleteComment(comment.id)}
+                    disabled={deletingCommentIds.includes(comment.id)}
+                    className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-[#ff5f66]/70 bg-[#240708]/80 text-sm font-black leading-none text-[#ff7379] shadow-[0_0_10px_rgba(255,95,102,0.2)] transition hover:border-[#ff7379] hover:bg-[#ff5f66] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9f] disabled:cursor-wait disabled:opacity-50"
+                    aria-label="Delete this comment before its two-minute window closes"
+                    title="Anyone can erase this comment for two minutes"
+                  >
+                    ×
+                  </button>
+                ) : null}
                 <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
                   {comment.authorName ||
                     (comment.author === "anonymous"

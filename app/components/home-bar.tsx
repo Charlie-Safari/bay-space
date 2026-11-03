@@ -18,8 +18,7 @@ type HomeTab = {
 
 const baySpaceTabs: HomeTab[] = [
   { label: "Conspiracy", href: "/theories" },
-  { label: "Facts on News", shortLabel: "Facts", href: "/facts-on-news" },
-  { ariaLabel: "library", label: "📚", href: "/library" },
+  { label: "Current Events", shortLabel: "Events", href: "/facts-on-news" },
 ];
 
 const activeMemberStorageKey = "bay-space-active-member";
@@ -197,7 +196,7 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
     const active = isActiveRoute(tab.href);
     const routeLabel = tab.ariaLabel ?? tab.label;
     const isTextChannelTab =
-      tab.label === "Conspiracy" || tab.label === "Facts on News";
+      tab.label === "Conspiracy" || tab.label === "Current Events";
 
     return (
       <div className={wrapperClassName}>
@@ -207,18 +206,18 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
           aria-label={tab.ariaLabel}
           aria-current={active ? "page" : undefined}
           onClick={(event) => startNavigation(event, tab.href, routeLabel)}
-          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center leading-none transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] md:min-h-12 md:w-auto md:px-4 ${
+          className={`bay-terminal-copy grid min-h-11 w-full place-items-center rounded-xl border px-3 py-2 text-center leading-none backdrop-blur-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-[#8fca87]/45 md:min-h-12 md:w-auto md:px-4 ${
             isTextChannelTab
               ? "text-[0.9rem] md:text-[1.14rem]"
               : "text-[0.78rem] md:text-[0.98rem]"
           } ${
             isTextChannelTab
               ? active
-                ? "border-dashed border-[#39ff14] text-[#39ff14] shadow-[0_0_16px_rgba(57,255,20,0.28)]"
-                : "border-solid border-[#39ff14] text-[#39ff14] hover:border-dashed"
+                ? "border-[#90d587]/70 bg-[linear-gradient(145deg,rgba(114,193,106,0.22),rgba(5,14,6,0.82))] text-[#dce9d9] shadow-[inset_0_1px_rgba(223,243,218,0.07),0_10px_28px_rgba(0,0,0,0.22)]"
+                : "border-[#72c16a]/35 bg-[#071108]/75 text-[#72c16a] shadow-[inset_0_1px_rgba(223,243,218,0.04),0_8px_24px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 hover:border-[#90d587]/70 hover:bg-[#72c16a]/12 hover:text-[#dce9d9]"
               : active
-                ? "border-[#d7ffd0] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
-                : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                ? "border-[#90d587]/70 bg-[#72c16a]/20 text-[#dce9d9] shadow-[inset_0_1px_rgba(223,243,218,0.07),0_10px_28px_rgba(0,0,0,0.22)]"
+                : "border-[#72c16a]/35 bg-[#071108]/75 text-[#72c16a] hover:-translate-y-0.5 hover:border-[#90d587]/70 hover:bg-[#72c16a]/12 hover:text-[#dce9d9]"
           } ${tab.ariaLabel === "library" ? "text-xl leading-none" : ""}`}
         >
           <span className="hidden md:inline">{tab.label}</span>
@@ -239,10 +238,10 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
           aria-label="+CRYPTI"
           aria-current={active ? "page" : undefined}
           onClick={(event) => startNavigation(event, "/crypti", "+CRYPTI")}
-          className={`bay-terminal-copy grid min-h-11 w-full place-items-center border px-3 py-2 text-center text-[0.62rem] transition focus:outline-none focus:ring-2 focus:ring-[#b8f1ff] md:min-h-12 md:w-auto md:px-4 md:text-xs ${
+          className={`bay-terminal-copy grid min-h-11 w-full place-items-center rounded-xl border px-3 py-2 text-center text-[0.62rem] backdrop-blur-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-[#8ddff5]/45 md:min-h-12 md:w-auto md:px-4 md:text-xs ${
             active
-              ? "border-[#b8f1ff] bg-[#59d6ff] text-black shadow-[0_0_18px_rgba(89,214,255,0.45)]"
-              : "border-[#59d6ff] text-[#59d6ff] hover:bg-[#59d6ff] hover:text-black"
+              ? "border-[#8ddff5]/75 bg-[linear-gradient(145deg,rgba(89,214,255,0.22),rgba(4,13,16,0.84))] text-[#dff8ff] shadow-[inset_0_1px_rgba(223,248,255,0.08),0_10px_28px_rgba(0,0,0,0.22)]"
+              : "border-[#59d6ff]/40 bg-[#061115]/75 text-[#71d7f2] shadow-[inset_0_1px_rgba(223,248,255,0.04),0_8px_24px_rgba(0,0,0,0.18)] hover:-translate-y-0.5 hover:border-[#8ddff5]/75 hover:bg-[#59d6ff]/12 hover:text-[#dff8ff]"
           }`}
         >
           +CRYPTI
@@ -330,12 +329,6 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
             ? renderTab(
                 baySpaceTabs[1],
                 "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-4 md:w-auto md:max-w-none",
-              )
-            : null}
-          {!guestMode
-            ? renderTab(
-                baySpaceTabs[2],
-                "order-4 w-16 md:order-5 md:w-auto",
               )
             : null}
         </div>

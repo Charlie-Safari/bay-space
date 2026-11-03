@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentMember } from "../lib/bay-space-session";
+import MemberLookup from "./components/member-lookup";
 import styles from "./welcome-intro.module.css";
 
 const welcomePaths = [
@@ -50,9 +51,7 @@ export default async function Home() {
           <Link className={styles.wordmark} href="/" aria-label="Bay Space home">
             BAY<span>—</span>SPACE
           </Link>
-          <p className={styles.status}>
-            <span aria-hidden="true" /> guest access / signal open
-          </p>
+          <MemberLookup variant="welcome" />
         </header>
 
         <div className={styles.introduction}>

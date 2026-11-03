@@ -1,5 +1,6 @@
 import HomeBar from "../components/home-bar";
 import BriefingRoomGate from "./briefing-room-gate";
+import styles from "./briefing-room.module.css";
 
 type BriefingRoomProps = {
   searchParams: Promise<{
@@ -14,11 +15,11 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
   const shouldOpenInbox = panel === "inbox" || Boolean(inboxMember.trim());
 
   return (
-    <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
+    <main className={`${styles.page} min-h-screen text-[#72c16a] font-mono`}>
       <HomeBar />
 
-      <section className="bay-briefing-copy mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
-        <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
+      <section className={`${styles.content} bay-briefing-copy mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16`}>
+        <p className={`${styles.breadcrumb} mb-4 uppercase`}>
           c:\bay-space\briefing-room&gt; gate
         </p>
         <BriefingRoomGate

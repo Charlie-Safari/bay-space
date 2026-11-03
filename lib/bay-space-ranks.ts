@@ -8,7 +8,12 @@ export type BayRank =
   | "poster-iii"
   | "graduation";
 
-export type CryptiRank = "" | "reader-iii" | "poster-iv" | "poster-v";
+export type CryptiRank =
+  | ""
+  | "reader-iii"
+  | "poster-iv"
+  | "poster-v"
+  | "oracle";
 
 export type GateKey =
   | "safari-nation"
@@ -16,6 +21,7 @@ export type GateKey =
   | "crypti-plus"
   | "instant-rank-promotion"
   | "instant-rank-promotion-ii"
+  | "oracle-badge"
   | "cabbin-wizard-club";
 
 export type BayoTitleId =
@@ -75,6 +81,7 @@ type CryptiRankConfig = {
   label: string;
   level: number;
   minLifetimePoints: number;
+  requiresGateKey?: GateKey;
 };
 
 type GateKeyConfig = {
@@ -125,9 +132,11 @@ export const defaultMemberTitle = "Reader";
 export const bayoCoinExchangeRate = 100;
 export const bayoTokenExchangeRate = 5;
 export const graduationCoinCost = 500;
+export const oracleBadgeTokenCost = 1000;
 export const tokenGateKeys: GateKey[] = [
   "instant-rank-promotion",
   "instant-rank-promotion-ii",
+  "oracle-badge",
 ];
 export const doublayCardId: BayoCardId = "doublay-card";
 export const moneyPrinterICardId: BayoCardId = "money-printer-i";
@@ -178,12 +187,7 @@ export const bayRanks: BayRankConfig[] = [
     minLifetimePoints: 3500,
   },
   {
-    allowedPostCategories: [
-      "top-story",
-      "daily-food",
-      "theory",
-      "library-submission",
-    ],
+    allowedPostCategories: ["theory", "library-submission"],
     canExchangePoints: false,
     canReadCategories: [...publicReadCategories, "library-submission"],
     id: "poster-iii",
@@ -192,12 +196,7 @@ export const bayRanks: BayRankConfig[] = [
     minLifetimePoints: 10000,
   },
   {
-    allowedPostCategories: [
-      "top-story",
-      "daily-food",
-      "theory",
-      "library-submission",
-    ],
+    allowedPostCategories: ["theory", "library-submission"],
     canExchangePoints: true,
     canReadCategories: [...publicReadCategories, "library-submission"],
     id: "graduation",
@@ -218,7 +217,7 @@ export const gateKeys: GateKeyConfig[] = [
   {
     coinCost: 100,
     description:
-      "Join the Oracle Club with bayoracle.com for Bay Area community meetups and like-minded thinkers.",
+      "Join Bayo+ for Bay Area community meetups and like-minded thinkers.",
     id: "bayo-plus",
     label: "Bayo+",
   },
@@ -239,9 +238,16 @@ export const gateKeys: GateKeyConfig[] = [
   {
     coinCost: 50,
     description:
-      "Grand highest rank. Requires Instant Rank Promotion I and advances the +CRYPTI branch to Poster V.",
+      "Highest +CRYPTI rank. Requires Instant Rank Promotion I and advances the +CRYPTI branch to Poster V.",
     id: "instant-rank-promotion-ii",
     label: "Instant Rank Promotion II",
+  },
+  {
+    coinCost: oracleBadgeTokenCost,
+    description:
+      "Final Level 9 badge. Requires Graduation, +CRYPTI ownership, and Poster V. Unlocks Current Events and Top Story publishing.",
+    id: "oracle-badge",
+    label: "Oracle Badge",
   },
   {
     coinCost: 10000,
@@ -270,6 +276,13 @@ export const cryptiRanks: CryptiRankConfig[] = [
     label: "Poster V",
     level: 8,
     minLifetimePoints: 300000,
+  },
+  {
+    id: "oracle",
+    label: "Oracle",
+    level: 9,
+    minLifetimePoints: 300000,
+    requiresGateKey: "oracle-badge",
   },
 ];
 
@@ -561,7 +574,9 @@ export function getCryptiRankForLifetimePoints(
 ) {
   const normalizedPoints = Number.isFinite(points) ? Math.max(0, points) : 0;
   const currentConfig = getCryptiRankConfig(currentRank);
-  const earnedConfig = cryptiRanks.reduce<CryptiRankConfig | null>(
+  const earnedConfig = cryptiRanks
+    .filter((candidate) => !candidate.requiresGateKey)
+    .reduce<CryptiRankConfig | null>(
     (earnedRank, candidate) =>
       normalizedPoints >= candidate.minLifetimePoints
         ? candidate
@@ -604,7 +619,8 @@ export function getNextPromotionProgress(
     const currentConfig = getCryptiRankConfig(subject?.cryptiRank);
     const nextCryptiRank = cryptiRanks.find(
       (candidate) =>
-        !currentConfig || candidate.level > currentConfig.level,
+        !candidate.requiresGateKey &&
+        (!currentConfig || candidate.level > currentConfig.level),
     );
 
     return nextCryptiRank

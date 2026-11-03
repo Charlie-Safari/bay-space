@@ -208,7 +208,7 @@ export async function GET() {
 
     console.error(error);
     return Response.json(
-      { message: "Unable to load Facts on News inventory" },
+      { message: "Unable to load Current Events inventory" },
       { status: 500 },
     );
   }

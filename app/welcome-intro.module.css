@@ -275,6 +275,11 @@
     letter-spacing: 0.08em;
   }
 
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .introduction {
     padding: 2.25rem 0 4.5rem;
   }

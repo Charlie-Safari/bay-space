@@ -1,15 +1,16 @@
 import DailyFoodShell from "./daily-food-shell";
 import HomeBar from "../components/home-bar";
+import { getCurrentMember } from "../../lib/bay-space-session";
+import styles from "../theories/theory-experience.module.css";
 
-export default function DailyFood() {
+export default async function DailyFood() {
+  const member = await getCurrentMember();
+
   return (
-    <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
-      <HomeBar />
+    <main className={`${styles.page} min-h-screen text-[#72c16a] font-mono`}>
+      <HomeBar guestMode={!member} />
 
-      <section className="mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
-        <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-          c:\bay-space\facts-on-news&gt; main
-        </p>
+      <section className={`${styles.content} mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16`}>
         <DailyFoodShell />
       </section>
     </main>

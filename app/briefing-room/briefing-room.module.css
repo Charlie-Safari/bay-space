@@ -1,0 +1,416 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 13% 16%, rgba(104, 180, 94, 0.14), transparent 29rem),
+    radial-gradient(circle at 88% 74%, rgba(44, 105, 54, 0.12), transparent 34rem),
+    linear-gradient(155deg, #030704 0%, #071008 48%, #020503 100%);
+}
+
+.page::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  opacity: 0.12;
+  background-image:
+    linear-gradient(rgba(190, 222, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 222, 184, 0.06) 1px, transparent 1px);
+  background-size: 4.5rem 4.5rem;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+}
+
+.breadcrumb {
+  width: fit-content;
+  border: 1px solid rgba(114, 193, 106, 0.22);
+  border-radius: 999px;
+  background: rgba(5, 13, 6, 0.62);
+  padding: 0.48rem 0.75rem;
+  color: #bfd0bc;
+  font-size: 0.63rem;
+  letter-spacing: 0.18em;
+  box-shadow: inset 0 0 1.2rem rgba(114, 193, 106, 0.04);
+}
+
+.gate {
+  --briefing-signal: #72c16a;
+  --briefing-soft: #bfd0bc;
+  --briefing-muted: #8da389;
+  width: 100%;
+  color: var(--briefing-signal);
+}
+
+.gateHeader {
+  position: relative;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(114, 193, 106, 0.28);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(135deg, rgba(114, 193, 106, 0.11), transparent 55%),
+    rgba(4, 12, 5, 0.74);
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.045),
+    0 1.2rem 3rem rgba(0, 0, 0, 0.2);
+}
+
+.gateTitle {
+  color: var(--briefing-signal) !important;
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: -0.045em !important;
+  line-height: 0.9;
+  text-shadow: 0 0 1.5rem rgba(114, 193, 106, 0.28) !important;
+}
+
+.workspace {
+  align-items: start;
+}
+
+.optionsRail,
+.panelSurface,
+.accessCard {
+  border-color: rgba(114, 193, 106, 0.3) !important;
+  border-radius: 1.2rem;
+  background:
+    linear-gradient(145deg, rgba(114, 193, 106, 0.075), transparent 48%),
+    rgba(4, 12, 5, 0.82) !important;
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.045),
+    0 1.25rem 3rem rgba(0, 0, 0, 0.23) !important;
+  backdrop-filter: blur(12px);
+}
+
+.optionsRail {
+  position: sticky;
+  top: 1rem;
+  padding: 0.8rem !important;
+}
+
+.optionsRail > p {
+  padding: 0.4rem 0.45rem 0.05rem;
+  color: var(--briefing-soft) !important;
+}
+
+.optionsRail button,
+.optionsRail a {
+  border-color: rgba(114, 193, 106, 0.23) !important;
+  border-radius: 0.72rem;
+  background: rgba(7, 18, 8, 0.64) !important;
+  color: var(--briefing-soft) !important;
+  transition:
+    transform 170ms ease,
+    border-color 170ms ease,
+    background 170ms ease,
+    color 170ms ease !important;
+}
+
+.optionsRail button:hover,
+.optionsRail a:hover {
+  border-color: rgba(144, 213, 135, 0.7) !important;
+  background: rgba(114, 193, 106, 0.13) !important;
+  color: #e4f0e1 !important;
+  box-shadow: none !important;
+  transform: translateX(0.18rem);
+}
+
+.optionsRail [class*="bg-[#39ff14]"] {
+  border-color: rgba(144, 213, 135, 0.8) !important;
+  background:
+    linear-gradient(90deg, rgba(114, 193, 106, 0.23), rgba(114, 193, 106, 0.08)) !important;
+  color: #e4f0e1 !important;
+  box-shadow: inset 3px 0 var(--briefing-signal) !important;
+}
+
+.panelSurface {
+  min-width: 0;
+  padding: clamp(1rem, 3vw, 1.5rem) !important;
+}
+
+.gate :is(button, a, input, select, textarea, summary) {
+  border-radius: 0.72rem;
+}
+
+.gate :is(input, select, textarea) {
+  border-color: rgba(114, 193, 106, 0.28) !important;
+  background: rgba(2, 9, 3, 0.76) !important;
+  color: #dce9d9 !important;
+  box-shadow: inset 0 0 1.2rem rgba(114, 193, 106, 0.025);
+}
+
+.gate :is(input, select, textarea):focus {
+  border-color: rgba(144, 213, 135, 0.76) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(114, 193, 106, 0.12) !important;
+}
+
+.gate [class*="border-[#39ff14]"],
+.gate [class*="border-[#1d7f12]"] {
+  border-color: rgba(114, 193, 106, 0.34) !important;
+}
+
+.gate [class*="text-[#39ff14]"] {
+  color: var(--briefing-signal) !important;
+}
+
+.gate [class*="text-[#d7ffd0]"] {
+  color: var(--briefing-soft) !important;
+}
+
+.gate [class*="text-[#7f9f78]"] {
+  color: var(--briefing-muted) !important;
+}
+
+.gate [class*="bg-black"],
+.gate [class*="bg-[#001100]"],
+.gate [class*="bg-[#031403]"] {
+  background-color: rgba(3, 11, 4, 0.78) !important;
+}
+
+.gate [class*="bg-[#39ff14]"] {
+  background-color: rgba(114, 193, 106, 0.2) !important;
+  color: #e4f0e1 !important;
+}
+
+.gate button:not([class*="text-[#ff"]):hover,
+.gate a:not([class*="text-[#ff"]):hover {
+  border-color: rgba(144, 213, 135, 0.72) !important;
+  background-color: rgba(114, 193, 106, 0.14) !important;
+  color: #e4f0e1 !important;
+  box-shadow: 0 0.55rem 1.5rem rgba(0, 0, 0, 0.16) !important;
+}
+
+.gate :is(section, article, form, details, div)[class*="border-"] {
+  border-radius: 0.95rem;
+}
+
+.gate [class*="shadow-[0_0_"] {
+  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.2) !important;
+}
+
+.accessCard {
+  padding: 1.25rem !important;
+}
+
+.exchangeCard {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 7rem;
+  overflow: hidden;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid rgba(114, 193, 106, 0.42) !important;
+  border-radius: 1rem !important;
+  background:
+    radial-gradient(circle at 86% 28%, rgba(114, 193, 106, 0.2), transparent 7rem),
+    linear-gradient(135deg, rgba(114, 193, 106, 0.15), rgba(5, 14, 6, 0.72)) !important;
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.06),
+    0 0.85rem 2rem rgba(0, 0, 0, 0.18) !important;
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease !important;
+}
+
+.exchangeCard::after {
+  position: absolute;
+  right: -2.5rem;
+  bottom: -3.4rem;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgba(114, 193, 106, 0.14);
+  border-radius: 50%;
+  content: "";
+  box-shadow: 0 0 0 1.4rem rgba(114, 193, 106, 0.025);
+  pointer-events: none;
+}
+
+.exchangeCard:hover {
+  border-color: rgba(144, 213, 135, 0.78) !important;
+  background:
+    radial-gradient(circle at 86% 28%, rgba(114, 193, 106, 0.28), transparent 7rem),
+    linear-gradient(135deg, rgba(114, 193, 106, 0.2), rgba(7, 18, 8, 0.84)) !important;
+  transform: translateY(-0.15rem);
+}
+
+.exchangeEyebrow {
+  grid-column: 1;
+  color: var(--briefing-muted);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.exchangeTitle {
+  grid-column: 1;
+  color: #dce9d9;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(1.6rem, 5vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.exchangeArrow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  place-items: center;
+  border: 1px solid rgba(144, 213, 135, 0.5);
+  border-radius: 50%;
+  color: var(--briefing-signal);
+  font-size: 1.35rem;
+}
+
+.dailySpinIcon {
+  display: grid;
+  width: 2.55rem;
+  height: 2.55rem;
+  place-items: center;
+  border: 1px solid rgba(114, 193, 106, 0.36) !important;
+  border-radius: 0.78rem !important;
+  background: rgba(7, 18, 8, 0.7) !important;
+  box-shadow: inset 0 1px rgba(223, 243, 218, 0.05) !important;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease !important;
+}
+
+.dailySpinIcon:hover {
+  border-color: rgba(144, 213, 135, 0.75) !important;
+  background: rgba(114, 193, 106, 0.14) !important;
+  transform: rotate(-3deg) scale(1.04);
+}
+
+.dailySpinWindow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(114, 193, 106, 0.34);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 88% 20%, rgba(114, 193, 106, 0.18), transparent 8rem),
+    rgba(5, 14, 6, 0.72);
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.05),
+    0 0.8rem 2rem rgba(0, 0, 0, 0.18);
+  animation: daily-spin-window-enter 180ms ease-out both;
+}
+
+.dailySpinEyebrow {
+  color: var(--briefing-muted);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.dailySpinTitle {
+  margin-top: 0.2rem;
+  color: #dce9d9;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dailySpinRange {
+  margin-top: 0.4rem;
+  color: var(--briefing-signal);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dailySpinButton {
+  min-width: 6.5rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(144, 213, 135, 0.7) !important;
+  border-radius: 999px !important;
+  background: rgba(114, 193, 106, 0.18) !important;
+  color: #dce9d9 !important;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.dailySpinButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.dailySpinResult {
+  grid-column: 1 / -1;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(114, 193, 106, 0.2);
+  color: #dce9d9;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@keyframes daily-spin-window-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 520px) {
+  .dailySpinWindow {
+    grid-template-columns: 1fr;
+  }
+
+  .dailySpinButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .optionsRail {
+    position: static;
+  }
+
+  .gateHeader {
+    padding: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .optionsRail button,
+  .optionsRail a {
+    transition: none !important;
+  }
+}

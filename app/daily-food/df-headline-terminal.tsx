@@ -10,18 +10,15 @@ import TerminalLoadingShell from "../components/terminal-loading-shell";
 import {
   BayPost,
   getBayPostsByCategory,
-  getDateKey,
   postStoreEvent,
 } from "../components/post-store";
 import {
   countFavoritePosts,
   favoriteStoreEvent,
-  getFavoriteAuthorIds,
   getFavoritePostIds,
 } from "../components/favorite-store";
 import { recordPostVisit } from "../components/post-visit-client";
 import {
-  hasCreatorAccess,
   isBayoClub,
   isGhostRole,
 } from "../../lib/bay-space-roles";
@@ -40,28 +37,29 @@ import {
   getPostTopicTags,
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
+import styles from "../theories/theory-experience.module.css";
 
-type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
+type SortMode = "attention" | "top-story" | "date" | "category";
+type BrowseMode = "" | "all" | "week" | "month" | "category" | "circles";
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
+function getCurrentWeekRange(now = new Date()) {
+  const start = startOfDay(now);
+  const day = start.getDay();
+  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { end, start };
 }
 
-function formatMonth(date: Date) {
-  return new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
-}
-
-function formatTimelineDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+function getCurrentMonthRange(now = new Date()) {
+  return {
+    start: new Date(now.getFullYear(), now.getMonth(), 1),
+    end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+  };
 }
 
 function formatTimestamp(value: string) {
@@ -117,11 +115,16 @@ function getPostDailyFoodCategory(post: BayPost) {
 function getDailyFoodCategoryLabel(post: BayPost) {
   const dailyFoodCategory = getPostDailyFoodCategory(post);
 
-  return dailyFoodCategory ? `Facts - ${dailyFoodCategory}` : "Facts";
+  return dailyFoodCategory
+    ? `Current Events - ${dailyFoodCategory}`
+    : "Current Events";
 }
 
 type DfHeadlineTerminalProps = {
   onClearReference: () => void;
+  onReferenceQueryChange: (value: string) => void;
+  onUnlockReference: () => void;
+  referenceQuery: string;
   unlockedReference: string;
 };
 
@@ -167,12 +170,16 @@ function normalizeLookupText(value: string) {
 
 export default function DfHeadlineTerminal({
   onClearReference,
+  onReferenceQueryChange,
+  onUnlockReference,
+  referenceQuery,
   unlockedReference,
 }: DfHeadlineTerminalProps) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const listRef = useRef<HTMLDivElement>(null);
-  const hasSetLoggedInRevealDefault = useRef(false);
-  const [activeDate, setActiveDate] = useState(today);
+  const [browseMode, setBrowseMode] = useState<BrowseMode>(() =>
+    unlockedReference || getPostHashId() || getTopicTagParam() ? "all" : "",
+  );
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [hasSyncedPosts, setHasSyncedPosts] = useState(false);
   const [members, setMembers] = useState<SavedMember[]>([]);
@@ -180,20 +187,17 @@ export default function DfHeadlineTerminal({
   const [favoritePostCounts, setFavoritePostCounts] = useState<
     Record<string, number>
   >({});
-  const [favoriteAuthorIds, setFavoriteAuthorIds] = useState<string[]>([]);
-  const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("attention");
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
   const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [revealAll, setRevealAll] = useState(false);
+  const [revealAll, setRevealAll] = useState(true);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [isCategoryListLayout, setIsCategoryListLayout] = useState(false);
   const [selectedDailyFoodCategory, setSelectedDailyFoodCategory] =
     useState("");
-  const canMoveForward = activeDate < today;
-  const activeDateKey = getDateKey(activeDate);
   const normalizedReferenceQuery = unlockedReference
     ? normalizeLookupText(unlockedReference)
     : "";
@@ -226,20 +230,14 @@ export default function DfHeadlineTerminal({
       )
     : "0";
   const categoryPosts = selectedDailyFoodCategory
-    ? filterPostsByAuthorMode(posts)
-        .filter(
+    ? sortPosts(
+        posts.filter(
           (post) =>
             !post.incognito &&
             getPostDailyFoodCategory(post) === selectedDailyFoodCategory,
-        )
-        .sort(
-          (leftPost, rightPost) =>
-            new Date(rightPost.createdAt).getTime() -
-            new Date(leftPost.createdAt).getTime(),
-        )
+        ),
+      )
     : [];
-  const nextTimelineDate = addDays(activeDate, 1);
-  const previousTimelineDate = addDays(activeDate, -1);
 
   useEffect(() => {
     function syncPosts() {
@@ -258,16 +256,6 @@ export default function DfHeadlineTerminal({
 
       setActiveMember(member);
       setIsLoggedIn(Boolean(member));
-
-      if (member && !hasSetLoggedInRevealDefault.current) {
-        setRevealAll(true);
-        hasSetLoggedInRevealDefault.current = true;
-      }
-
-      if (!member) {
-        setRevealAll(false);
-        hasSetLoggedInRevealDefault.current = false;
-      }
     }
 
     function syncMembers() {
@@ -280,7 +268,6 @@ export default function DfHeadlineTerminal({
 
     async function syncFavorites() {
       setFavoritePostIds(await getFavoritePostIds());
-      setFavoriteAuthorIds(await getFavoriteAuthorIds());
     }
 
     syncPosts();
@@ -374,56 +361,72 @@ export default function DfHeadlineTerminal({
     };
   }, [displayedPostId]);
 
-  function moveDate(days: number) {
-    setActiveDate((currentDate) => {
-      const nextDate = addDays(currentDate, days);
-
-      return nextDate > today ? today : nextDate;
-    });
-    setExpandedPostId("");
-    if (selectedTopicTag) {
-      clearTopicTag();
-    }
-  }
-
   function getVisiblePosts() {
-    const sortNewestFirst = (leftPost: BayPost, rightPost: BayPost) =>
-      new Date(rightPost.createdAt).getTime() -
-      new Date(leftPost.createdAt).getTime();
-
     if (selectedTopicTag) {
-      return posts
+      return sortPosts(
+        posts
         .filter(
           (post) =>
             !post.incognito && doPostTopicTagsIncludeTag(post, selectedTopicTag),
-        )
-        .sort(sortNewestFirst);
+        ),
+      );
     }
 
     if (!isReferenceMode) {
-      return filterPostsByAuthorMode(posts)
-        .filter((post) => post.dateKey === activeDateKey && !post.incognito)
-        .sort(sortNewestFirst);
+      const publicPosts = posts.filter((post) => !post.incognito);
+
+      if (browseMode === "week") {
+        const { end, start } = getCurrentWeekRange(today);
+        return sortPosts(
+          publicPosts
+          .filter((post) => {
+            const createdAt = new Date(post.createdAt);
+            return createdAt >= start && createdAt < end;
+          }),
+        );
+      }
+
+      if (browseMode === "month") {
+        const { end, start } = getCurrentMonthRange(today);
+        return sortPosts(
+          publicPosts
+          .filter((post) => {
+            const createdAt = new Date(post.createdAt);
+            return createdAt >= start && createdAt < end;
+          }),
+        );
+      }
+
+      if (browseMode === "category" && selectedDailyFoodCategory) {
+        return sortPosts(
+          publicPosts
+          .filter(
+            (post) =>
+              getPostDailyFoodCategory(post) === selectedDailyFoodCategory,
+          ),
+        );
+      }
+
+      return sortPosts(publicPosts);
     }
 
     if (matchedReferencePost) {
-      return filterPostsByAuthorMode([matchedReferencePost]);
+      return [matchedReferencePost];
     }
 
     if (!matchedReferenceMember) {
-      return filterPostsByAuthorMode(posts)
-        .filter((post) => !post.incognito && doesPostMatchLookup(post))
-        .sort(sortNewestFirst);
+      return sortPosts(
+        posts.filter((post) => !post.incognito && doesPostMatchLookup(post)),
+      );
     }
 
-    return filterPostsByAuthorMode(posts)
-      .filter(
+    return sortPosts(
+      posts.filter(
         (post) =>
           post.incognito &&
-          post.author === matchedReferenceMember.member &&
-          post.dateKey === activeDateKey,
-      )
-      .sort(sortNewestFirst);
+          post.author === matchedReferenceMember.member,
+      ),
+    );
   }
 
   function doesPostMatchLookup(post: BayPost) {
@@ -449,27 +452,41 @@ export default function DfHeadlineTerminal({
     return searchableText.includes(normalizedReferenceQuery);
   }
 
-  function filterPostsByAuthorMode(filteredPosts: BayPost[]) {
-    if (authorFilter === "all") {
-      return filteredPosts;
-    }
+  function sortPosts(postsToSort: BayPost[]) {
+    const newestFirst = (leftPost: BayPost, rightPost: BayPost) =>
+      new Date(rightPost.createdAt).getTime() -
+      new Date(leftPost.createdAt).getTime();
+    const getMetaCount = (post: BayPost, key: string) => {
+      const count = Number(post.meta?.[key]);
+      return Number.isFinite(count) && count > 0 ? count : 0;
+    };
+    const getAttentionScore = (post: BayPost) =>
+      getMetaCount(post, "postVisits") +
+      getMetaCount(post, "commentCount") * 10 +
+      getMetaCount(post, "truthVoteCount") * 3;
 
-    return filteredPosts.filter((post) => {
-      const authorRoles = getAuthorRoles(post);
-
-      if (authorFilter === "favorite-authors") {
-        return !post.anonymous && favoriteAuthorIds.includes(post.author);
+    return [...postsToSort].sort((leftPost, rightPost) => {
+      if (sortMode === "category") {
+        const categoryDifference = getPostDailyFoodCategory(leftPost).localeCompare(
+          getPostDailyFoodCategory(rightPost),
+        );
+        return categoryDifference || newestFirst(leftPost, rightPost);
       }
 
-      if (authorFilter === "ghosts") {
-        return isGhostRole(authorRoles);
+      if (sortMode === "top-story") {
+        const scoreDifference =
+          getBaySpacePostPointTenths(rightPost, favoritePostCounts) -
+          getBaySpacePostPointTenths(leftPost, favoritePostCounts);
+        return scoreDifference || newestFirst(leftPost, rightPost);
       }
 
-      if (authorFilter === "creators") {
-        return hasCreatorAccess(authorRoles);
+      if (sortMode === "attention") {
+        const attentionDifference =
+          getAttentionScore(rightPost) - getAttentionScore(leftPost);
+        return attentionDifference || newestFirst(leftPost, rightPost);
       }
 
-      return post.anonymous;
+      return newestFirst(leftPost, rightPost);
     });
   }
 
@@ -502,6 +519,7 @@ export default function DfHeadlineTerminal({
   }
 
   function openTopicTag(tag: string) {
+    setBrowseMode("all");
     setSelectedTopicTag(tag);
     setExpandedPostId("");
     setHashPostId("");
@@ -625,7 +643,6 @@ export default function DfHeadlineTerminal({
     setHashPostId(post.id);
     setSelectedTopicTag("");
     setIsCategoriesOpen(false);
-    setSelectedDailyFoodCategory("");
     window.history.replaceState(
       null,
       "",
@@ -633,27 +650,163 @@ export default function DfHeadlineTerminal({
     );
   }
 
+  const isMainScreen = browseMode === "";
+  const screenTitle =
+    browseMode === "week"
+      ? "THIS WEEK"
+      : browseMode === "month"
+        ? "THIS MONTH"
+        : browseMode === "category"
+          ? selectedDailyFoodCategory || "CURRENT EVENTS CATEGORIES"
+          : browseMode === "circles"
+            ? "CIRCLES"
+            : "CURRENT EVENTS";
+  const screenPath =
+    browseMode === "week"
+      ? "c:\\bay-space\\current-events\\this-week"
+      : browseMode === "month"
+        ? "c:\\bay-space\\current-events\\this-month"
+        : browseMode === "category"
+          ? selectedDailyFoodCategory
+            ? `c:\\bay-space\\current-events\\categories\\${selectedDailyFoodCategory
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")}`
+            : "c:\\bay-space\\current-events\\categories"
+          : browseMode === "circles"
+            ? "c:\\bay-space\\current-events\\circles"
+            : "c:\\bay-space\\current-events> main";
+
+  function openBrowseMode(mode: Exclude<BrowseMode, "" | "all">) {
+    setBrowseMode(mode);
+    setExpandedPostId("");
+    setHashPostId("");
+    setSelectedTopicTag("");
+    setSelectedDailyFoodCategory("");
+    setIsCategoriesOpen(mode === "category");
+    onClearReference();
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  function returnToMainScreen() {
+    setBrowseMode("");
+    setExpandedPostId("");
+    setHashPostId("");
+    setSelectedTopicTag("");
+    setSelectedDailyFoodCategory("");
+    setIsCategoriesOpen(false);
+    setSortMode("attention");
+    onClearReference();
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  function goBackOneScreen() {
+    if (browseMode === "category" && selectedDailyFoodCategory) {
+      setSelectedDailyFoodCategory("");
+      setExpandedPostId("");
+      setHashPostId("");
+      setIsCategoriesOpen(true);
+      return;
+    }
+
+    returnToMainScreen();
+  }
+
+  const hasActiveFeed =
+    browseMode === "week" ||
+    browseMode === "month" ||
+    browseMode === "all" ||
+    isReferenceMode ||
+    Boolean(selectedTopicTag) ||
+    (browseMode === "category" && Boolean(selectedDailyFoodCategory));
+
   return (
-    <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1fr_130px] lg:items-start">
-      <div className="flex flex-wrap items-end justify-end gap-4 lg:col-span-2">
+    <div className={`${styles.board} ${styles.currentEventsBoard} grid w-full max-w-5xl gap-8`}>
+      <header className={`${styles.screenHeader} relative flex flex-wrap items-start justify-between gap-5`}>
+        <div className={`w-full ${!isMainScreen ? "sm:pr-72" : ""}`}>
+          <p className={`${styles.breadcrumb} mb-4 text-sm uppercase text-[#bfd0bc]`}>
+            {screenPath}
+          </p>
+          <h1 className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
+            {screenTitle}
+          </h1>
+        </div>
+        {!isMainScreen ? (
+          <button
+            type="button"
+            onClick={goBackOneScreen}
+            className={`${styles.backButton} bay-terminal-copy px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#bfd0bc] sm:absolute sm:right-0 sm:top-0`}
+          >
+            ← back / {browseMode === "category" && selectedDailyFoodCategory
+              ? "current events categories"
+              : "current events > main"}
+          </button>
+        ) : null}
+      </header>
+
+      {isMainScreen ? (
+        <section
+          className={`${styles.entryGrid} order-1 grid gap-4 sm:grid-cols-2`}
+          aria-label="Choose Current Events view"
+        >
+          {[
+            {
+              description: "The stories and signals published since Monday.",
+              label: "THIS WEEK",
+              mode: "week" as const,
+            },
+            {
+              description: "A wider look across the current calendar month.",
+              label: "THIS MONTH",
+              mode: "month" as const,
+            },
+            {
+              description: "Follow current events by subject and signal type.",
+              label: "CATEGORIES",
+              mode: "category" as const,
+            },
+            {
+              description: "Gather around an event and follow it together.",
+              label: "CIRCLES",
+              mode: "circles" as const,
+            },
+          ].map((option, index) => (
+            <button
+              key={option.mode}
+              type="button"
+              onClick={() => openBrowseMode(option.mode)}
+              className={`${styles.entryCard} text-left focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
+            >
+              <span className={styles.entryNumber}>0{index + 1}</span>
+              <span className={styles.entryLabel}>{option.label}</span>
+              <span className={styles.entryDescription}>{option.description}</span>
+              <span className={styles.entryArrow} aria-hidden="true">→</span>
+            </button>
+          ))}
+        </section>
+      ) : null}
+
+      {browseMode === "circles" ? (
+        <section className={`${styles.surface} order-1 px-6 py-8`}>
+          <p className="bay-terminal-copy text-xs text-[#72c16a]">COMING SOON</p>
+          <p className="bay-terminal-field mt-4 max-w-2xl text-sm leading-7 text-[#bfd0bc]">
+            Community circles for following one developing current event together
+            are on the way.
+          </p>
+        </section>
+      ) : null}
+
+      {hasActiveFeed || browseMode === "category" ? (
+      <div className={`${styles.controlBar} ${styles.currentEventsControls} order-3 flex flex-wrap items-end gap-4`}>
         <Link
           href="/news"
-          className="grid min-h-12 place-items-center border border-[#39ff14] px-6 py-3 text-sm font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          className={`${styles.currentEventsAction} grid min-h-12 place-items-center border px-6 py-3 text-sm font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
         >
           Top Story
         </Link>
         <button
           type="button"
-          onClick={() => {
-            setIsCategoriesOpen((isOpen) => {
-              if (isOpen) {
-                setSelectedDailyFoodCategory("");
-              }
-
-              return !isOpen;
-            });
-          }}
-          className={`min-h-12 border px-6 py-3 text-sm font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+          onClick={() => openBrowseMode("category")}
+          className={`${styles.currentEventsAction} min-h-12 border px-6 py-3 text-sm font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#bfd0bc] ${
             isCategoriesOpen
               ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
               : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
@@ -661,25 +814,61 @@ export default function DfHeadlineTerminal({
         >
           Categories
         </button>
+        <form
+          id="daily-food-reference"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBrowseMode("all");
+            setIsCategoriesOpen(false);
+            onUnlockReference();
+          }}
+          className={`${styles.currentEventsSearch} flex w-fit flex-wrap items-center gap-3 border px-3 py-2`}
+        >
+          <input
+            value={referenceQuery}
+            onChange={(event) => onReferenceQueryChange(event.target.value)}
+            placeholder="search"
+            className={`${styles.currentEventsInput} w-52 border px-3 py-2 text-sm font-black uppercase tracking-[0.14em] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#72c16a]`}
+          />
+          <button
+            type="submit"
+            className={`${styles.currentEventsAction} grid h-10 w-10 place-items-center border text-xl leading-none transition focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
+            aria-label="Search Current Events"
+          >
+            🌀
+          </button>
+        </form>
         <label className="grid w-fit gap-2">
           <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
             sort posts by
           </span>
           <select
-            value={authorFilter}
-            onChange={(event) => setAuthorFilter(event.target.value as AuthorFilter)}
-            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className={`${styles.currentEventsInput} border px-3 py-2 text-sm font-black uppercase tracking-[0.16em] outline-none focus:ring-2 focus:ring-[#72c16a]`}
           >
-            <option value="all">All</option>
-            <option value="favorite-authors">Favorite authors</option>
-            <option value="ghosts">Authors</option>
-            <option value="creators">Influencers</option>
-            <option value="anon">Anon</option>
+            <option value="attention">Attention</option>
+            <option value="top-story">Top Story</option>
+            <option value="date">Date</option>
+            <option value="category">Category</option>
           </select>
         </label>
+        <label className={`${styles.currentEventsToggle} flex min-h-12 w-fit items-center gap-3 border px-4 py-2 text-xs font-black uppercase tracking-[0.18em]`}>
+          <span>reveal posts</span>
+          <input
+            type="checkbox"
+            checked={revealAll}
+            onChange={(event) => setRevealAll(event.target.checked)}
+            className="peer sr-only"
+          />
+          <span className="relative h-5 w-10 rounded-full border border-[#4f8f49] bg-[#071008] transition peer-checked:border-[#72c16a] peer-checked:bg-[#72c16a] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#72c16a] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-[#071008]" />
+        </label>
       </div>
+      ) : null}
+
+      {hasActiveFeed || browseMode === "category" ? (
       <div
-        className={`relative w-full overflow-hidden border-2 border-[#1d7f12] bg-black px-5 py-8 shadow-[0_0_20px_rgba(57,255,20,0.14)] ${
+        className={`${styles.surface} ${styles.currentEventsFeed} relative order-1 w-full overflow-hidden px-5 py-8 ${
           isCategoriesOpen ? "min-h-[42rem] lg:min-h-[38rem]" : "min-h-40"
         }`}
       >
@@ -710,19 +899,16 @@ export default function DfHeadlineTerminal({
                           setIsCategoryListLayout(event.target.checked)
                         }
                         className="peer sr-only"
-                        aria-label="Toggle Facts on News category list layout"
+                        aria-label="Toggle Current Events category list layout"
                       />
                       <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
                     </label>
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsCategoriesOpen(false);
-                      setSelectedDailyFoodCategory("");
-                    }}
+                    onClick={returnToMainScreen}
                     className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Close Facts on News categories"
+                    aria-label="Close Current Events categories"
                   >
                     close
                   </button>
@@ -801,12 +987,12 @@ export default function DfHeadlineTerminal({
         {!hasSyncedPosts ? (
           <TerminalLoadingShell
             label="c:\\bay-space\\facts-on-news> syncing-feed"
-            title="facts on news"
+            title="current events"
           />
         ) : displayedPost ? (
-          <article className="relative border-2 border-[#39ff14] bg-[#020402] px-5 py-5 shadow-[0_0_18px_rgba(57,255,20,0.2)]">
+          <article className={`${styles.currentEventExpandedArticle} relative border px-5 py-5`}>
             <div className="absolute right-4 top-3 flex items-center gap-3">
-              <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+              <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#8fc788]">
                 {displayedPostScore} pts
               </p>
               <FavoriteButton
@@ -854,7 +1040,7 @@ export default function DfHeadlineTerminal({
                   onClearReference();
                 }
               }}
-              className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className={`${styles.currentEventsAction} border px-3 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
             >
               back
             </button>
@@ -894,7 +1080,7 @@ export default function DfHeadlineTerminal({
             <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimestamp(displayedPost.createdAt)}
             </p>
-            <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+            <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.08em] text-[#72c16a] sm:text-3xl">
               {displayedPost.title}
             </h2>
             {getDailyFoodTags(displayedPost).length ? (
@@ -905,7 +1091,7 @@ export default function DfHeadlineTerminal({
                     className="flex items-start gap-3"
                   >
                     <span
-                      className="mt-2 h-2 w-2 shrink-0 bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,0.75)]"
+                      className={`${styles.currentEventBullet} mt-2 h-2 w-2 shrink-0`}
                       aria-hidden="true"
                     />
                     <p>
@@ -1004,40 +1190,26 @@ export default function DfHeadlineTerminal({
                 </button>
               </div>
             ) : null}
-            {isLoggedIn || isReferenceMode ? (
+            {isReferenceMode ? (
               <div className="flex flex-wrap gap-2">
-                {isLoggedIn || isReferenceMemberMode ? (
-                  <label className="flex w-fit items-center gap-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
-                    <span>reveal posts</span>
-                    <input
-                      type="checkbox"
-                      checked={revealAll}
-                      onChange={(event) => setRevealAll(event.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
-                  </label>
-                ) : null}
-                {isReferenceMode ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExpandedPostId("");
-                      setRevealAll(false);
-                      onClearReference();
-                    }}
-                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-                  >
-                    exit code
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedPostId("");
+                    setRevealAll(true);
+                    onClearReference();
+                  }}
+                  className={`${styles.currentEventsAction} border px-3 py-2 text-xs font-black uppercase tracking-[0.18em] transition`}
+                >
+                  exit code
+                </button>
               </div>
             ) : null}
             <button
               type="button"
               onClick={() => scrollList(-1)}
-              className="w-fit border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-              aria-label="Scroll Facts on News posts up"
+              className={`${styles.currentEventsArrow} w-fit border px-3 py-1 text-sm font-black leading-none transition`}
+              aria-label="Scroll Current Events posts up"
             >
               ^
             </button>
@@ -1048,7 +1220,7 @@ export default function DfHeadlineTerminal({
                 return (
                 <div
                   key={post.id}
-                  className="daily-food-card group relative border border-dashed border-[#1d7f12]/85 px-4 pb-4 pt-8 transition duration-150 hover:border-[#39ff14]/80"
+                  className={`${styles.currentEventCard} daily-food-card group relative border px-4 pb-4 pt-8 transition duration-150`}
                 >
                   {postMarker ? (
                     <span className="absolute right-3 top-2 text-[0.65rem] font-black uppercase tracking-[0.2em] text-[#39ff14]/70">
@@ -1063,27 +1235,18 @@ export default function DfHeadlineTerminal({
                         currentId === post.id ? "" : post.id,
                       )
                     }
-                    className="block w-full origin-left text-left transition duration-150 group-hover:scale-[1.015] group-hover:bg-[#031403] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className={`${styles.currentEventArticleButton} block w-full origin-left text-left transition duration-150 group-hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
                   >
                     <span
-                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-left text-base font-black uppercase leading-6 tracking-[0.12em] transition sm:text-xl sm:leading-7 ${
+                      style={{ color: "#72c16a" }}
+                      className={`daily-food-headline-redacted relative block w-full overflow-hidden text-left text-base font-black uppercase leading-6 tracking-[0.08em] transition sm:text-xl sm:leading-7 ${
                         isPostRevealed(post)
                           ? "daily-food-headline-revealed"
                           : ""
                       }`}
                     >
-                      <span className="daily-food-headline-scroll">
-                        <span className="daily-food-headline-static">
-                          {post.title}
-                        </span>
-                        <span
-                          className="daily-food-headline-marquee"
-                          aria-hidden="true"
-                        >
-                          <span className="daily-food-headline-track">
-                            {post.title}
-                          </span>
-                        </span>
+                      <span className="block whitespace-normal break-words text-left">
+                        {post.title}
                       </span>
                     </span>
                     <span
@@ -1103,8 +1266,8 @@ export default function DfHeadlineTerminal({
             <button
               type="button"
               onClick={() => scrollList(1)}
-              className="w-fit border-2 border-[#1d7f12] px-3 py-1 text-sm font-black leading-none text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-              aria-label="Scroll Facts on News posts down"
+              className={`${styles.currentEventsArrow} w-fit border px-3 py-1 text-sm font-black leading-none transition`}
+              aria-label="Scroll Current Events posts down"
             >
               ⌄
             </button>
@@ -1112,7 +1275,7 @@ export default function DfHeadlineTerminal({
         ) : selectedTopicTag ? (
           <div className="grid gap-4">
             <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              no facts posts match {selectedTopicTag}
+              no current events posts match {selectedTopicTag}
             </p>
             <button
               type="button"
@@ -1131,7 +1294,7 @@ export default function DfHeadlineTerminal({
               type="button"
               onClick={() => {
                 setExpandedPostId("");
-                setRevealAll(false);
+                setRevealAll(true);
                 onClearReference();
               }}
               className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
@@ -1141,62 +1304,11 @@ export default function DfHeadlineTerminal({
           </div>
         ) : (
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-            facts on news queue clear
+            current events queue clear
           </p>
         )}
       </div>
-
-      <aside
-        aria-label="Facts on News timeline"
-        className="w-full justify-self-stretch lg:w-auto lg:justify-self-end"
-      >
-        <div className="flex w-full items-center gap-3 text-[#39ff14] lg:w-28 lg:flex-col">
-          {canMoveForward ? (
-            <button
-              type="button"
-              onClick={() => moveDate(1)}
-              className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[#1d7f12] text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black lg:h-auto lg:w-auto lg:px-3 lg:py-1"
-              aria-label="Move timeline forward one day"
-            >
-              <span className="lg:hidden">←</span>
-              <span className="hidden lg:inline">^</span>
-            </button>
-          ) : (
-            <span className="h-10 w-10 shrink-0 lg:hidden" aria-hidden="true" />
-          )}
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 lg:h-24 lg:flex-none lg:flex-col lg:gap-3">
-            <span className="whitespace-nowrap text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-              {nextTimelineDate <= today
-                ? formatTimelineDate(nextTimelineDate)
-                : "current"}
-            </span>
-            <span className="h-px min-w-6 flex-1 bg-[#39ff14] shadow-[0_0_12px_#39ff14] lg:h-12 lg:w-px lg:min-w-0 lg:flex-none" />
-          </div>
-          <div className="shrink-0 text-center">
-            <div className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
-              {formatMonth(activeDate)}
-            </div>
-            <div className="mt-1 text-4xl font-black leading-none [text-shadow:0_0_14px_#39ff14] lg:text-5xl">
-              {activeDate.getDate()}
-            </div>
-          </div>
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-2 lg:h-24 lg:flex-none lg:flex-col lg:gap-3">
-            <span className="h-px min-w-6 flex-1 bg-[#39ff14] shadow-[0_0_12px_#39ff14] lg:h-12 lg:w-px lg:min-w-0 lg:flex-none" />
-            <span className="whitespace-nowrap text-[0.65rem] font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-              {formatTimelineDate(previousTimelineDate)}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => moveDate(-1)}
-            className="grid h-10 w-10 shrink-0 place-items-center border-2 border-[#1d7f12] text-sm font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black lg:h-auto lg:w-auto lg:px-3 lg:py-1"
-            aria-label="Move timeline back one day"
-          >
-            <span className="lg:hidden">→</span>
-            <span className="hidden lg:inline">⌄</span>
-          </button>
-        </div>
-      </aside>
+      ) : null}
     </div>
   );
 }

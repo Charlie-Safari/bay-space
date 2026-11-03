@@ -2,6 +2,93 @@
   animation: loginShake 320ms linear 1;
 }
 
+.welcomeLookup {
+  position: relative;
+  width: min(100%, 31rem);
+}
+
+.welcomeForm {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(114, 193, 106, 0.4);
+  border-radius: 0.75rem;
+  background: rgba(5, 14, 6, 0.76);
+  box-shadow:
+    inset 0 1px rgba(224, 243, 220, 0.04),
+    0 0.75rem 2rem rgba(0, 0, 0, 0.2);
+}
+
+.welcomeForm input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0.75rem 0.9rem;
+  color: #bfd0bc;
+  font: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  outline: none;
+}
+
+.welcomeForm input::placeholder {
+  color: #71806e;
+  opacity: 1;
+}
+
+.welcomeForm input:focus {
+  box-shadow: inset 0 0 0 1px rgba(114, 193, 106, 0.55);
+}
+
+.welcomeForm button {
+  flex: none;
+  border: 0;
+  border-left: 1px solid rgba(114, 193, 106, 0.32);
+  background: rgba(114, 193, 106, 0.1);
+  padding: 0.7rem 0.9rem;
+  color: #93c58d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.welcomeForm button:hover,
+.welcomeForm button:focus-visible {
+  background: rgba(114, 193, 106, 0.2);
+  color: #e1eedf;
+  outline: none;
+}
+
+.welcomeForm button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.welcomeStatus {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  margin: 0;
+  color: #9bc095;
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .welcomeLookup,
+  .welcomeForm {
+    width: 100%;
+  }
+}
+
 @keyframes loginShake {
   0%,
   100% {

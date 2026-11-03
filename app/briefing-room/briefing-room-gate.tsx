@@ -5,6 +5,7 @@ import Link from "next/link";
 import CirclesPanel from "./circles-panel";
 import InboxPanel from "./inbox-panel";
 import StatsPanel from "./stats-panel";
+import styles from "./briefing-room.module.css";
 import {
   FormEvent,
   useCallback,
@@ -113,6 +114,7 @@ const badgeQuestGateKeyOrder: GateKey[] = [
   "crypti-plus",
   "instant-rank-promotion",
   "instant-rank-promotion-ii",
+  "oracle-badge",
   "safari-nation",
   "bayo-plus",
   "cabbin-wizard-club",
@@ -277,7 +279,7 @@ function isCryptiPost(post: BayPost) {
 }
 
 const postCategories: { id: PostCategory; label: string }[] = [
-  { id: "daily-food", label: "Facts on News" },
+  { id: "daily-food", label: "Current Events" },
   { id: "theory", label: "Conspiracy" },
   { id: "library-submission", label: "Library submission" },
 ];
@@ -357,8 +359,8 @@ function getDailyFoodCategoryLabel(post: Pick<BayPost, "category" | "meta">) {
   }
 
   return typeof dailyFoodCategory === "string" && dailyFoodCategory
-    ? `Facts on News - ${dailyFoodCategory}`
-    : "Facts on News";
+    ? `Current Events - ${dailyFoodCategory}`
+    : "Current Events";
 }
 
 function limitWords(value: string, limit: number) {
@@ -496,7 +498,7 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
   if (dailyFoodSignals && !theorySignals) {
     return hasDailyFoodAccess
       ? { category: "daily-food" as const, dailyFoodCategory, theoryCategory }
-      : { error: "facts on news route unavailable for this account" };
+      : { error: "current events route unavailable for this account" };
   }
 
   if (theorySignals && !dailyFoodSignals) {
@@ -514,7 +516,7 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
       return { category: "daily-food" as const, dailyFoodCategory, theoryCategory };
     }
 
-    return { error: "post route unclear: facts on news and conspiracy signals found" };
+    return { error: "post route unclear: current events and conspiracy signals found" };
   }
 
   if (allowedCategories.length === 1) {
@@ -525,7 +527,7 @@ function detectBankPostCategory(value: string, allowedCategories: BankPostCatego
     };
   }
 
-  return { error: "post route missing: include Facts on News or a Conspiracy category" };
+  return { error: "post route missing: include Current Events or a Conspiracy category" };
 }
 
 function extractBankHeadline(value: string) {
@@ -831,6 +833,9 @@ export default function BriefingRoomGate({
   const [exchangeCoins, setExchangeCoins] = useState("");
   const [exchangeMessage, setExchangeMessage] = useState("");
   const [isExchangeLoading, setIsExchangeLoading] = useState(false);
+  const [isDailySpinOpen, setIsDailySpinOpen] = useState(false);
+  const [isDailySpinLoading, setIsDailySpinLoading] = useState(false);
+  const [dailySpinMessage, setDailySpinMessage] = useState("");
   const [stampCounts, setStampCounts] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
@@ -2336,6 +2341,49 @@ export default function BriefingRoomGate({
     setExchangePoints("");
   }
 
+  async function claimDailySpin() {
+    if (!savedMember || isDailySpinLoading) {
+      return;
+    }
+
+    setIsDailySpinLoading(true);
+    setDailySpinMessage("");
+
+    try {
+      const response = await fetch(`/api/members/${resolvedMember}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "daily-spin" }),
+      });
+      const data = (await response.json()) as {
+        dailySpin?: {
+          alreadyClaimed?: boolean;
+          points?: number;
+        };
+        member?: SavedMember;
+        message?: string;
+      };
+
+      if (!response.ok || !data.member || !data.dailySpin) {
+        setDailySpinMessage(data.message ?? "spin unavailable");
+        return;
+      }
+
+      const points = Math.max(0, Math.floor(data.dailySpin.points ?? 0));
+
+      setSavedMember(data.member);
+      applySettingsFields(data.member);
+      setDailySpinMessage(
+        data.dailySpin.alreadyClaimed
+          ? `today's spin was +${formatPointCount(points)} points`
+          : `you won +${formatPointCount(points)} points`,
+      );
+      window.dispatchEvent(new Event("bay-space-auth"));
+    } finally {
+      setIsDailySpinLoading(false);
+    }
+  }
+
   async function saveMemberReferenceName() {
     if (!savedMember) {
       setMemberReferenceNameMessage("no account found");
@@ -2619,9 +2667,9 @@ export default function BriefingRoomGate({
   }
 
   const header = isOptionsRoom ? null : (
-    <div className="w-full max-w-4xl">
+    <div className={`${styles.gateHeader} w-full max-w-4xl`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="font-mono text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
+        <h1 className={`${styles.gateTitle} font-mono text-4xl font-black uppercase sm:text-6xl`}>
           briefing room
         </h1>
         {isUnlocked && canCreatePosts ? (
@@ -2700,17 +2748,17 @@ export default function BriefingRoomGate({
 
   if (isUnlocked) {
     return (
-      <>
+      <div className={styles.gate}>
         {header}
         <div
-          className={`${isOptionsRoom ? "mt-0" : "mt-10"} grid w-full max-w-4xl gap-6 ${
+          className={`${styles.workspace} ${isOptionsRoom ? "mt-0" : "mt-10"} grid w-full max-w-4xl gap-6 ${
             (isPostOpen && activePanel === "post") || isOptionsRoom
               ? ""
               : "md:grid-cols-[220px_1fr]"
           }`}
         >
         {(isPostOpen && activePanel === "post") || isOptionsRoom ? null : (
-        <aside className="order-2 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] md:order-1">
+        <aside className={`${styles.optionsRail} order-2 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] md:order-1`}>
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
           </p>
@@ -2724,16 +2772,6 @@ export default function BriefingRoomGate({
               }`}
             >
               ID CARD
-            </button>
-            <button
-              onClick={() => setActivePanel("exchange")}
-              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "exchange"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              Exchange
             </button>
             <button
               onClick={() => setActivePanel("circles")}
@@ -2849,7 +2887,7 @@ export default function BriefingRoomGate({
         )}
         <section
           key={`${activePanel}:${activeDraftId ?? "room"}`}
-          className={`briefing-panel-surface border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
+          className={`${styles.panelSurface} briefing-panel-surface border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
             (isPostOpen && activePanel === "post") || isOptionsRoom
               ? "order-1"
               : "order-1 md:order-2"
@@ -3751,7 +3789,7 @@ export default function BriefingRoomGate({
               {!activeFavoriteCategory ? (
                 <div className="mt-5 grid gap-3">
                   {[
-                    { id: "daily-food", label: "Facts on News" },
+                    { id: "daily-food", label: "Current Events" },
                     { id: "theory", label: "Conspiracy" },
                     { id: "library-submission", label: "Library" },
                   ].map((category) => (
@@ -3871,7 +3909,7 @@ export default function BriefingRoomGate({
                     {lazyPostPreview.category === "daily-food" &&
                     typeof lazyPostPreview.meta?.dailyFoodCategory === "string" ? (
                       <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
-                        Facts on News - {lazyPostPreview.meta.dailyFoodCategory}
+                        Current Events - {lazyPostPreview.meta.dailyFoodCategory}
                       </p>
                     ) : null}
                     {lazyPostPreview.category === "theory" &&
@@ -4090,9 +4128,48 @@ export default function BriefingRoomGate({
             />
           ) : activePanel === "exchange" && savedMember ? (
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                exchange
-              </p>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                  exchange
+                </p>
+                <button
+                  type="button"
+                  aria-label="Open daily spin"
+                  aria-expanded={isDailySpinOpen}
+                  onClick={() => {
+                    setIsDailySpinOpen((isOpen) => !isOpen);
+                    setDailySpinMessage("");
+                  }}
+                  className={styles.dailySpinIcon}
+                >
+                  🎰
+                </button>
+              </div>
+
+              {isDailySpinOpen ? (
+                <div className={styles.dailySpinWindow}>
+                  <div>
+                    <p className={styles.dailySpinEyebrow}>once every day</p>
+                    <p className={styles.dailySpinTitle}>Daily Spin</p>
+                    <p className={styles.dailySpinRange}>
+                      Win 50–500 points
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={claimDailySpin}
+                    disabled={isDailySpinLoading}
+                    className={styles.dailySpinButton}
+                  >
+                    {isDailySpinLoading ? "spinning..." : "spin"}
+                  </button>
+                  {dailySpinMessage ? (
+                    <p className={styles.dailySpinResult} role="status">
+                      {dailySpinMessage}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mt-5 grid gap-4">
                 <details className="border-2 border-[#39ff14] bg-[#001100] p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
                   <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
@@ -4248,6 +4325,7 @@ export default function BriefingRoomGate({
                       const isCryptiGate = gateKey.id === "crypti-plus";
                       const isInstantRankPromotionII =
                         gateKey.id === "instant-rank-promotion-ii";
+                      const isOracleBadge = gateKey.id === "oracle-badge";
                       const isPromotionGate = isTokenGateKey(gateKey.id);
                       const hasCryptiPlus = Boolean(
                         savedMember.gateKeys?.includes("crypti-plus"),
@@ -4259,6 +4337,9 @@ export default function BriefingRoomGate({
                       );
                       const hasRequiredPromotion =
                         !isInstantRankPromotionII || hasInstantRankPromotion;
+                      const hasPosterV =
+                        savedMember.cryptiRank === "poster-v" ||
+                        savedMember.cryptiRank === "oracle";
                       const gateRequirementsMet =
                         gateKey.id === "crypti-plus"
                           ? isGraduated
@@ -4266,6 +4347,8 @@ export default function BriefingRoomGate({
                             ? hasCryptiPlus
                             : isInstantRankPromotionII
                               ? hasRequiredPromotion
+                              : isOracleBadge
+                                ? isGraduated && hasCryptiPlus && hasPosterV
                               : isGraduated;
                       const purchaseBalance = isPromotionGate
                         ? (savedMember.bayoTokens ?? 0)
@@ -4281,17 +4364,23 @@ export default function BriefingRoomGate({
                         <div
                           key={gateKey.id}
                           className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
-                            isCryptiGate || isPromotionGate
+                            isOracleBadge
+                              ? "border-[#b6d88f] text-[#e4f0d5]"
+                              : isCryptiGate || isPromotionGate
                               ? "border-[#72d7ff] text-[#d7f5ff]"
                               : "border-[#1d7f12] text-[#d7ffd0]"
                           }`}
                         >
                           <div>
                             <p className="text-sm font-black uppercase tracking-[0.18em]">
-                              {gateKey.label}
+                              {isOracleBadge && !hasPosterV && !isOwned
+                                ? "Classified Final Badge"
+                                : gateKey.label}
                             </p>
                             <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                              {gateKey.description}
+                              {isOracleBadge && !hasPosterV && !isOwned
+                                ? "Reach Poster V to reveal the final Bay Space rank."
+                                : gateKey.description}
                             </p>
                           </div>
                           <button
@@ -4857,6 +4946,17 @@ export default function BriefingRoomGate({
             </div>
           ) : activePanel === "id-card" && savedMember ? (
             <div>
+              <button
+                type="button"
+                onClick={() => setActivePanel("exchange")}
+                className={styles.exchangeCard}
+              >
+                <span className={styles.exchangeEyebrow}>Bay Space</span>
+                <span className={styles.exchangeTitle}>Exchange</span>
+                <span className={styles.exchangeArrow} aria-hidden="true">
+                  →
+                </span>
+              </button>
               <p className="font-mono text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 EXPLORER NUMBER - #{savedMember.member}
               </p>
@@ -5018,28 +5118,28 @@ export default function BriefingRoomGate({
           )}
         </section>
       </div>
-      </>
+      </div>
     );
   }
 
   if (isCheckingSession) {
     return (
-      <>
+      <div className={styles.gate}>
         {header}
-        <div className="mt-10 w-full max-w-md border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+        <div className={`${styles.accessCard} mt-10 w-full max-w-md border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.18em] text-[#d7ffd0]`}>
           syncing access
         </div>
-      </>
+      </div>
     );
   }
 
   if (resolvedMember) {
     return (
-      <>
+      <div className={styles.gate}>
         {header}
         <form
           onSubmit={unlock}
-          className="mt-10 w-full max-w-md border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]"
+          className={`${styles.accessCard} mt-10 w-full max-w-md border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]`}
           aria-label="Enter briefing room password"
         >
           <label
@@ -5071,12 +5171,13 @@ export default function BriefingRoomGate({
             enter
           </button>
         </form>
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="w-full max-w-xl border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+    <div className={styles.gate}>
+    <div className={`${styles.accessCard} w-full max-w-xl border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]`}>
       <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
         briefing room requires an active member session
       </p>
@@ -5090,6 +5191,7 @@ export default function BriefingRoomGate({
       >
         join the circle
       </Link>
+    </div>
     </div>
   );
 }

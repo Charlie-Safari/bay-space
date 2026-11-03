@@ -602,6 +602,157 @@
   transform: translateY(-0.1rem);
 }
 
+.currentEventsBoard button,
+.currentEventsBoard input,
+.currentEventsBoard select,
+.currentEventsBoard form,
+.currentEventsBoard label,
+.currentEventsBoard a {
+  border-radius: 0.75rem;
+}
+
+.currentEventsFeed {
+  border-color: rgba(114, 193, 106, 0.3);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(114, 193, 106, 0.1), transparent 18rem),
+    linear-gradient(145deg, rgba(114, 193, 106, 0.075), transparent 62%),
+    rgba(3, 10, 4, 0.84);
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.045),
+    0 1.25rem 3rem rgba(0, 0, 0, 0.22),
+    0 0 2rem rgba(114, 193, 106, 0.055);
+}
+
+.currentEventsControls {
+  border-color: rgba(114, 193, 106, 0.28);
+  background:
+    radial-gradient(circle at 88% 20%, rgba(114, 193, 106, 0.09), transparent 15rem),
+    linear-gradient(135deg, rgba(114, 193, 106, 0.075), transparent 64%),
+    rgba(4, 12, 5, 0.84);
+}
+
+.currentEventsAction,
+.currentEventsArrow,
+.currentEventsToggle {
+  border-color: rgba(114, 193, 106, 0.38);
+  background: rgba(9, 22, 10, 0.72);
+  color: #9bca95;
+  box-shadow:
+    inset 0 1px rgba(220, 242, 215, 0.035),
+    0 0.45rem 1rem rgba(0, 0, 0, 0.14);
+}
+
+.currentEventsAction:hover,
+.currentEventsArrow:hover {
+  border-color: rgba(160, 220, 151, 0.74);
+  background: rgba(114, 193, 106, 0.15);
+  color: #dcebd9;
+}
+
+.currentEventsSearch {
+  border-color: rgba(114, 193, 106, 0.28);
+  background: rgba(7, 17, 8, 0.7);
+  box-shadow: inset 0 0 1.2rem rgba(114, 193, 106, 0.035);
+}
+
+.currentEventsInput {
+  border-color: rgba(114, 193, 106, 0.3);
+  background: rgba(4, 13, 5, 0.8);
+  color: #8fbe89;
+}
+
+.currentEventCard {
+  border-color: rgba(114, 193, 106, 0.25);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(140deg, rgba(114, 193, 106, 0.07), transparent 60%),
+    rgba(5, 14, 6, 0.7);
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.025),
+    0 0.8rem 1.8rem rgba(0, 0, 0, 0.14);
+}
+
+.currentEventCard:hover {
+  border-color: rgba(134, 205, 125, 0.55);
+  background:
+    linear-gradient(140deg, rgba(114, 193, 106, 0.12), transparent 64%),
+    rgba(7, 18, 8, 0.82);
+}
+
+.currentEventArticleButton {
+  padding: 0.2rem;
+  background: transparent;
+}
+
+.currentEventExpandedArticle {
+  border-color: rgba(114, 193, 106, 0.34);
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(114, 193, 106, 0.12), transparent 20rem),
+    linear-gradient(145deg, rgba(114, 193, 106, 0.09), transparent 58%),
+    rgba(4, 12, 5, 0.88);
+  box-shadow:
+    inset 0 1px rgba(223, 243, 218, 0.045),
+    0 1.4rem 3.5rem rgba(0, 0, 0, 0.24),
+    0 0 2.25rem rgba(114, 193, 106, 0.06);
+}
+
+.currentEventExpandedArticle h2 {
+  color: #82c77a;
+  text-shadow: 0 0 1.25rem rgba(114, 193, 106, 0.22);
+}
+
+.currentEventExpandedArticle h3,
+.currentEventExpandedArticle > p {
+  color: #8eaa89;
+}
+
+.currentEventExpandedArticle section {
+  border-color: rgba(114, 193, 106, 0.22);
+}
+
+.currentEventExpandedArticle article,
+.currentEventExpandedArticle textarea {
+  border-color: rgba(114, 193, 106, 0.28);
+  border-radius: 0.8rem;
+  background:
+    linear-gradient(145deg, rgba(114, 193, 106, 0.06), transparent 60%),
+    rgba(5, 15, 6, 0.72);
+}
+
+.currentEventExpandedArticle textarea {
+  color: #a9c9a4;
+  box-shadow: inset 0 0 1.25rem rgba(114, 193, 106, 0.035);
+}
+
+.currentEventExpandedArticle button {
+  border-color: rgba(114, 193, 106, 0.38);
+  background: rgba(9, 22, 10, 0.72);
+  color: #9bca95;
+  box-shadow: inset 0 1px rgba(220, 242, 215, 0.025);
+}
+
+.currentEventExpandedArticle button:hover:not(:disabled) {
+  border-color: rgba(160, 220, 151, 0.74);
+  background: rgba(114, 193, 106, 0.15);
+  color: #dcebd9;
+}
+
+.currentEventExpandedArticle a {
+  color: #9ac995;
+  text-decoration-color: rgba(114, 193, 106, 0.62);
+}
+
+.currentEventExpandedArticle input[type="range"] {
+  accent-color: #72c16a;
+}
+
+.currentEventBullet {
+  border-radius: 999px;
+  background: #72c16a;
+  box-shadow: 0 0 0.6rem rgba(114, 193, 106, 0.48);
+}
+
 @media (max-width: 640px) {
   .entryCard {
     min-height: 12rem;

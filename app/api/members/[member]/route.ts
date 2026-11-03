@@ -3,13 +3,16 @@ import {
   applyMemberNamasteReward,
   applyMemberWildCard,
   changeMemberPin,
+  claimMemberDailySpin,
   claimMemberMoneyPrinterI,
+  completeMemberOnboarding,
   completeMember,
   createMemberSession,
   deleteMemberAccount,
   exchangeMemberCoinsForTokens,
   exchangeMemberPointsForCoins,
   getMember,
+  hasMemberCompletedOnboarding,
   getStorageErrorMessage,
   isBaySpaceWildCardAccessKey,
   isNamasteAccessKey,
@@ -225,8 +228,16 @@ export async function GET(_request: Request, context: MemberContext) {
       return Response.json({ message: "Member not found" }, { status: 404 });
     }
 
+    const managesMember = canManageMember(actor, memberId);
+
     return Response.json({
-      member: canManageMember(actor, memberId)
+      ...(managesMember
+        ? {
+            hasCompletedOnboarding:
+              await hasMemberCompletedOnboarding(memberId),
+          }
+        : {}),
+      member: managesMember
         ? privateMember(member)
         : publicMember(member),
     });
@@ -333,6 +344,35 @@ export async function PATCH(request: Request, context: MemberContext) {
           { message: "not enough points to exchange" },
           { status: 400 },
         );
+      }
+
+      return Response.json({ member });
+    }
+
+    if (body.action === "daily-spin") {
+      const result = await claimMemberDailySpin(memberId);
+
+      if (!result) {
+        return Response.json(
+          { message: "daily spin unavailable" },
+          { status: 409 },
+        );
+      }
+
+      return Response.json({
+        dailySpin: {
+          alreadyClaimed: result.alreadyClaimed,
+          points: result.points,
+        },
+        member: result.member,
+      });
+    }
+
+    if (body.action === "complete-onboarding") {
+      const member = await completeMemberOnboarding(memberId);
+
+      if (!member) {
+        return Response.json({ message: "Member not found" }, { status: 404 });
       }
 
       return Response.json({ member });

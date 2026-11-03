@@ -40,12 +40,7 @@ type PermissionSubject =
 
 export const baySpaceRoles: BaySpaceRole[] = [
   {
-    allowedCategories: [
-      "top-story",
-      "daily-food",
-      "theory",
-      "library-submission",
-    ],
+    allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
@@ -76,7 +71,7 @@ export const baySpaceRoles: BaySpaceRole[] = [
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
-    description: "Can read Library in addition to Conspiracy and Facts on News.",
+    description: "Can read Library in addition to Conspiracy and Current Events.",
     id: "reader-ii",
     label: "Reader II",
     title: "Reader II",
@@ -108,35 +103,31 @@ export const baySpaceRoles: BaySpaceRole[] = [
     ],
     canUseAnonymous: true,
     canUseIncognito: true,
-    description: "Can post in Conspiracy, Library, and Facts on News.",
+    description:
+      "Can post in Conspiracy and Library. Current Events requires Oracle.",
     id: "poster-iii",
     label: "Poster III",
     title: "Poster III",
   },
   {
-    allowedCategories: [
-      "top-story",
-      "daily-food",
-      "theory",
-      "library-submission",
-    ],
+    allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Graduated account. Can post across Bay Space and exchange points for Bayo Coins.",
+      "Graduated account. Can post in Conspiracy and Library and exchange points for Bayo Coins. Current Events requires Oracle.",
     id: "graduation",
     label: "Graduation",
     title: "Graduation",
   },
   {
-    allowedCategories: ["daily-food", "library-submission"],
+    allowedCategories: ["library-submission"],
     canUseAnonymous: false,
     canUseIncognito: false,
     description:
-      "Can only post in Facts on News and Library. Anon and incog unavailable.",
+      "Legacy creator account. Can post in Library. Current Events requires Oracle.",
     id: "influencer - daily food",
-    label: "Author/influencer - Facts on News",
-    title: "Author/influencer - Facts on News",
+    label: "Author/influencer - Current Events",
+    title: "Author/influencer - Current Events",
   },
   {
     allowedCategories: ["theory", "library-submission"],
@@ -149,18 +140,18 @@ export const baySpaceRoles: BaySpaceRole[] = [
     title: "Author/influencer - Conspiracy",
   },
   {
-    allowedCategories: ["daily-food", "theory", "library-submission"],
+    allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Can post in Facts on News, Conspiracy, and Library. Anon posts link to the user profile.",
+      "Bayo+ member. Can post in Conspiracy and Library. Anon posts link to the user profile.",
     id: "bayo club",
-    label: "Oracle",
+    label: "Bayo+ Member",
     requiresBayoGate: true,
-    title: "Oracle",
+    title: "Bayo+ Member",
   },
   {
-    allowedCategories: ["daily-food", "theory", "library-submission"],
+    allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
@@ -289,7 +280,7 @@ export function canReadCategory(
 }
 
 export function getAllowedPostCategories(subject: PermissionSubject) {
-  if (isAdmin(subject)) {
+  if (isAdmin(subject) || isOracle(subject)) {
     return [
       "top-story",
       "daily-food",
@@ -372,6 +363,15 @@ export function isAdmin(subject: PermissionSubject) {
   return splitRoles(getRolesText(subject)).includes("admin");
 }
 
+export function isOracle(subject: PermissionSubject) {
+  return (
+    typeof subject !== "string" &&
+    normalizeBayRank(subject?.rank) === "graduation" &&
+    getCryptiRank(subject) === "oracle" &&
+    getGateKeys(subject).includes("oracle-badge")
+  );
+}
+
 export function canAccessAdminAnalytics(subject: PermissionSubject) {
   return isAdmin(subject);
 }
@@ -388,7 +388,8 @@ export function isCrypti(subject: PermissionSubject) {
     gateKeys.includes("crypti-plus") ||
     cryptiRank === "reader-iii" ||
     cryptiRank === "poster-iv" ||
-    cryptiRank === "poster-v"
+    cryptiRank === "poster-v" ||
+    cryptiRank === "oracle"
   );
 }
 

@@ -201,7 +201,7 @@ export default function MountainTimeFooter() {
             </button>
             {showVersion ? (
               <span className="text-[#d7ffd0]" aria-live="polite">
-                1.33
+                1.34
               </span>
             ) : null}
             {hasMoneyPrinterIActive ? (
@@ -219,6 +219,15 @@ export default function MountainTimeFooter() {
           >
             ▶ how to ◀
           </Link>
+          {activeMemberRecord ? (
+            <Link
+              href="/library"
+              aria-label="library"
+              className="grid h-8 w-9 place-items-center border border-[#39ff14] text-base leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            >
+              📚
+            </Link>
+          ) : null}
           {hasCryptiAccess ? (
             <Link
               href="/crypti?howto=true"

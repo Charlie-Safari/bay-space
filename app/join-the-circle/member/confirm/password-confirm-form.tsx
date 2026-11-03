@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   bayoPlusAgreementHref,
@@ -19,22 +19,6 @@ type PasswordConfirmFormProps = {
   title: string;
 };
 
-function getAgreementReadParam() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return new URLSearchParams(window.location.search).get("agreementRead") ?? "";
-}
-
-function getStoredSignupPassword(member: string) {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  return window.sessionStorage.getItem(getSignupPasswordStorageKey(member)) ?? "";
-}
-
 export default function PasswordConfirmForm({
   member,
   name,
@@ -43,44 +27,19 @@ export default function PasswordConfirmForm({
   title,
 }: PasswordConfirmFormProps) {
   const router = useRouter();
-  const [storedSignupPassword] = useState(() => getStoredSignupPassword(member));
-  const [confirmPin, setConfirmPin] = useState(storedSignupPassword);
+  const [confirmPin, setConfirmPin] = useState("");
   const [isWrongPassword, setIsWrongPassword] = useState(false);
-  const [isAgreementAlert, setIsAgreementAlert] = useState(false);
-  const [isBayoPlusAgreementAlert, setIsBayoPlusAgreementAlert] =
-    useState(false);
   const [isAgreementError, setIsAgreementError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [initialAgreementRead] = useState(getAgreementReadParam);
-  const [hasOpenedAgreement, setHasOpenedAgreement] = useState(
-    initialAgreementRead === "bay-space",
-  );
   const [hasAcceptedAgreement, setHasAcceptedAgreement] = useState(false);
-  const [hasOpenedBayoPlusAgreement, setHasOpenedBayoPlusAgreement] =
-    useState(initialAgreementRead === "crypti");
   const [hasAcceptedBayoPlusAgreement, setHasAcceptedBayoPlusAgreement] =
     useState(false);
   const needsBayoPlusAgreement = isCrypti(roles);
 
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const agreementRead = searchParams.get("agreementRead");
-
-    if (agreementRead) {
-      searchParams.delete("agreementRead");
-      const nextUrl = `${window.location.pathname}${
-        searchParams.toString() ? `?${searchParams.toString()}` : ""
-      }${window.location.hash}`;
-      window.history.replaceState(null, "", nextUrl);
-    }
-  }, []);
-
   function flashError(message: string) {
     setErrorMessage("");
     setIsWrongPassword(false);
-    setIsAgreementAlert(false);
-    setIsBayoPlusAgreementAlert(false);
     setIsAgreementError(false);
     window.setTimeout(() => {
       setErrorMessage(message);
@@ -90,17 +49,12 @@ export default function PasswordConfirmForm({
 
   function flashAgreementError(
     message: string,
-    alerts: { bayoPlus?: boolean; user?: boolean } = {},
   ) {
     setErrorMessage("");
     setIsWrongPassword(false);
-    setIsAgreementAlert(false);
-    setIsBayoPlusAgreementAlert(false);
     setIsAgreementError(false);
     window.setTimeout(() => {
       setErrorMessage(message);
-      setIsAgreementAlert(Boolean(alerts.user));
-      setIsBayoPlusAgreementAlert(Boolean(alerts.bayoPlus));
       setIsAgreementError(true);
     }, 0);
   }
@@ -108,27 +62,8 @@ export default function PasswordConfirmForm({
   async function saveMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const needsUserAgreementOpen = !hasOpenedAgreement;
-    const needsBayoPlusAgreementOpen =
-      needsBayoPlusAgreement && !hasOpenedBayoPlusAgreement;
-
-    if (needsUserAgreementOpen || needsBayoPlusAgreementOpen) {
-      flashAgreementError(
-        needsUserAgreementOpen && needsBayoPlusAgreementOpen
-          ? "please read agreements"
-          : needsUserAgreementOpen
-            ? "please read user agreement"
-            : "please read bayo+ agreement",
-        {
-          bayoPlus: needsBayoPlusAgreementOpen,
-          user: needsUserAgreementOpen,
-        },
-      );
-      return;
-    }
-
     if (!hasAcceptedAgreement) {
-      flashAgreementError("please read user agreement");
+      flashAgreementError("please accept user agreement");
       return;
     }
 
@@ -193,29 +128,24 @@ export default function PasswordConfirmForm({
 
   return (
     <form onSubmit={saveMember} className="mt-8 w-full max-w-md">
-      {storedSignupPassword ? (
-        <p className="border border-[#1d7f12] bg-[#001100] px-3 py-3 text-xs font-black uppercase leading-5 tracking-[0.18em] text-[#d7ffd0]">
-          password saved for this signup session
-        </p>
-      ) : (
-        <div
-          className={isWrongPassword ? styles.alert : ""}
-          onAnimationEnd={() => setIsWrongPassword(false)}
-        >
-          <input
-            aria-label="Create password"
-            autoComplete="new-password"
-            placeholder="Create a Password"
-            type="password"
-            value={confirmPin}
-            onChange={(event) => {
-              setConfirmPin(event.target.value.slice(0, 24));
-            }}
-            className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
-            autoFocus
-          />
-        </div>
-      )}
+      <div
+        className={isWrongPassword ? styles.alert : ""}
+        onAnimationEnd={() => setIsWrongPassword(false)}
+      >
+        <input
+          aria-label="Confirm password"
+          autoComplete="new-password"
+          placeholder="Confirm your password"
+          type="password"
+          value={confirmPin}
+          onChange={(event) => {
+            setConfirmPin(event.target.value.slice(0, 24));
+            setErrorMessage("");
+          }}
+          className="w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-2xl font-black tracking-[0.18em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#1d7f12] focus:ring-2 focus:ring-[#39ff14]"
+          autoFocus
+        />
+      </div>
       <a
         href={baySpaceAgreementHref}
         target="_blank"
@@ -225,12 +155,8 @@ export default function PasswordConfirmForm({
             event.preventDefault();
           }
 
-          setHasOpenedAgreement(true);
         }}
-        className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-          isAgreementAlert ? styles.alert : ""
-        }`}
-        onAnimationEnd={() => setIsAgreementAlert(false)}
+        className="mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
       >
         VIEW USER AGREEMENT
       </a>
@@ -238,15 +164,7 @@ export default function PasswordConfirmForm({
         <input
           type="checkbox"
           checked={hasAcceptedAgreement}
-          onChange={(event) => {
-            if (event.target.checked && !hasOpenedAgreement) {
-              flashAgreementError("please read user agreement", { user: true });
-              setHasAcceptedAgreement(false);
-              return;
-            }
-
-            setHasAcceptedAgreement(event.target.checked);
-          }}
+          onChange={(event) => setHasAcceptedAgreement(event.target.checked)}
           className="mt-0.5 h-4 w-4 accent-[#39ff14]"
         />
         <span>
@@ -264,12 +182,8 @@ export default function PasswordConfirmForm({
                 event.preventDefault();
               }
 
-              setHasOpenedBayoPlusAgreement(true);
             }}
-            className={`mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-              isBayoPlusAgreementAlert ? styles.alert : ""
-            }`}
-            onAnimationEnd={() => setIsBayoPlusAgreementAlert(false)}
+            className="mt-5 inline-flex w-full items-center justify-center border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
           >
             VIEW +CRYPTI USER AGREEMENT
           </a>
@@ -277,17 +191,9 @@ export default function PasswordConfirmForm({
             <input
               type="checkbox"
               checked={hasAcceptedBayoPlusAgreement}
-              onChange={(event) => {
-                if (event.target.checked && !hasOpenedBayoPlusAgreement) {
-                  flashAgreementError("please read bayo+ agreement", {
-                    bayoPlus: true,
-                  });
-                  setHasAcceptedBayoPlusAgreement(false);
-                  return;
-                }
-
-                setHasAcceptedBayoPlusAgreement(event.target.checked);
-              }}
+              onChange={(event) =>
+                setHasAcceptedBayoPlusAgreement(event.target.checked)
+              }
               className="mt-0.5 h-4 w-4 accent-[#39ff14]"
             />
             <span>I confirm I read and agree the +Crypti user agreement.</span>
