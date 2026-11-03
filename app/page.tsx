@@ -1,7 +1,37 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import HomeBar from "./components/home-bar";
 import { getCurrentMember } from "../lib/bay-space-session";
+import styles from "./welcome-intro.module.css";
+
+const welcomePaths = [
+  {
+    eyebrow: "01 / begin here",
+    title: "Conspiracies",
+    description:
+      "Follow the theory, inspect the evidence, and decide what holds up.",
+    href: "/theories",
+    callToAction: "enter conspiracies",
+    featured: true,
+  },
+  {
+    eyebrow: "02 / look outside",
+    title: "Know Something",
+    description:
+      "A small commitment to understanding the world beyond your own.",
+    href: "/facts-on-news",
+    callToAction: "see what is happening",
+    featured: false,
+  },
+  {
+    eyebrow: "03 / take part",
+    title: "Join the Circle",
+    description:
+      "Reading is open. Join when you are ready to comment, contribute, and earn.",
+    href: "/join-the-circle",
+    callToAction: "become a member",
+    featured: false,
+  },
+];
 
 export default async function Home() {
   const member = await getCurrentMember();
@@ -11,22 +41,58 @@ export default async function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
-      <HomeBar />
+    <main className={styles.welcome}>
+      <div className={styles.noise} aria-hidden="true" />
+      <div className={styles.orbit} aria-hidden="true" />
 
-      <section className="mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
-        <h1 className="text-5xl font-black uppercase tracking-[0.2em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-7xl md:text-8xl">
-          bay-space
-        </h1>
-        <p className="bay-terminal-copy mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-sm leading-7 text-[#d7ffd0] sm:text-base">
-          system online. signal clean. select a channel from the home bar.
-        </p>
-        <Link
-          href="/join-the-circle"
-          className="bay-terminal-copy mt-10 w-fit border-2 border-[#39ff14] bg-black px-4 py-3 text-sm text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          Join the Circle
-        </Link>
+      <section className={styles.shell} aria-labelledby="welcome-title">
+        <header className={styles.header}>
+          <Link className={styles.wordmark} href="/" aria-label="Bay Space home">
+            BAY<span>—</span>SPACE
+          </Link>
+          <p className={styles.status}>
+            <span aria-hidden="true" /> guest access / signal open
+          </p>
+        </header>
+
+        <div className={styles.introduction}>
+          <h1 className={styles.lede} id="welcome-title">
+            Explore freely. Question what you find. Join only when you want your
+            voice in the conversation.
+          </h1>
+        </div>
+
+        <nav className={styles.paths} aria-label="Choose where to begin">
+          {welcomePaths.map((path) => (
+            <div
+              className={styles.pathWrap}
+              key={path.href}
+            >
+              {path.featured ? (
+                <div className={styles.guide} aria-hidden="true">
+                  <span>start here</span>
+                  <b>↓</b>
+                </div>
+              ) : null}
+              <Link
+                className={styles.path}
+                href={path.href}
+              >
+                <span className={styles.eyebrow}>{path.eyebrow}</span>
+                <span className={styles.pathTitle}>{path.title}</span>
+                <span className={styles.description}>{path.description}</span>
+                <span className={styles.action}>
+                  {path.callToAction} <b aria-hidden="true">→</b>
+                </span>
+              </Link>
+            </div>
+          ))}
+        </nav>
+
+        <footer className={styles.note}>
+          <span>NO PAYWALL TO LOOK.</span>
+          <span>MEMBERSHIP BEGINS WHEN YOU PARTICIPATE.</span>
+        </footer>
       </section>
     </main>
   );

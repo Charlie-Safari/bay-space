@@ -287,7 +287,7 @@ const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 const lazyPostGptUrl =
   "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
 const baySpaceLazyEngineLabel = "Thiago";
-const defaultTheoryCategory = "MISC";
+const defaultTheoryCategory = "Rare Signals";
 const supportEmail = "bayoadmin@protonmail.com";
 const optionRoomPanels: BriefingPanel[] = [
   "exchange",

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import type {
   BayPostCategory,
@@ -10,6 +11,7 @@ import type { BayoCardId } from "../../lib/bay-space-ranks";
 
 type PostEngagementPanelProps = {
   isLoggedIn: boolean;
+  onCommentSaved?: (comment: BayPostComment) => void;
   onTruthSummaryChange?: (summary: BayPostTruthVoteSummary) => void;
   postCategory?: BayPostCategory;
   postId: string;
@@ -44,6 +46,7 @@ function hasActiveCard(comment: BayPostComment, cardId: BayoCardId) {
 
 export default function PostEngagementPanel({
   isLoggedIn,
+  onCommentSaved,
   onTruthSummaryChange,
   postCategory,
   postId,
@@ -143,6 +146,7 @@ export default function PostEngagementPanel({
       const savedComment = data.comment;
 
       setComments((currentComments) => [...currentComments, savedComment]);
+      onCommentSaved?.(savedComment);
       setCommentBody("");
     } catch {
       setErrorMessage("comment not saved");
@@ -242,7 +246,10 @@ export default function PostEngagementPanel({
                 className="border border-[#1d7f12] bg-black px-3 py-3"
               >
                 <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
-                  {comment.authorName || `member ${comment.author}`} /{" "}
+                  {comment.authorName ||
+                    (comment.author === "anonymous"
+                      ? "anonymous user"
+                      : `member ${comment.author}`)} /{" "}
                   {hasActiveCard(comment, "hero-card") ? (
                     <span className="text-[#ffd84a]">★★★★★ / </span>
                   ) : null}
@@ -270,29 +277,35 @@ export default function PostEngagementPanel({
           </p>
         )}
 
-        {isLoggedIn ? (
-          <form onSubmit={saveComment} className="grid gap-3">
-            <textarea
-              value={commentBody}
-              onChange={(event) => setCommentBody(event.target.value.slice(0, 600))}
-              rows={3}
-              className="bay-terminal-field min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-              placeholder="comment"
-              aria-label="Comment"
-            />
-            <button
-              type="submit"
-              disabled={isCommentSaving || !commentBody.trim()}
-              className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
-            >
-              {isCommentSaving ? "saving" : "post comment"}
-            </button>
-          </form>
-        ) : (
+        <form onSubmit={saveComment} className="grid gap-3">
+          <textarea
+            value={commentBody}
+            onChange={(event) => setCommentBody(event.target.value.slice(0, 600))}
+            rows={3}
+            className="bay-terminal-field min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+            placeholder={isLoggedIn ? "comment" : "comment anonymously"}
+            aria-label="Comment"
+          />
+          <button
+            type="submit"
+            disabled={isCommentSaving || !commentBody.trim()}
+            className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+          >
+            {isCommentSaving ? "saving" : "post comment"}
+          </button>
+        </form>
+        {!isLoggedIn ? (
           <p className="bay-terminal-copy text-xs text-[#7f9f78]">
-            sign in to comment or vote
+            posting as anonymous user /{" "}
+            <Link
+              href="/join-the-circle"
+              className="text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
+            >
+              make an account
+            </Link>{" "}
+            to attach your name and vote
           </p>
-        )}
+        ) : null}
 
         {errorMessage ? (
           <p className="bay-terminal-copy text-xs text-[#39ff14]">

@@ -32,7 +32,11 @@ function returnToBriefingRoomHome() {
   window.dispatchEvent(new Event("bay-space-return-to-briefing-room"));
 }
 
-export default function HomeBar() {
+type HomeBarProps = {
+  guestMode?: boolean;
+};
+
+export default function HomeBar({ guestMode = false }: HomeBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [activeMember, setActiveMember] = useState("");
@@ -96,7 +100,8 @@ export default function HomeBar() {
     };
   }, []);
 
-  const homeHref = activeMember ? `/briefing-room?member=${activeMember}` : "/";
+  const homeHref =
+    !guestMode && activeMember ? `/briefing-room?member=${activeMember}` : "/";
 
   useEffect(() => {
     const prefetchHrefs = new Set([
@@ -251,7 +256,11 @@ export default function HomeBar() {
   return (
     <>
       {pendingRouteLabel ? (
-        <div className="bay-route-transition fixed inset-0 z-50 grid place-items-center bg-[#020402]/95 px-4 text-[#39ff14]">
+        <div
+          className={`bay-route-transition fixed inset-0 z-50 grid place-items-center bg-[#020402]/95 px-4 ${
+            guestMode ? "text-[#72c16a]" : "text-[#39ff14]"
+          }`}
+        >
           <div className="w-full max-w-4xl">
             <TerminalLoadingShell
               label="c:\\bay-space\\router> switching-channel"
@@ -263,23 +272,29 @@ export default function HomeBar() {
 
       <nav
         aria-label="Main navigation"
-        className="border-b-2 border-[#39ff14] bg-black px-4 py-3 shadow-[0_0_22px_rgba(57,255,20,0.28)]"
+        className={`border-b-2 bg-black px-4 py-3 ${
+          guestMode
+            ? "border-[#4f8f49] shadow-[0_0_18px_rgba(79,143,73,0.18)]"
+            : "border-[#39ff14] shadow-[0_0_22px_rgba(57,255,20,0.28)]"
+        }`}
       >
         <div className="mx-auto flex w-full max-w-sm flex-wrap items-center justify-center gap-2 md:max-w-6xl md:gap-3">
-          {hasCryptiAccess
+          {!guestMode && hasCryptiAccess
             ? renderCryptiTab(
                 "order-1 w-full max-w-36 md:order-1 md:w-auto md:max-w-none",
               )
             : null}
-          {renderTab(
-            baySpaceTabs[0],
-            "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-2 md:w-auto md:max-w-none",
-          )}
+          {!guestMode
+            ? renderTab(
+                baySpaceTabs[0],
+                "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-2 md:w-auto md:max-w-none",
+              )
+            : null}
 
           <div className="order-2 flex w-full justify-center md:order-3 md:w-auto">
             <Link
               href={homeHref}
-              aria-label="Basecamp"
+              aria-label={guestMode ? "Bay Space home" : "Basecamp"}
               aria-current={
                 pathname === "/" || pathname.startsWith("/briefing-room")
                   ? "page"
@@ -299,23 +314,33 @@ export default function HomeBar() {
                 width={1148}
                 height={736}
                 priority
-                className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(57,255,20,0.55)]"
+                className={`h-full w-full object-contain ${
+                  guestMode
+                    ? "opacity-80 drop-shadow-[0_0_8px_rgba(114,193,106,0.35)]"
+                    : "drop-shadow-[0_0_10px_rgba(57,255,20,0.55)]"
+                }`}
               />
-              <span className="sr-only">Basecamp</span>
+              <span className="sr-only">
+                {guestMode ? "Bay Space home" : "Basecamp"}
+              </span>
             </Link>
           </div>
 
-          {renderTab(
-            baySpaceTabs[1],
-            "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-4 md:w-auto md:max-w-none",
-          )}
-          {renderTab(
-            baySpaceTabs[2],
-            "order-4 w-16 md:order-5 md:w-auto",
-          )}
+          {!guestMode
+            ? renderTab(
+                baySpaceTabs[1],
+                "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-4 md:w-auto md:max-w-none",
+              )
+            : null}
+          {!guestMode
+            ? renderTab(
+                baySpaceTabs[2],
+                "order-4 w-16 md:order-5 md:w-auto",
+              )
+            : null}
         </div>
 
-        {!activeMember ? (
+        {!guestMode && !activeMember ? (
           <div className="mx-auto mt-3 flex w-full max-w-6xl justify-center">
             <div className="w-full max-w-md">
               <MemberLookup />

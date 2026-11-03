@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BayPost,
   getBayPostsByCategory,
@@ -25,22 +26,117 @@ import {
 import {
   formatPointTenths,
   getBaySpacePostPointTenths,
+  getPostVisitCount,
 } from "../../lib/bay-space-scoring";
-import { theoryCategories } from "../../lib/theory-categories";
+import {
+  doesTheoryCategoryMatch,
+  theoryCategories,
+} from "../../lib/theory-categories";
 import {
   doPostTopicTagsIncludeTag,
   getPostTopicTags,
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
+import styles from "./theory-experience.module.css";
 
 type SortMode = "az" | "date";
 type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
+type BrowseMode = "" | "all" | "category" | "circles" | "month";
 
 type SavedMember = {
   member: string;
   name: string;
   roles?: string;
 };
+
+const minimumBadgeViewCount = 10;
+const minimumGreenCheckVoteCount = 3;
+const onFireViewThreshold = 100;
+const conversationCommentThreshold = 10;
+const conversationAuthorThreshold = 3;
+const icebergLevelWidths = [42, 58, 67, 75, 84, 92, 98, 86, 76, 64, 50];
+
+function getCurrentMonthRange(now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  return { end, start };
+}
+
+function isPostFromCurrentMonth(post: BayPost, now = new Date()) {
+  const { end, start } = getCurrentMonthRange(now);
+  const createdAt = new Date(post.createdAt);
+
+  return createdAt >= start && createdAt < end;
+}
+
+function getPostTruthAverage(post: BayPost) {
+  const average = Number(post.meta?.truthAverageScore);
+
+  return Number.isFinite(average) && average > 0 ? average : 0;
+}
+
+function getPostTruthVoteCount(post: BayPost) {
+  const count = Number(post.meta?.truthVoteCount);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function getPostCommentCount(post: BayPost) {
+  const count = Number(post.meta?.commentCount);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function getPostCommentAuthorCount(post: BayPost) {
+  const count = Number(post.meta?.commentAuthorCount);
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
+function hasGreenCheck(post: BayPost) {
+  return (
+    getPostVisitCount(post) >= minimumBadgeViewCount &&
+    getPostTruthVoteCount(post) >= minimumGreenCheckVoteCount &&
+    getPostTruthAverage(post) >= 8
+  );
+}
+
+function isPostOnFire(post: BayPost) {
+  return getPostVisitCount(post) >= onFireViewThreshold;
+}
+
+function hasConversationBadge(post: BayPost) {
+  return (
+    getPostVisitCount(post) >= minimumBadgeViewCount &&
+    getPostCommentCount(post) >= conversationCommentThreshold &&
+    getPostCommentAuthorCount(post) >= conversationAuthorThreshold
+  );
+}
+
+function getPostAttentionScore(post: BayPost) {
+  return (
+    getPostVisitCount(post) +
+    getPostCommentCount(post) * 10 +
+    getPostTruthVoteCount(post) * 3
+  );
+}
+
+function claimQualifiedTheoryVisit(postId: string) {
+  const storageKey = `bay-space-qualified-theory-view:${postId}`;
+
+  try {
+    if (window.localStorage.getItem(storageKey)) {
+      return null;
+    }
+
+    window.localStorage.setItem(storageKey, new Date().toISOString());
+  } catch {
+    // Server-side member deduplication still protects signed-in view counts.
+  }
+
+  return storageKey;
+}
 
 function getPostHashId() {
   if (typeof window === "undefined") {
@@ -113,7 +209,9 @@ function formatPostTimestamp(createdAt: string) {
 }
 
 export default function TheoryBoard() {
-  const hasSetLoggedInRevealDefault = useRef(false);
+  const [browseMode, setBrowseMode] = useState<BrowseMode>(() =>
+    getPostHashId() || getTopicTagParam() ? "all" : "",
+  );
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [query, setQuery] = useState("");
   const [authorFilter, setAuthorFilter] = useState<AuthorFilter>("all");
@@ -127,8 +225,7 @@ export default function TheoryBoard() {
   const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
   const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [revealAll, setRevealAll] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [revealAll, setRevealAll] = useState(true);
   const [selectedTheoryCategory, setSelectedTheoryCategory] = useState("");
 
   useEffect(() => {
@@ -150,16 +247,6 @@ export default function TheoryBoard() {
 
       setActiveMember(member);
       setIsLoggedIn(Boolean(member));
-
-      if (member && !hasSetLoggedInRevealDefault.current) {
-        setRevealAll(true);
-        hasSetLoggedInRevealDefault.current = true;
-      }
-
-      if (!member) {
-        setRevealAll(false);
-        hasSetLoggedInRevealDefault.current = false;
-      }
     }
 
     async function syncFavorites() {
@@ -222,6 +309,7 @@ export default function TheoryBoard() {
       setSelectedTopicTag(topicTag);
 
       if (postId) {
+        setBrowseMode("all");
         setOpenPostId(postId);
       }
     }
@@ -238,10 +326,24 @@ export default function TheoryBoard() {
       return;
     }
 
+    const qualifiedVisitKey = claimQualifiedTheoryVisit(openPostId);
+
+    if (!qualifiedVisitKey) {
+      return;
+    }
+
     let isMounted = true;
 
     recordPostVisit(openPostId)
       .then((postVisits) => {
+        if (typeof postVisits !== "number") {
+          try {
+            window.localStorage.removeItem(qualifiedVisitKey);
+          } catch {
+            // A later browser session can try the qualified visit again.
+          }
+        }
+
         if (!isMounted || typeof postVisits !== "number") {
           return;
         }
@@ -328,7 +430,7 @@ export default function TheoryBoard() {
   function openTopicTag(tag: string) {
     setSelectedTopicTag(tag);
     setOpenPostId("");
-    setIsCategoriesOpen(false);
+    setBrowseMode("all");
     setSelectedTheoryCategory("");
     setQuery("");
     setAuthorFilter("all");
@@ -337,7 +439,7 @@ export default function TheoryBoard() {
   }
 
   function isPostRevealed() {
-    return isLoggedIn && revealAll;
+    return revealAll;
   }
 
   function syncPostTruthSummary(
@@ -363,15 +465,36 @@ export default function TheoryBoard() {
   }
 
   const sortedPosts = useMemo(() => {
-    if (selectedTopicTag) {
-      return posts
-        .filter((post) => doPostTopicTagsIncludeTag(post, selectedTopicTag))
-        .sort(
-          (leftPost, rightPost) =>
-            new Date(rightPost.createdAt).getTime() -
-            new Date(leftPost.createdAt).getTime(),
-        );
+    if (!browseMode || (browseMode === "category" && !selectedTheoryCategory)) {
+      return [];
     }
+
+    const now = new Date();
+    const { end: nextMonthStart, start: monthStart } =
+      getCurrentMonthRange(now);
+
+    const scopedPosts = posts.filter((post) => {
+      if (selectedTopicTag && !doPostTopicTagsIncludeTag(post, selectedTopicTag)) {
+        return false;
+      }
+
+      const createdAt = new Date(post.createdAt);
+
+      if (browseMode === "month") {
+        return createdAt >= monthStart && createdAt < nextMonthStart;
+      }
+
+      if (browseMode === "category") {
+        const postCategory =
+          typeof post.meta?.theoryCategory === "string"
+            ? post.meta.theoryCategory
+            : "";
+
+        return doesTheoryCategoryMatch(postCategory, selectedTheoryCategory);
+      }
+
+      return true;
+    });
 
     const searchWords = query
       .trim()
@@ -380,8 +503,8 @@ export default function TheoryBoard() {
       .filter(Boolean);
     const authorFilteredPosts =
       authorFilter === "all"
-        ? posts
-        : posts.filter((post) => {
+        ? scopedPosts
+        : scopedPosts.filter((post) => {
             const authorRoles =
               members.find((member) => member.member === post.author)?.roles ??
               "";
@@ -419,6 +542,17 @@ export default function TheoryBoard() {
       : authorFilteredPosts;
 
     return [...filteredPosts].sort((leftPost, rightPost) => {
+      if (browseMode === "month") {
+        return (
+          getPostAttentionScore(rightPost) - getPostAttentionScore(leftPost) ||
+          getPostCommentCount(rightPost) - getPostCommentCount(leftPost) ||
+          getPostVisitCount(rightPost) - getPostVisitCount(leftPost) ||
+          getPostTruthVoteCount(rightPost) - getPostTruthVoteCount(leftPost) ||
+          new Date(rightPost.createdAt).getTime() -
+            new Date(leftPost.createdAt).getTime()
+        );
+      }
+
       if (sortMode === "az") {
         return leftPost.title.localeCompare(rightPost.title);
       }
@@ -430,89 +564,268 @@ export default function TheoryBoard() {
     });
   }, [
     authorFilter,
+    browseMode,
     favoriteAuthorIds,
     members,
     posts,
     query,
+    selectedTheoryCategory,
     selectedTopicTag,
     sortMode,
   ]);
 
+  const monthlyAttentionTotals = useMemo(() => {
+    const monthlyPosts = posts.filter((post) => isPostFromCurrentMonth(post));
+
+    return {
+      conversations: monthlyPosts.filter(hasConversationBadge).length,
+      greenChecks: monthlyPosts.filter(hasGreenCheck).length,
+      newPosts: monthlyPosts.length,
+      onFire: monthlyPosts.filter(isPostOnFire).length,
+    };
+  }, [posts]);
+
+  const hasActiveFeed =
+    browseMode === "all" ||
+    browseMode === "month" ||
+    (browseMode === "category" && Boolean(selectedTheoryCategory));
+  const activeFeedLabel =
+    browseMode === "month"
+      ? "THIS MONTH"
+      : browseMode === "category"
+        ? selectedTheoryCategory
+        : selectedTopicTag
+          ? `TAG / ${selectedTopicTag}`
+          : "CONSPIRACIES";
+  const isMainScreen = browseMode === "";
+  const screenTitle =
+    browseMode === "month"
+      ? "THIS MONTH"
+      : browseMode === "category"
+        ? selectedTheoryCategory || "CONSPIRACY CATEGORIES"
+        : browseMode === "circles"
+          ? "CIRCLES"
+        : "CONSPIRACY";
+  const screenPath =
+    browseMode === "month"
+      ? "c:\\bay-space\\conspiracy\\this-month"
+      : browseMode === "category"
+        ? selectedTheoryCategory
+          ? `c:\\bay-space\\conspiracy\\categories\\${selectedTheoryCategory
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")}`
+          : "c:\\bay-space\\conspiracy\\categories"
+        : browseMode === "circles"
+          ? "c:\\bay-space\\conspiracy\\circles"
+        : "c:\\bay-space\\conspiracy> main";
+
+  function returnToMainScreen() {
+    setBrowseMode("");
+    setSelectedTheoryCategory("");
+    setSelectedTopicTag("");
+    setOpenPostId("");
+    setQuery("");
+    setAuthorFilter("all");
+    setSortMode("date");
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+
+  function goBackOneScreen() {
+    if (browseMode === "category" && selectedTheoryCategory) {
+      setSelectedTheoryCategory("");
+      setOpenPostId("");
+      setQuery("");
+      setAuthorFilter("all");
+      setSortMode("date");
+      return;
+    }
+
+    returnToMainScreen();
+  }
+
   return (
-    <div className="mt-10 grid max-w-4xl gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-wrap items-end gap-3">
+    <div className={`${styles.board} grid w-full max-w-5xl gap-8`}>
+      <header className={`${styles.screenHeader} relative flex flex-wrap items-start justify-between gap-5`}>
+        <div className={`w-full ${!isMainScreen ? "sm:pr-72" : ""}`}>
+          <p className={`${styles.breadcrumb} mb-4 text-sm uppercase text-[#bfd0bc]`}>
+            {screenPath}
+          </p>
+          <h1 className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
+            {screenTitle}
+          </h1>
+        </div>
+        {!isMainScreen ? (
           <button
             type="button"
-            onClick={() => {
-              setIsCategoriesOpen((isOpen) => {
-                if (isOpen) {
-                  setSelectedTheoryCategory("");
-                }
-
-                return !isOpen;
-              });
-            }}
-            className={`bay-terminal-copy border px-4 py-2 text-xs transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-              isCategoriesOpen
-                ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
-                : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-            }`}
+            onClick={goBackOneScreen}
+            className={`${styles.backButton} bay-terminal-copy px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#bfd0bc] sm:absolute sm:right-0 sm:top-0`}
           >
-            Categories
+            ← back / {browseMode === "category" && selectedTheoryCategory
+              ? "conspiracy categories"
+              : "conspiracy > main"}
           </button>
-          <label className="grid w-fit gap-2">
-            <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
-              organize by
-            </span>
-            <select
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as SortMode)}
-              className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+        ) : null}
+      </header>
+
+      {isMainScreen ? (
+        <section
+          className={`${styles.entryGrid} order-1 grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}
+          aria-label="Choose conspiracy time range"
+        >
+          {[
+            {
+              description: "The month's signals, ranked by attention.",
+              label: "THIS MONTH",
+              mode: "month" as const,
+            },
+            {
+              description: "Browse every theory by subject and type.",
+              label: "CATEGORIES",
+              mode: "category" as const,
+            },
+            {
+              description: "Gather around one idea and investigate together.",
+              label: "CIRCLES",
+              mode: "circles" as const,
+            },
+          ].map((option, index) => (
+            <button
+              key={option.mode}
+              type="button"
+              onClick={() => {
+                setBrowseMode(option.mode);
+                setSelectedTheoryCategory("");
+                setSelectedTopicTag("");
+                setOpenPostId("");
+                setQuery("");
+                setAuthorFilter("all");
+                setSortMode("date");
+              }}
+              className={`${styles.entryCard} ${option.mode === "month" ? styles.carnivalCard : ""} text-left focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
             >
-              <option value="az">A-Z</option>
-              <option value="date">Date</option>
-            </select>
-          </label>
+              {option.mode === "month" ? (
+                <>
+                  <span className={styles.carnivalLabel}>
+                    <span>OPEN</span>
+                    THIS MONTH
+                  </span>
+                  <span className={styles.monthTotals} aria-label="This month totals">
+                    <span>
+                      <strong>{monthlyAttentionTotals.newPosts}</strong>
+                      new posts
+                    </span>
+                    <span>
+                      <strong>{monthlyAttentionTotals.greenChecks}</strong>
+                      <span aria-hidden="true">✅</span> verified
+                    </span>
+                    <span>
+                      <strong>{monthlyAttentionTotals.onFire}</strong>
+                      <span aria-hidden="true">🔥</span> on fire
+                    </span>
+                    <span>
+                      <strong>{monthlyAttentionTotals.conversations}</strong>
+                      <span aria-hidden="true">🗣️</span> talking
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className={styles.entryNumber}>
+                    0{index + 1}
+                  </span>
+                  <span className={styles.entryLabel}>{option.label}</span>
+                </>
+              )}
+              {option.mode !== "month" ? (
+                <span className={styles.entryDescription}>
+                  {option.description}
+                </span>
+              ) : null}
+              <span className={styles.entryArrow} aria-hidden="true">
+                →
+              </span>
+            </button>
+          ))}
+        </section>
+      ) : null}
+
+      {browseMode === "circles" ? (
+        <section className={`${styles.surface} order-1 px-6 py-8`}>
+          <p className="bay-terminal-copy text-xs text-[#72c16a]">
+            COMING SOON
+          </p>
+          <p className="bay-terminal-field mt-4 max-w-2xl text-sm leading-7 text-[#bfd0bc]">
+            Members will be able to start community circles around a specific
+            conspiracy, gather the people following it, and continue the
+            investigation together.
+          </p>
+        </section>
+      ) : null}
+
+      {hasActiveFeed ? (
+        <div className={`${styles.controlBar} order-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`}>
+          <div className="flex flex-wrap items-end gap-3">
+          {browseMode === "month" ? (
+            <div className="grid w-fit gap-2">
+              <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
+                organized by
+              </span>
+              <span className={`${styles.attentionMode} bay-terminal-copy px-3 py-2 text-sm`}>
+                ATTENTION
+              </span>
+            </div>
+          ) : (
+            <label className="grid w-fit gap-2">
+              <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
+                organize by
+              </span>
+              <select
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as SortMode)}
+                className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#72c16a] outline-none focus:ring-2 focus:ring-[#72c16a]"
+              >
+                <option value="az">A-Z</option>
+                <option value="date">Date</option>
+              </select>
+            </label>
+          )}
           <form
             onSubmit={(event) => event.preventDefault()}
-            className="flex w-fit flex-wrap items-center gap-3 border-2 border-[#1d7f12] bg-black px-3 py-2 shadow-[0_0_14px_rgba(57,255,20,0.14)]"
+            className="flex w-fit flex-wrap items-center gap-3 border-2 border-[#1d7f12] bg-black px-3 py-2 shadow-[0_0_14px_rgba(114,193,106,0.14)]"
           >
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="search"
-              className="bay-terminal-field w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm uppercase text-[#39ff14] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              className="bay-terminal-field w-52 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm uppercase text-[#72c16a] outline-none placeholder:font-normal placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#72c16a]"
               aria-label="Search Conspiracy"
             />
             <button
               type="submit"
-              className="grid h-10 w-10 place-items-center border border-[#39ff14] text-xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="grid h-10 w-10 place-items-center border border-[#72c16a] text-xl leading-none text-[#72c16a] transition hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
               aria-label="Search Conspiracy"
             >
               🌀
             </button>
           </form>
-          {isLoggedIn ? (
-            <label className="grid w-fit gap-2">
-              <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
-                reveal
-              </span>
-              <span className="bay-terminal-copy flex h-[38px] w-fit items-center gap-3 border border-[#1d7f12] px-3 text-xs text-[#d7ffd0]">
-                <input
-                  type="checkbox"
-                  checked={revealAll}
-                  onChange={(event) => setRevealAll(event.target.checked)}
-                  className="peer sr-only"
-                />
-                <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
-                <span>{revealAll ? "on" : "off"}</span>
-              </span>
-            </label>
-          ) : null}
-        </div>
-        <label className="grid w-fit gap-2 sm:justify-self-end">
-          <span className="bay-terminal-copy text-xs text-[#d7ffd0]">
+          <label className="grid w-fit gap-2">
+            <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
+              declassify
+            </span>
+            <span className="bay-terminal-copy flex h-[38px] w-fit items-center gap-3 border border-[#1d7f12] px-3 text-xs text-[#bfd0bc]">
+              <input
+                type="checkbox"
+                checked={revealAll}
+                onChange={(event) => setRevealAll(event.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#72c16a] peer-checked:bg-[#72c16a] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#72c16a] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
+              <span>{revealAll ? "on" : "off"}</span>
+            </span>
+          </label>
+          </div>
+          <label className="grid w-fit gap-2 sm:justify-self-end">
+          <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
             sort posts by
           </span>
           <select
@@ -520,7 +833,7 @@ export default function TheoryBoard() {
             onChange={(event) =>
               setAuthorFilter(event.target.value as AuthorFilter)
             }
-            className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+            className="bay-terminal-copy border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm text-[#72c16a] outline-none focus:ring-2 focus:ring-[#72c16a]"
           >
             <option value="all">All</option>
             <option value="favorite-authors">Favorite authors</option>
@@ -528,88 +841,69 @@ export default function TheoryBoard() {
             <option value="creators">Influencers</option>
             <option value="anon">Anon</option>
           </select>
-        </label>
-      </div>
+          </label>
+        </div>
+      ) : null}
 
-      {isCategoriesOpen ? (
-        <section className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#39ff14] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
-          <div className="daily-food-categories-grid" aria-hidden="true" />
-          <div className="relative z-10 grid gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="bay-terminal-copy text-xs text-[#d7ffd0]">
-                {selectedTheoryCategory || "Categories"}
+      {browseMode === "category" && !selectedTheoryCategory ? (
+        <section className={`${styles.icebergSurface} order-2 relative overflow-hidden px-4 py-6 sm:px-8 sm:py-8`}>
+          <div className={styles.icebergMatrix} aria-hidden="true" />
+          <div className={`${styles.icebergHeading} relative z-10 flex flex-wrap items-end justify-between gap-3`}>
+            <div>
+              <p className="bay-terminal-copy text-[0.62rem] text-[#8da989]">
+                CONSPIRACY DEPTH MAP / 11 LEVELS
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCategoriesOpen(false);
-                  setSelectedTheoryCategory("");
-                }}
-                className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                close
-              </button>
+              <h2 className="mt-2 text-2xl font-black uppercase tracking-[-0.04em] text-[#cfe1ca] sm:text-3xl">
+                Choose your depth
+              </h2>
             </div>
-
-            {selectedTheoryCategory ? (
-              <div className="grid gap-4">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTheoryCategory("")}
-                  className="bay-terminal-copy w-fit border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                >
-                  back
-                </button>
-                {theoryCategories
-                  .filter((category) => category.label === selectedTheoryCategory)
-                  .map((category) => (
-                    <article
-                      key={category.label}
-                      className="border border-[#39ff14]/60 bg-black/80 px-4 py-5 text-[#d7ffd0] shadow-[0_0_14px_rgba(57,255,20,0.14)]"
-                    >
-                      <h2 className="bay-terminal-copy text-lg text-[#39ff14]">
-                        {category.label}
-                      </h2>
-                      <p className="bay-terminal-field mt-3 text-sm leading-6">
-                        {category.description}
-                      </p>
-                    </article>
-                  ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {theoryCategories.map((category) => (
-                  <button
-                    key={category.label}
-                    type="button"
-                    onClick={() => setSelectedTheoryCategory(category.label)}
-                    className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                  >
-                    <span className="bay-terminal-copy block text-sm">
-                      {category.label}
-                    </span>
-                    <span className="bay-terminal-field mt-2 block text-xs leading-5">
-                      {category.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <p className="bay-terminal-copy max-w-[28ch] text-[0.58rem] leading-5 text-[#718b6d]">
+              Every level opens its own signal archive.
+            </p>
           </div>
+          <div className={`${styles.icebergStack} relative z-10 mt-8`}>
+            {theoryCategories.map((category, index) => (
+              <button
+                key={category.label}
+                type="button"
+                onClick={() => setSelectedTheoryCategory(category.label)}
+                style={
+                  {
+                    "--iceberg-width": `${icebergLevelWidths[index]}%`,
+                  } as CSSProperties
+                }
+                className={`${styles.icebergLevel} ${index === 0 ? styles.icebergTip : ""} ${category.label === "Rare Signals" ? styles.rareSignalLevel : ""} group focus:outline-none focus:ring-2 focus:ring-[#d8ecd2]`}
+              >
+                <span className={styles.icebergMeta}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <span>{category.zone}</span>
+                </span>
+                <span className={styles.icebergCopy}>
+                  <strong>{category.label}</strong>
+                  <small>{category.description}</small>
+                </span>
+                <span className={styles.icebergArrow} aria-hidden="true">→</span>
+              </button>
+            ))}
+          </div>
+          <p className={`${styles.icebergFootnote} relative z-10 mt-6 text-center`}>
+            surface record above / signal distortion increases with depth
+          </p>
         </section>
       ) : null}
 
-      {sortedPosts.length ? (
-        <div className="grid gap-3">
+      {hasActiveFeed ? (
+      sortedPosts.length ? (
+        <div className="order-1 grid gap-3">
           {selectedTopicTag ? (
             <div className="flex flex-wrap items-center gap-3 border border-[#1d7f12] px-3 py-3">
-              <p className="bay-terminal-copy text-xs text-[#d7ffd0]">
+              <p className="bay-terminal-copy text-xs text-[#bfd0bc]">
                 TAG RESULTS : {selectedTopicTag}
               </p>
               <button
                 type="button"
                 onClick={clearTopicTag}
-                className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
               >
                 clear tag
               </button>
@@ -619,21 +913,39 @@ export default function TheoryBoard() {
             const postScore = formatPointTenths(
               getBaySpacePostPointTenths(post, favoritePostCounts),
             );
+            const showMonthlyAttention = browseMode === "month";
+            const showGreenCheck = showMonthlyAttention && hasGreenCheck(post);
+            const showFire = showMonthlyAttention && isPostOnFire(post);
+            const showConversation =
+              showMonthlyAttention && hasConversationBadge(post);
 
             return (
             <article
               key={post.id}
               id={`post-${post.id}`}
-              className={`theory-card relative bg-black px-4 py-4 ${
+              className={`${styles.articleCard} theory-card relative bg-black px-4 py-4 ${
                 openPostId === post.id
-                ? "border-2 border-[#39ff14] bg-[#020402] shadow-[0_0_18px_rgba(57,255,20,0.2)]"
+                ? "border-2 border-[#72c16a] bg-[#020402] shadow-[0_0_18px_rgba(114,193,106,0.2)]"
                 : "border-2 border-[#1d7f12]"
               }`}
             >
               {openPostId === post.id ? (
                 <>
                   <div className="absolute right-4 top-3 flex items-center gap-3">
-                    <p className="bay-terminal-copy text-right text-xs text-[#39ff14]">
+                    {showGreenCheck || showFire || showConversation ? (
+                      <span className={styles.monthBadges} aria-label="Monthly attention badges">
+                        {showGreenCheck ? (
+                          <span title="10+ views, 3+ ratings, and an 8.0+ truth average">✅</span>
+                        ) : null}
+                        {showFire ? (
+                          <span title={`${onFireViewThreshold}+ qualified views this month`}>🔥</span>
+                        ) : null}
+                        {showConversation ? (
+                          <span title="10+ comments from at least 3 members">🗣️</span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                    <p className="bay-terminal-copy text-right text-xs text-[#72c16a]">
                       {postScore} pts
                     </p>
                     <FavoriteButton
@@ -649,7 +961,7 @@ export default function TheoryBoard() {
                   <button
                     type="button"
                     onClick={closePost}
-                    className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
                   >
                     back
                   </button>
@@ -657,7 +969,7 @@ export default function TheoryBoard() {
                     <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">
                       <Link
                         href={`/profile/${post.author}`}
-                        className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                        className="underline decoration-[#72c16a] underline-offset-4 transition hover:text-[#72c16a]"
                       >
                         {getAuthorDisplayName(post)}
                       </Link>
@@ -667,14 +979,14 @@ export default function TheoryBoard() {
                       {canShowOracleAnonProfile(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
-                          className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                          className="underline decoration-[#72c16a] underline-offset-4 transition hover:text-[#72c16a]"
                         >
                           anon
                         </Link>
                       ) : canBayoOpenClassifiedAuthor(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
-                          className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+                          className="underline decoration-[#72c16a] underline-offset-4 transition hover:text-[#72c16a]"
                         >
                           classified
                         </Link>
@@ -686,10 +998,10 @@ export default function TheoryBoard() {
                   <p className="bay-terminal-copy mt-3 text-xs text-[#7f9f78]">
                     {formatPostTimestamp(post.createdAt)}
                   </p>
-                  <h2 className="bay-terminal-copy mt-3 text-2xl text-[#39ff14]">
+                  <h2 className="bay-terminal-copy mt-3 text-2xl text-[#72c16a]">
                     {post.title}
                   </h2>
-                  <p className="bay-terminal-field mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
+                  <p className="bay-terminal-field mt-4 whitespace-pre-wrap text-base leading-7 text-[#bfd0bc]">
                     {post.body || "no theory filed"}
                   </p>
                   {getPostSources(post).length ? (
@@ -704,7 +1016,7 @@ export default function TheoryBoard() {
                               href={getSourceHref(source)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                              className="break-all text-[#bfd0bc] underline decoration-[#72c16a] underline-offset-4"
                             >
                               {source}
                             </a>
@@ -724,7 +1036,7 @@ export default function TheoryBoard() {
                             key={tag}
                             type="button"
                             onClick={() => openTopicTag(tag)}
-                            className="bay-terminal-copy border border-[#1d7f12] px-2 py-1 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                            className="bay-terminal-copy border border-[#1d7f12] px-2 py-1 text-xs text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
                           >
                             {tag}
                           </button>
@@ -737,6 +1049,16 @@ export default function TheoryBoard() {
                   </div>
                   <PostEngagementPanel
                     isLoggedIn={isLoggedIn}
+                    onCommentSaved={() => {
+                      getBayPostsByCategory("theory").then((savedPosts) => {
+                        setPosts(
+                          savedPosts.filter(
+                            (savedPost) =>
+                              !savedPost.incognito && !isCryptiPost(savedPost),
+                          ),
+                        );
+                      });
+                    }}
                     onTruthSummaryChange={(summary) =>
                       syncPostTruthSummary(post.id, summary)
                     }
@@ -752,10 +1074,23 @@ export default function TheoryBoard() {
                       currentId === post.id ? "" : post.id,
                     )
                   }
-                  className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="block w-full text-right focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
                 >
+                  {showGreenCheck || showFire || showConversation ? (
+                    <span className={`${styles.monthBadges} mb-3 justify-end`} aria-label="Monthly attention badges">
+                      {showGreenCheck ? (
+                        <span title="10+ views, 3+ ratings, and an 8.0+ truth average">✅</span>
+                      ) : null}
+                      {showFire ? (
+                        <span title={`${onFireViewThreshold}+ qualified views this month`}>🔥</span>
+                      ) : null}
+                      {showConversation ? (
+                        <span title="10+ comments from at least 3 members">🗣️</span>
+                      ) : null}
+                    </span>
+                  ) : null}
                   <span
-                    className={`bay-terminal-copy theory-title-redacted relative block w-full overflow-hidden text-lg text-[#39ff14] ${
+                    className={`bay-terminal-copy theory-title-redacted relative block w-full overflow-hidden text-lg text-[#72c16a] ${
                       isPostRevealed() ? "theory-strip-revealed" : ""
                     }`}
                   >
@@ -775,21 +1110,21 @@ export default function TheoryBoard() {
           })}
         </div>
       ) : selectedTopicTag ? (
-        <div className="bay-terminal-copy grid gap-4 border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">
+        <div className={`${styles.emptyState} bay-terminal-copy order-1 grid gap-4 px-4 py-4 text-sm text-[#bfd0bc]`}>
           <p>no conspiracy posts match {selectedTopicTag}</p>
           <button
             type="button"
             onClick={clearTopicTag}
-            className="w-fit border border-[#1d7f12] px-3 py-2 text-xs text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="w-fit border border-[#1d7f12] px-3 py-2 text-xs text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
           >
             clear tag
           </button>
         </div>
       ) : (
-        <div className="bay-terminal-copy border-2 border-[#1d7f12] bg-black px-4 py-4 text-sm text-[#d7ffd0]">
-          conspiracy board awaiting submissions
+        <div className={`${styles.emptyState} bay-terminal-copy order-1 px-4 py-4 text-sm text-[#bfd0bc]`}>
+          no conspiracies filed for {activeFeedLabel.toLowerCase()}
         </div>
-      )}
+      )) : null}
     </div>
   );
 }

@@ -42,10 +42,6 @@ export async function POST(request: Request, context: PostCommentsContext) {
     const { id } = await context.params;
     const member = await getCurrentMember();
 
-    if (!member) {
-      return Response.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     const body = (await request.json()) as { body?: string };
     const commentBody = (body.body ?? "").trim();
 
@@ -53,7 +49,7 @@ export async function POST(request: Request, context: PostCommentsContext) {
       return Response.json({ message: "Comment required" }, { status: 400 });
     }
 
-    const comment = await createPostComment(id, member.member, commentBody);
+    const comment = await createPostComment(id, member?.member, commentBody);
 
     if (!comment) {
       return Response.json({ message: "Post not found" }, { status: 404 });
@@ -61,6 +57,8 @@ export async function POST(request: Request, context: PostCommentsContext) {
 
     revalidatePath("/daily-food");
     revalidatePath("/facts-on-news");
+    revalidatePath("/news");
+    revalidatePath("/news/post");
     revalidatePath("/theories");
 
     return Response.json({ comment }, { status: 201 });

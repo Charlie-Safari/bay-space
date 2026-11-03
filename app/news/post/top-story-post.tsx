@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { BayPost, getBayPostsByCategory } from "../../components/post-store";
 import CopyPostLinkButton from "../../components/copy-post-link-button";
 import FavoriteButton from "../../components/favorite-button";
+import PostEngagementPanel from "../../components/post-engagement-panel";
 import { isBayoClub } from "../../../lib/bay-space-roles";
+import type { BayPostTruthVoteSummary } from "../../../lib/bay-space-types";
 import {
   formatPointTenths,
   getPostPointTenths,
@@ -30,6 +32,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   const [favoritePostCounts, setFavoritePostCounts] = useState<
     Record<string, number>
   >({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     function syncPosts() {
@@ -43,6 +46,11 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
       .then((response) => (response.ok ? response.json() : { members: [] }))
       .then((data: { members?: SavedMember[] }) => {
         setMembers(data.members ?? []);
+      });
+    fetch("/api/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { member: null }))
+      .then((data: { member?: SavedMember | null }) => {
+        setIsLoggedIn(Boolean(data.member));
       });
     window.addEventListener("storage", syncPosts);
     window.addEventListener("bay-space-posts", syncPosts);
@@ -104,6 +112,26 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   const tags = getDailyFoodTags(post);
   const sources = getPostSources(post);
   const postPoints = post ? formatPointTenths(getPostPointTenths(post, favoritePostCounts)) : "0";
+  const activePostId = post?.id ?? "";
+
+  function syncPostTruthSummary(summary: BayPostTruthVoteSummary) {
+    setPosts((currentPosts) =>
+      currentPosts.map((currentPost) =>
+        currentPost.id === activePostId
+          ? {
+              ...currentPost,
+              meta: {
+                ...(currentPost.meta ?? {}),
+                truthAverageScore: summary.averageScore.toFixed(1),
+                truthPointTenths: String(summary.pointValue * 10),
+                truthScoreTotal: String(summary.scoreTotal),
+                truthVoteCount: String(summary.voteCount),
+              },
+            }
+          : currentPost,
+      ),
+    );
+  }
 
   if (!post) {
     return (
@@ -186,6 +214,12 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
           shareCountPath={`/api/posts/${encodeURIComponent(post.id)}/share-link`}
         />
       </div>
+      <PostEngagementPanel
+        isLoggedIn={isLoggedIn}
+        onTruthSummaryChange={syncPostTruthSummary}
+        postCategory={post.category}
+        postId={post.id}
+      />
     </article>
   );
 }

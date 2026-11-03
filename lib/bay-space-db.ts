@@ -457,7 +457,7 @@ function publicPostComment(
     authorActiveCards: author ? getMemberActiveBayoCards(author) : [],
     author: comment.author_member_number
       ? formatMemberId(comment.author_member_number)
-      : "unknown",
+      : "anonymous",
     authorName: author?.name ?? "",
     body: comment.body,
     createdAt: comment.created_at,
@@ -2361,16 +2361,56 @@ export async function listPosts(category?: string) {
   }
 
   const posts = await supabaseRequest<PostRow[]>("posts", { query });
+  const publicPosts = posts.map(publicPost);
 
-  return posts.map(publicPost);
+  if (category !== "theory" || posts.length === 0) {
+    return publicPosts;
+  }
+
+  const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
+    query: {
+      deleted_at: "is.null",
+      moderation_status: "eq.active",
+      post_id: `in.(${posts.map((post) => post.id).join(",")})`,
+      select: "post_id,author_member_id",
+    },
+  });
+  const commentsByPostId = new Map<
+    string,
+    { authorIds: Set<string>; count: number }
+  >();
+
+  for (const comment of comments) {
+    const summary = commentsByPostId.get(comment.post_id) ?? {
+      authorIds: new Set<string>(),
+      count: 0,
+    };
+
+    summary.count += 1;
+
+    if (comment.author_member_id) {
+      summary.authorIds.add(comment.author_member_id);
+    }
+
+    commentsByPostId.set(comment.post_id, summary);
+  }
+
+  return publicPosts.map((post) => {
+    const summary = commentsByPostId.get(post.id);
+
+    return {
+      ...post,
+      meta: {
+        ...(post.meta ?? {}),
+        commentAuthorCount: String(summary?.authorIds.size ?? 0),
+        commentCount: String(summary?.count ?? 0),
+      },
+    };
+  });
 }
 
 function isCommentablePost(post: PostRow | null) {
-  return (
-    Boolean(post) &&
-    (post?.category === "daily-food" || post?.category === "theory") &&
-    post?.meta?.cryptiPost !== "true"
-  );
+  return Boolean(post) && post?.meta?.cryptiPost !== "true";
 }
 
 async function getCommentablePostRow(postId: string) {
@@ -2468,23 +2508,23 @@ export async function listPostComments(postId: string) {
 
 export async function createPostComment(
   postId: string,
-  memberId: string,
+  memberId: string | undefined,
   body: string,
 ) {
   const [post, member] = await Promise.all([
     getCommentablePostRow(postId),
-    getMemberRowByNumber(memberId),
+    memberId ? getMemberRowByNumber(memberId) : Promise.resolve(null),
   ]);
   const commentBody = body.trim().replace(/\s+\n/g, "\n").slice(0, 600);
 
-  if (!post || !member || !commentBody) {
+  if (!post || !commentBody) {
     return null;
   }
 
   const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
     body: {
-      author_member_id: member.id,
-      author_member_number: member.member_number,
+      author_member_id: member?.id ?? null,
+      author_member_number: member?.member_number ?? null,
       body: commentBody,
       post_id: post.id,
     },
@@ -2493,7 +2533,7 @@ export async function createPostComment(
     query: { select: "*" },
   });
 
-  return publicPostComment(comments[0], member);
+  return publicPostComment(comments[0], member ?? undefined);
 }
 
 export async function getPostTruthVoteSummary(
@@ -3241,25 +3281,29 @@ export async function incrementPostVisitCount(
     return null;
   }
 
-  const postVisits = getPostVisitCount(post) + 1;
-  const updatedPosts = await supabaseRequest<PostRow[]>("posts", {
-    body: {
-      meta: {
-        ...(post.meta ?? {}),
-        postVisits: String(postVisits),
-      },
-      updated_at: new Date().toISOString(),
-    },
-    method: "PATCH",
-    prefer: "return=representation",
-    query: {
-      id: `eq.${post.id}`,
-      select: "*",
-    },
-  });
   const readReward = viewerMemberId
     ? await recordMemberArticleRead(viewerMemberId, post)
     : null;
+  const shouldCountVisit = !viewerMemberId || readReward?.earned !== false;
+  const postVisits =
+    getPostVisitCount(post) + (shouldCountVisit ? 1 : 0);
+  const updatedPosts = shouldCountVisit
+    ? await supabaseRequest<PostRow[]>("posts", {
+        body: {
+          meta: {
+            ...(post.meta ?? {}),
+            postVisits: String(postVisits),
+          },
+          updated_at: new Date().toISOString(),
+        },
+        method: "PATCH",
+        prefer: "return=representation",
+        query: {
+          id: `eq.${post.id}`,
+          select: "*",
+        },
+      })
+    : [post];
 
   return {
     post: publicPost(updatedPosts[0]),
