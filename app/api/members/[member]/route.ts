@@ -2,6 +2,7 @@ import {
   acceptMemberCryptiAgreement,
   applyMemberNamasteReward,
   applyMemberWildCard,
+  authorizeMemberImpossibleBadge,
   changeMemberPin,
   claimMemberDailySpin,
   claimMemberMoneyPrinterI,
@@ -23,6 +24,7 @@ import {
   purchaseMemberBayoCard,
   purchaseMemberBayoStamp,
   purchaseMemberGateKey,
+  purchaseMemberImpossibleBadge,
   purchaseMemberGraduation,
   toggleMemberBayoCard,
   updateMemberReferenceName,
@@ -115,6 +117,7 @@ function privateMember(member: ApiMember) {
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
     lifetimeTokens: member.lifetimeTokens,
+    impossibleBadgeReady: member.impossibleBadgeReady,
     member: member.member,
     name: member.name,
     purchasedTitles: member.purchasedTitles,
@@ -399,7 +402,7 @@ export async function PATCH(request: Request, context: MemberContext) {
 
       if (!member) {
         return Response.json(
-          { message: "not enough coins for graduation" },
+          { message: "not enough tokens for graduation" },
           { status: 400 },
         );
       }
@@ -428,6 +431,35 @@ export async function PATCH(request: Request, context: MemberContext) {
       return Response.json({ member });
     }
 
+    if (body.action === "authorize-impossible-badge") {
+      const member = await authorizeMemberImpossibleBadge(
+        memberId,
+        body.accessKey ?? "",
+      );
+
+      if (!member) {
+        return Response.json(
+          { message: "access key rejected or path incomplete" },
+          { status: 403 },
+        );
+      }
+
+      return Response.json({ member: privateMember(member) });
+    }
+
+    if (body.action === "purchase-impossible-badge") {
+      const member = await purchaseMemberImpossibleBadge(memberId);
+
+      if (!member) {
+        return Response.json(
+          { message: "badge authorization required" },
+          { status: 403 },
+        );
+      }
+
+      return Response.json({ member: privateMember(member) });
+    }
+
     if (body.action === "purchase-card") {
       if (!body.card || !isBayoCardId(body.card)) {
         return Response.json({ message: "Invalid card" }, { status: 400 });
@@ -437,7 +469,7 @@ export async function PATCH(request: Request, context: MemberContext) {
 
       if (!member) {
         return Response.json(
-          { message: "card locked or not enough tokens" },
+          { message: "card locked or not enough coins" },
           { status: 400 },
         );
       }

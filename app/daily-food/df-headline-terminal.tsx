@@ -608,7 +608,7 @@ export default function DfHeadlineTerminal({
     );
   }
 
-  function canShowOracleAnonProfile(post: BayPost) {
+  function canShowBayoPlusAnonProfile(post: BayPost) {
     return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
   }
 
@@ -1055,7 +1055,7 @@ export default function DfHeadlineTerminal({
                   >
                     {getAuthorDisplayName(displayedPost)}
                   </Link>
-                ) : canShowOracleAnonProfile(displayedPost) ? (
+                ) : canShowBayoPlusAnonProfile(displayedPost) ? (
                   <Link
                     href={`/profile/${displayedPost.author}`}
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"

@@ -5,10 +5,11 @@ routes. The browser never receives the elevated Supabase key.
 
 ## Getting Started
 
-Create a Supabase project, then run the SQL in
-`supabase/migrations/202605140001_bay_space_core.sql` from the Supabase SQL
-Editor. That migration creates the member, credential, session, post, saved
-post, and report tables used by the app.
+Create a Supabase project, then run every SQL file in `supabase/migrations/`
+in filename order from the Supabase SQL Editor. The migrations create and
+upgrade the member, credential, session, post, Poll, saved-post, economy, and
+report storage used by the app. Existing projects only need migrations newer
+than the last one already applied.
 
 Copy the env template:
 

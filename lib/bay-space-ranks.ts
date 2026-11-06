@@ -22,6 +22,7 @@ export type GateKey =
   | "instant-rank-promotion"
   | "instant-rank-promotion-ii"
   | "oracle-badge"
+  | "impossible-badge"
   | "cabbin-wizard-club";
 
 export type BayoTitleId =
@@ -39,8 +40,7 @@ export type BayoCardId =
   | "doublay-card"
   | "money-printer-i"
   | "money-printer-ii"
-  | "money-printer-iii"
-  | "impossible-card";
+  | "money-printer-iii";
 
 export type BayoStampId =
   | "fountain-of-youth"
@@ -87,7 +87,7 @@ type CryptiRankConfig = {
 type GateKeyConfig = {
   id: GateKey;
   label: string;
-  coinCost: number;
+  tokenCost: number;
   description: string;
 };
 
@@ -98,10 +98,10 @@ type BayoTitleConfig = {
 };
 
 type BayoCardConfig = {
+  coinCost: number;
   description: string;
   id: BayoCardId;
   label: string;
-  tokenCost: number;
 };
 
 type BayoStampConfig = {
@@ -131,13 +131,9 @@ export const defaultMemberRole = "reader";
 export const defaultMemberTitle = "Reader";
 export const bayoCoinExchangeRate = 100;
 export const bayoTokenExchangeRate = 5;
-export const graduationCoinCost = 500;
+export const graduationTokenCost = 100;
 export const oracleBadgeTokenCost = 1000;
-export const tokenGateKeys: GateKey[] = [
-  "instant-rank-promotion",
-  "instant-rank-promotion-ii",
-  "oracle-badge",
-];
+export const impossibleBadgePointCost = 1_000_000_000_000;
 export const doublayCardId: BayoCardId = "doublay-card";
 export const moneyPrinterICardId: BayoCardId = "money-printer-i";
 export const moneyPrinterIICardId: BayoCardId = "money-printer-ii";
@@ -208,49 +204,55 @@ export const bayRanks: BayRankConfig[] = [
 
 export const gateKeys: GateKeyConfig[] = [
   {
-    coinCost: 25,
+    tokenCost: 5,
     description:
       "Lifetime citizenship to Safari Nation, the hotel and casino world coming soon.",
     id: "safari-nation",
     label: "Safari Nation",
   },
   {
-    coinCost: 100,
+    tokenCost: 20,
     description:
       "Join Bayo+ for Bay Area community meetups and like-minded thinkers.",
     id: "bayo-plus",
     label: "Bayo+",
   },
   {
-    coinCost: 250,
+    tokenCost: 50,
     description:
       "Advance to Reader III, unlock the +CRYPTI branch, and begin the path toward posting and blue-name status.",
     id: "crypti-plus",
     label: "+CRYPTI",
   },
   {
-    coinCost: 150,
+    tokenCost: 150,
     description:
       "Instantly advances the +CRYPTI branch to Poster IV. Requires +CRYPTI ownership.",
     id: "instant-rank-promotion",
     label: "Instant Rank Promotion I",
   },
   {
-    coinCost: 50,
+    tokenCost: 50,
     description:
       "Highest +CRYPTI rank. Requires Instant Rank Promotion I and advances the +CRYPTI branch to Poster V.",
     id: "instant-rank-promotion-ii",
     label: "Instant Rank Promotion II",
   },
   {
-    coinCost: oracleBadgeTokenCost,
+    tokenCost: oracleBadgeTokenCost,
     description:
       "Final Level 9 badge. Requires Graduation, +CRYPTI ownership, and Poster V. Unlocks Current Events and Top Story publishing.",
     id: "oracle-badge",
     label: "Oracle Badge",
   },
   {
-    coinCost: 10000,
+    tokenCost: 0,
+    description: "A private final badge for the explorer who found the hidden path.",
+    id: "impossible-badge",
+    label: "IMPOSSIBLE",
+  },
+  {
+    tokenCost: 2000,
     description:
       "Travel to Colorado for secret Cabal trading meetups when they happen.",
     id: "cabbin-wizard-club",
@@ -297,60 +299,53 @@ export const bayoTitles: BayoTitleConfig[] = [
 
 export const bayoCards: BayoCardConfig[] = [
   {
+    coinCost: 125,
     description:
       "Indigo comments. Truth votes count x2 on Conspiracy and x1 on News.",
     id: "empath-card",
     label: "Empath Card",
-    tokenCost: 25,
   },
   {
+    coinCost: 125,
     description:
       "Five gold stars by comment name. Truth votes count x2 on News and x1 on Conspiracy.",
     id: "hero-card",
     label: "Hero Card",
-    tokenCost: 25,
   },
   {
+    coinCost: 25,
     description:
       "Special Library badge for users who want to rep the archive branch.",
     id: "library-card",
     label: "Library Card",
-    tokenCost: 5,
   },
   {
+    coinCost: 55,
     description:
       "Allows three active cards total, with Doublay counted as one active card.",
     id: doublayCardId,
     label: "Doublay Card",
-    tokenCost: 11,
   },
   {
+    coinCost: 5,
     description:
       "Generates 5 points per 30 minutes while logged in, Bay Space is open, and the mouse is on-screen.",
     id: moneyPrinterICardId,
     label: "Money Printer I",
-    tokenCost: 1,
   },
   {
+    coinCost: 50,
     description:
       "Generates 10 points per 30 minutes while active, syncing when the account is loaded.",
     id: moneyPrinterIICardId,
     label: "Money Printer II",
-    tokenCost: 10,
   },
   {
+    coinCost: 500,
     description:
       "Generates 30 points per 10 minutes while active, syncing when the account is loaded.",
     id: moneyPrinterIIICardId,
     label: "Money Printer III",
-    tokenCost: 100,
-  },
-  {
-    description:
-      "Costs one billion tokens. No functional power, just legend status and street cred.",
-    id: "impossible-card",
-    label: "Impossible Card",
-    tokenCost: 1000000000,
   },
 ];
 
@@ -490,7 +485,45 @@ export const bayoStamps: BayoStampConfig[] = [
 ];
 
 export function isTokenGateKey(gateKeyId: GateKey) {
-  return tokenGateKeys.includes(gateKeyId);
+  return gateKeys.some((gateKey) => gateKey.id === gateKeyId);
+}
+
+export function getPromotionBonusPoints(
+  previous: { cryptiRank?: CryptiRank | string; rank?: BayRank | string },
+  next: { cryptiRank?: CryptiRank | string; rank?: BayRank | string },
+) {
+  const previousBayLevel = getBayRankLevel(previous?.rank);
+  const nextBayLevel = getBayRankLevel(next?.rank);
+  const bayBonus = bayRanks
+    .filter(
+      (rank) => rank.level > previousBayLevel && rank.level <= nextBayLevel,
+    )
+    .reduce((total, rank) => {
+      const nextPromotion =
+        rank.id === "graduation"
+          ? cryptiRanks.find((candidate) => candidate.id === "reader-iii")
+          : bayRanks.find((candidate) => candidate.level === rank.level + 1);
+
+      return total + Math.floor((nextPromotion?.minLifetimePoints ?? 0) * 0.1);
+    }, 0);
+  const previousCryptiLevel = getCryptiRankConfig(previous?.cryptiRank)?.level ?? 0;
+  const nextCryptiLevel = getCryptiRankConfig(next?.cryptiRank)?.level ?? 0;
+  const cryptiBonus = cryptiRanks
+    .filter(
+      (rank) =>
+        rank.level > previousCryptiLevel &&
+        rank.level <= nextCryptiLevel &&
+        rank.id !== "oracle",
+    )
+    .reduce((total, rank) => {
+      const nextPromotion = cryptiRanks.find(
+        (candidate) => candidate.level === rank.level + 1,
+      );
+
+      return total + Math.floor((nextPromotion?.minLifetimePoints ?? 0) * 0.1);
+    }, 0);
+
+  return bayBonus + cryptiBonus;
 }
 
 export function isBayoCardId(cardId: string): cardId is BayoCardId {
@@ -577,12 +610,12 @@ export function getCryptiRankForLifetimePoints(
   const earnedConfig = cryptiRanks
     .filter((candidate) => !candidate.requiresGateKey)
     .reduce<CryptiRankConfig | null>(
-    (earnedRank, candidate) =>
-      normalizedPoints >= candidate.minLifetimePoints
-        ? candidate
-        : earnedRank,
-    null,
-  );
+      (earnedRank, candidate) =>
+        normalizedPoints >= candidate.minLifetimePoints
+          ? candidate
+          : earnedRank,
+      null,
+    );
 
   if (!earnedConfig) {
     return currentConfig?.id ?? "";

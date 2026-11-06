@@ -29,6 +29,15 @@ type TruthVoteResponse = {
 
 const defaultTruthScore = 6;
 const publicCommentDeleteWindowMs = 2 * 60 * 1000;
+const commentCharacterLimit = 500;
+
+function getCharacterCount(value: string) {
+  return Array.from(value.trim()).length;
+}
+
+function limitCharacters(value: string) {
+  return Array.from(value).slice(0, commentCharacterLimit).join("");
+}
 
 function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -54,6 +63,7 @@ export default function PostEngagementPanel({
 }: PostEngagementPanelProps) {
   const [comments, setComments] = useState<BayPostComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
+  const [availablePoints, setAvailablePoints] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isCommentSaving, setIsCommentSaving] = useState(false);
   const [deletingCommentIds, setDeletingCommentIds] = useState<string[]>([]);
@@ -68,6 +78,8 @@ export default function PostEngagementPanel({
     userScore: null,
     voteCount: 0,
   });
+  const isCurrentEvents =
+    postCategory === "daily-food" || postCategory === "top-story";
 
   useEffect(() => {
     let isMounted = true;
@@ -76,24 +88,37 @@ export default function PostEngagementPanel({
       setIsLoading(true);
       setErrorMessage("");
 
-      const [commentsResponse, truthVoteResponse] = await Promise.all([
+      const [commentsResponse, truthVoteResponse, memberResponse] = await Promise.all([
         fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, {
           cache: "no-store",
         }),
         fetch(`/api/posts/${encodeURIComponent(postId)}/truth-vote`, {
           cache: "no-store",
         }),
+        isLoggedIn && isCurrentEvents
+          ? fetch("/api/me", { cache: "no-store" })
+          : Promise.resolve(null),
       ]);
       const commentsData =
         (await commentsResponse.json()) as CommentsResponse;
       const truthVoteData =
         (await truthVoteResponse.json()) as TruthVoteResponse;
+      const memberData = memberResponse?.ok
+        ? ((await memberResponse.json()) as {
+            member?: { availablePoints?: number } | null;
+          })
+        : null;
 
       if (!isMounted) {
         return;
       }
 
       setComments(commentsData.comments ?? []);
+      setAvailablePoints(
+        typeof memberData?.member?.availablePoints === "number"
+          ? memberData.member.availablePoints
+          : null,
+      );
 
       if (truthVoteData.summary) {
         setTruthSummary(truthVoteData.summary);
@@ -113,7 +138,7 @@ export default function PostEngagementPanel({
     return () => {
       isMounted = false;
     };
-  }, [postId]);
+  }, [isCurrentEvents, isLoggedIn, postId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -145,6 +170,8 @@ export default function PostEngagementPanel({
       const data = (await response.json()) as {
         comment?: BayPostComment;
         message?: string;
+        pointCost?: number;
+        remainingPoints?: number | null;
       };
 
       if (!response.ok || !data.comment) {
@@ -157,6 +184,13 @@ export default function PostEngagementPanel({
       setComments((currentComments) => [...currentComments, savedComment]);
       onCommentSaved?.(savedComment);
       setCommentBody("");
+
+      if ((data.pointCost ?? 0) > 0) {
+        if (typeof data.remainingPoints === "number") {
+          setAvailablePoints(data.remainingPoints);
+        }
+        window.dispatchEvent(new Event("bay-space-auth"));
+      }
     } catch {
       setErrorMessage("comment not saved");
     } finally {
@@ -238,6 +272,12 @@ export default function PostEngagementPanel({
 
   const voteButtonLabel =
     truthSummary.userScore === truthScore ? "undo vote" : "vote";
+  const commentCharacterCount = getCharacterCount(commentBody);
+  const commentRequiresLogin = isCurrentEvents && !isLoggedIn;
+  const lacksCommentPoints =
+    isCurrentEvents &&
+    availablePoints !== null &&
+    commentCharacterCount > availablePoints;
 
   return (
     <section className="mt-6 grid gap-5 border-t border-[#1d7f12] pt-5">
@@ -292,7 +332,8 @@ export default function PostEngagementPanel({
                 key={comment.id}
                 className="relative border border-[#1d7f12] bg-black px-3 py-3 pr-11"
               >
-                {now - new Date(comment.createdAt).getTime() <
+                {postCategory === "theory" &&
+                now - new Date(comment.createdAt).getTime() <
                 publicCommentDeleteWindowMs ? (
                   <button
                     type="button"
@@ -340,21 +381,68 @@ export default function PostEngagementPanel({
         <form onSubmit={saveComment} className="grid gap-3">
           <textarea
             value={commentBody}
-            onChange={(event) => setCommentBody(event.target.value.slice(0, 600))}
+            onChange={(event) => setCommentBody(limitCharacters(event.target.value))}
             rows={3}
+            disabled={commentRequiresLogin}
             className="bay-terminal-field min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-            placeholder={isLoggedIn ? "comment" : "comment anonymously"}
+            placeholder={
+              commentRequiresLogin
+                ? "sign in to comment on Current Events"
+                : isLoggedIn
+                  ? "comment"
+                  : "comment anonymously"
+            }
             aria-label="Comment"
           />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
+              {commentCharacterCount}/{commentCharacterLimit} characters
+            </p>
+            {isCurrentEvents ? (
+              <p className="bay-terminal-copy text-[0.68rem] text-[#b6d88f]">
+                cost: {commentCharacterCount} points / 1 per character
+                {availablePoints !== null
+                  ? ` / ${availablePoints} available`
+                  : ""}
+              </p>
+            ) : (
+              <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
+                free / two-minute public delete window
+              </p>
+            )}
+          </div>
           <button
             type="submit"
-            disabled={isCommentSaving || !commentBody.trim()}
+            disabled={
+              isCommentSaving || !commentBody.trim() || commentRequiresLogin
+              || lacksCommentPoints
+            }
             className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
           >
-            {isCommentSaving ? "saving" : "post comment"}
+            {isCommentSaving
+              ? "saving"
+              : isCurrentEvents
+                ? `post comment / ${commentCharacterCount} points`
+                : "post comment / free"}
           </button>
         </form>
-        {!isLoggedIn ? (
+        {lacksCommentPoints ? (
+          <p className="bay-terminal-copy text-xs text-[#ff7379]">
+            shorten the comment or earn more points before posting
+          </p>
+        ) : null}
+        {commentRequiresLogin ? (
+          <p className="bay-terminal-copy text-xs text-[#7f9f78]">
+            Current Events comments require a member account because each
+            character spends one available point. {" "}
+            <Link
+              href="/join-the-circle"
+              className="text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
+            >
+              join the circle
+            </Link>
+          </p>
+        ) : !isLoggedIn ? (
           <p className="bay-terminal-copy text-xs text-[#7f9f78]">
             posting as anonymous user /{" "}
             <Link

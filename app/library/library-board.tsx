@@ -191,7 +191,7 @@ export default function LibraryBoard() {
     return isBayoClub(getAuthorRoles(post)) ? `${authorName} 🦉` : authorName;
   }
 
-  function canShowOracleAnonProfile(post: BayPost) {
+  function canShowBayoPlusAnonProfile(post: BayPost) {
     return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
   }
 
@@ -405,7 +405,7 @@ export default function LibraryBoard() {
                     </p>
                   ) : post.anonymous ? (
                     <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
-                      {canShowOracleAnonProfile(post) ? (
+                      {canShowBayoPlusAnonProfile(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
                           className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
@@ -524,7 +524,8 @@ export default function LibraryBoard() {
                   briefing room
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>The ID card shows rank, title, available points, lifetime points, Bayo Coins, and points until next promotion.</li>
+                  <li>The balance bar below Exchange shows available Points, Coins, and Tokens at a glance.</li>
+                  <li>The ID card shows rank, title, lifetime points, and points until next promotion.</li>
                   <li>The options menu opens rooms like profile, favorites, my posts, settings, and exchange.</li>
                   <li>When an option is open, the big Briefing Room header and posting tools step out of the way.</li>
                   <li>Each options room has a back button that returns to the Briefing Room.</li>
@@ -543,8 +544,9 @@ export default function LibraryBoard() {
                     <li>Reader II - 250 lifetime points, unlocks Library reading.</li>
                     <li>Poster - 1,000 lifetime points, can post in Conspiracy.</li>
                     <li>Poster II - 3,500 lifetime points, can post in Conspiracy and Library.</li>
-                    <li>Poster III - 10,000 lifetime points, can post in Conspiracy, Library, and Current Events.</li>
-                    <li>Graduation - purchased in Badge Quest for 500 Bayo Coins.</li>
+                    <li>Poster III - 10,000 lifetime points, can post in Conspiracy and Library.</li>
+                    <li>Graduation - purchased in Badge Quest for 100 tokens.</li>
+                    <li>Oracle - Level 9 and the only member rank that can publish Current Events and Top Stories.</li>
                   </ul>
                 </div>
               </details>
@@ -558,10 +560,17 @@ export default function LibraryBoard() {
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Opening an article for the first time gives +5 available points and +5 lifetime points.</li>
                     <li>Each article can only award those +5 points one time per account.</li>
-                    <li>Each recorded profile page visit gives the profile owner +1 available point and +1 lifetime point.</li>
+                    <li>The first visit from each signed-in member gives the profile owner +1 available point and +1 lifetime point. Public, repeat, and self visits do not award points.</li>
+                    <li>A first Current Events truth vote gives +25 points. A first Conspiracy truth vote gives +2. Undoing either reverses its reward.</li>
+                    <li>A first share of a post gives +2 points.</li>
+                    <li>Adding a favorite diamond gives +3 points; removing it reverses the reward.</li>
+                    <li>A Conspiracy ticket gives +5 points; removing it reverses the reward.</li>
+                    <li>A first Conspiracy comment on a post gives +5 points.</li>
+                    <li>Interacting with your own post does not earn participation points.</li>
                     <li>Available points can be traded for Bayo Coins in Exchange at 100 points for 1 coin.</li>
                     <li>Lifetime points are never spent; they keep your promotion history moving forward.</li>
                   </ul>
+                  <p>Each newly reached promotion awards 10% of the lifetime-point requirement for the promotion after it. Reader II awards 100 bonus points, Poster I awards 350, and Poster II awards 1,000. The bonus is added after the new rank is determined, so it cannot cause an instant chain promotion.</p>
                   <p>Post score is separate from promotion points.</p>
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Post opens add +1 post point per recorded view.</li>
@@ -580,12 +589,15 @@ export default function LibraryBoard() {
                   <p>Exchange is available from the start inside the Briefing Room options menu.</p>
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Trade available points for Bayo Coins at 100 points for 1 coin.</li>
+                    <li>Trade 5 Bayo Coins for 1 token.</li>
+                    <li>Cards are purchased with coins. Badge Quest unlocks are purchased with tokens.</li>
                     <li>Open the Badge Quest dropdown to view unlocks.</li>
-                    <li>Graduation costs 500 Bayo Coins and must be owned before any other Badge Quest badge or card.</li>
-                    <li>Safari Nation costs 25 coins.</li>
-                    <li>Bayo+ costs 100 coins.</li>
-                    <li>+CRYPTI costs 250 coins and unlocks the +CRYPTI branch.</li>
-                    <li>Cabbin Wizard Club costs 10,000 coins.</li>
+                    <li>Graduation costs 100 tokens and must be owned before any other Badge Quest badge or card.</li>
+                    <li>Safari Nation costs 5 tokens.</li>
+                    <li>Bayo+ costs 20 tokens.</li>
+                    <li>+CRYPTI costs 50 tokens and unlocks the +CRYPTI branch.</li>
+                    <li>The Oracle Badge costs 1,000 tokens and only appears after Poster V.</li>
+                    <li>Cabbin Wizard Club costs 2,000 tokens.</li>
                   </ul>
                 </div>
               </details>
@@ -595,11 +607,12 @@ export default function LibraryBoard() {
                   +CRYPTI branch
                 </summary>
                 <div className="mt-3 grid gap-4 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <p>After Graduation, buy the +CRYPTI gate key for 250 coins to enter the blue branch.</p>
+                  <p>After Graduation, buy the +CRYPTI gate key for 50 tokens to enter the blue branch.</p>
                   <ul className="list-disc space-y-2 pl-5">
                     <li>Reader III - 100,000 lifetime points, can read +CRYPTI.</li>
                     <li>Poster IV - 175,000 lifetime points, can post in +CRYPTI.</li>
-                    <li>Poster V - 300,000 lifetime points, grand highest rank.</li>
+                    <li>Poster V - 300,000 lifetime points, highest +CRYPTI rank and the prerequisite for the Oracle Badge.</li>
+                    <li>Oracle - Level 9, reached by purchasing the 1,000-token Oracle Badge after Graduation, +CRYPTI, and Poster V.</li>
                     <li>Instant Rank Promotion I costs 150 tokens and advances +CRYPTI to Poster IV. Requires +CRYPTI ownership.</li>
                     <li>Instant Rank Promotion II costs 50 tokens and advances +CRYPTI to Poster V. Requires Instant Rank Promotion I.</li>
                     <li>Once +CRYPTI is owned, the blue +CRYPTI nav appears beside Conspiracy.</li>
@@ -612,7 +625,12 @@ export default function LibraryBoard() {
                   comments and truth votes
                 </summary>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm font-bold leading-6 text-[#d7ffd0]">
-                  <li>Conspiracy and Current Events posts include comments.</li>
+                  <li>Conspiracy comments are free and open to members and public visitors.</li>
+                  <li>Anyone can erase a Conspiracy comment during its first two minutes.</li>
+                  <li>Current Events comments require a signed-in account.</li>
+                  <li>Current Events comments cost 1 available point per character, including spaces and punctuation, after outside whitespace is removed.</li>
+                  <li>All comments have a 500-character maximum.</li>
+                  <li>Current Events comments are permanent and do not receive the two-minute delete button.</li>
                   <li>The truth scale runs from 0 to 11.</li>
                   <li>Press vote to cast a truth vote.</li>
                   <li>Pressing vote again on the same score undoes your vote.</li>

@@ -408,7 +408,7 @@ export default function TheoryBoard() {
     );
   }
 
-  function canShowOracleAnonProfile(post: BayPost) {
+  function canShowBayoPlusAnonProfile(post: BayPost) {
     return post.anonymous && post.author !== "unknown" && isBayoClub(getAuthorRoles(post));
   }
 
@@ -976,7 +976,7 @@ export default function TheoryBoard() {
                     </p>
                   ) : post.anonymous ? (
                     <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">
-                      {canShowOracleAnonProfile(post) ? (
+                      {canShowBayoPlusAnonProfile(post) ? (
                         <Link
                           href={`/profile/${post.author}`}
                           className="underline decoration-[#72c16a] underline-offset-4 transition hover:text-[#72c16a]"

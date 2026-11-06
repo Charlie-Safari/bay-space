@@ -121,6 +121,7 @@ export type BayMember = {
   gateKeys: GateKey[];
   lifetimePoints: number;
   lifetimeTokens: number;
+  impossibleBadgeReady: boolean;
   member: string;
   name: string;
   purchasedTitles: BayoTitleId[];

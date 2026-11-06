@@ -3,6 +3,7 @@ import {
   createPostComment,
   deleteRecentPostComment,
   getStorageErrorMessage,
+  getStorageErrorStatus,
   listPostComments,
 } from "../../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../../lib/bay-space-session";
@@ -16,7 +17,10 @@ function commentsErrorResponse(error: unknown) {
 
   if (storageMessage) {
     console.error(storageMessage);
-    return Response.json({ message: storageMessage }, { status: 503 });
+    return Response.json(
+      { message: storageMessage },
+      { status: getStorageErrorStatus(error) ?? 503 },
+    );
   }
 
   console.error(error);
@@ -50,9 +54,9 @@ export async function POST(request: Request, context: PostCommentsContext) {
       return Response.json({ message: "Comment required" }, { status: 400 });
     }
 
-    const comment = await createPostComment(id, member?.member, commentBody);
+    const result = await createPostComment(id, member?.member, commentBody);
 
-    if (!comment) {
+    if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
     }
 
@@ -62,7 +66,7 @@ export async function POST(request: Request, context: PostCommentsContext) {
     revalidatePath("/news/post");
     revalidatePath("/theories");
 
-    return Response.json({ comment }, { status: 201 });
+    return Response.json(result, { status: 201 });
   } catch (error) {
     return commentsErrorResponse(error);
   }
@@ -78,9 +82,16 @@ export async function DELETE(request: Request, context: PostCommentsContext) {
       return Response.json({ message: "Comment required" }, { status: 400 });
     }
 
-    const deleted = await deleteRecentPostComment(id, commentId);
+    const result = await deleteRecentPostComment(id, commentId);
 
-    if (!deleted) {
+    if (result === "not-conspiracy") {
+      return Response.json(
+        { message: "Only Conspiracy comments have a two-minute delete window" },
+        { status: 403 },
+      );
+    }
+
+    if (result !== "deleted") {
       return Response.json(
         { message: "The two-minute delete window has closed" },
         { status: 409 },

@@ -95,12 +95,7 @@ export const baySpaceRoles: BaySpaceRole[] = [
     title: "Poster II",
   },
   {
-    allowedCategories: [
-      "top-story",
-      "daily-food",
-      "theory",
-      "library-submission",
-    ],
+    allowedCategories: ["theory", "library-submission"],
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
@@ -155,7 +150,7 @@ export const baySpaceRoles: BaySpaceRole[] = [
     canUseAnonymous: true,
     canUseIncognito: true,
     description:
-      "Unrestricted posting access anywhere. Required for viewing and posting on +CRYPTI.",
+      "Can post in Conspiracy, Library, and +CRYPTI. Current Events requires Oracle.",
     id: "crypti",
     label: "+CRYPTI",
     reviewLabel: "+CRYPTI",
@@ -256,7 +251,13 @@ export function getAccountTitle(roles: string) {
 }
 
 export function getRoleAcronym(subject: PermissionSubject) {
-  return isCrypti(subject) ? "+" : isBayoClub(subject) ? "🦉" : "";
+  return isOracle(subject)
+    ? "🔮"
+    : isCrypti(subject)
+      ? "+"
+      : isBayoClub(subject)
+        ? "🦉"
+        : "";
 }
 
 export function getAllowedReadCategories(subject: PermissionSubject) {

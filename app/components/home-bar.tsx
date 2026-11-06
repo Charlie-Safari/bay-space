@@ -19,6 +19,7 @@ type HomeTab = {
 const baySpaceTabs: HomeTab[] = [
   { label: "Conspiracy", href: "/theories" },
   { label: "Current Events", shortLabel: "Events", href: "/facts-on-news" },
+  { label: "Polls", href: "/polls" },
 ];
 
 const activeMemberStorageKey = "bay-space-active-member";
@@ -196,7 +197,9 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
     const active = isActiveRoute(tab.href);
     const routeLabel = tab.ariaLabel ?? tab.label;
     const isTextChannelTab =
-      tab.label === "Conspiracy" || tab.label === "Current Events";
+      tab.label === "Conspiracy" ||
+      tab.label === "Current Events" ||
+      tab.label === "Polls";
 
     return (
       <div className={wrapperClassName}>
@@ -331,6 +334,10 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
                 "order-3 w-[calc(50%-0.25rem)] max-w-44 md:order-4 md:w-auto md:max-w-none",
               )
             : null}
+          {renderTab(
+            baySpaceTabs[2],
+            "order-4 w-full max-w-44 md:order-5 md:w-auto md:max-w-none",
+          )}
         </div>
 
         {!guestMode && !activeMember ? (

@@ -7,6 +7,12 @@ export const truthVoteLowPointTenths = 10;
 export const truthVoteHighPointTenths = 20;
 export const articleReadPointValue = 5;
 export const profileVisitPointValue = 1;
+export const participationCommentPointValue = 5;
+export const participationFavoritePointValue = 3;
+export const participationSharePointValue = 2;
+export const participationTicketPointValue = 5;
+export const participationTruthVotePointValue = 2;
+export const currentEventTruthVotePointValue = 25;
 
 export const baySpaceProfilePostPointValues = {
   "daily-food": 10,

@@ -8,6 +8,7 @@ const staticRoutes = [
   "/join-the-circle",
   "/library",
   "/news",
+  "/polls",
   "/theories",
 ];
 

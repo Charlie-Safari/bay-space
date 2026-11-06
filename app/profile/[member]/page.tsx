@@ -5,6 +5,7 @@ import PublicIdCard from "./public-id-card";
 import ProfileQuickActions from "./profile-quick-actions";
 import ProfileTrophyCase from "./profile-trophy-case";
 import ProfileStatsCard from "./profile-stats-card";
+import ProfilePollScoreCard from "./profile-poll-score-card";
 import {
   countSavedPosts,
   getMember,
@@ -13,8 +14,13 @@ import {
   listPostsByAuthor,
   listPostsByAuthorForStats,
 } from "../../../lib/bay-space-db";
+import { getPollStats } from "../../../lib/bay-space-polls";
 import { BayPost } from "../../../lib/bay-space-types";
-import { isBayoClub, isCrypti } from "../../../lib/bay-space-roles";
+import {
+  isBayoClub,
+  isCrypti,
+  isOracle,
+} from "../../../lib/bay-space-roles";
 import {
   getBaySpacePostTicketCount,
   getPostVisitCount,
@@ -118,8 +124,10 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
     0,
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
+  const pollStats = await getPollStats(memberId);
   const isBayoClubMember = isBayoClub(member);
   const isCryptiMember = isCrypti(member);
+  const isOracleMember = isOracle(member);
   const ownedBadges = member
     ? [
         ...(member.rank === "graduation" ? ["Graduation"] : []),
@@ -168,7 +176,13 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
         <div className="flex flex-wrap items-center gap-4">
           <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
             {member?.name ?? "profile not found"}
-            {isCryptiMember ? " +" : isBayoClubMember ? " 🦉" : ""}
+            {isOracleMember
+              ? " 🔮"
+              : isCryptiMember
+                ? " +"
+                : isBayoClubMember
+                  ? " 🦉"
+                  : ""}
           </h1>
           {member ? (
             <ProfileQuickActions
@@ -188,9 +202,13 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
                 isCryptiMember={isCryptiMember}
                 links={publicLinks}
                 member={{
-                  cryptiRank: getCryptiRankLabel(member.cryptiRank),
+                  cryptiRank: isOracleMember
+                    ? "Poster V complete"
+                    : getCryptiRankLabel(member.cryptiRank),
                   member: member.member,
-                  rank: getBayRankLabel(member.rank),
+                  rank: isOracleMember
+                    ? "Level 9 - Oracle"
+                    : getBayRankLabel(member.rank),
                   refName: member.refName,
                 }}
               />
@@ -217,6 +235,8 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
               cards={ownedCards}
               stamps={ownedStamps}
             />
+
+            <ProfilePollScoreCard stats={pollStats} />
 
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
               <section className="border border-[#1d7f12] bg-black p-4">

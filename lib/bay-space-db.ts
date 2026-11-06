@@ -29,12 +29,13 @@ import {
   getBayoCardActiveSlotCount,
   getBayRankConfig,
   getCryptiRankForLifetimePoints,
+  getPromotionBonusPoints,
   getPromotedBayRankForLifetimePoints,
   hasCryptiPromotionBranch,
-  graduationCoinCost,
+  graduationTokenCost,
+  impossibleBadgePointCost,
   isBayoCardId,
   isBayoStampId,
-  isTokenGateKey,
   moneyPrinterICardId,
   moneyPrinterIICardId,
   moneyPrinterIIICardId,
@@ -67,6 +68,12 @@ import {
   getPostVisitCount as getBayPostVisitCount,
   getTruthVotePointValue,
   isCryptiPost,
+  participationCommentPointValue,
+  participationFavoritePointValue,
+  participationSharePointValue,
+  participationTicketPointValue,
+  participationTruthVotePointValue,
+  currentEventTruthVotePointValue,
   profileVisitPointValue,
 } from "./bay-space-scoring";
 import {
@@ -112,13 +119,14 @@ type MemberSettingsInput = {
 };
 
 const baySpaceWildCardAccessKey = "Welcome*";
+const impossibleBadgeAccessKey = "infinitesafari";
 const wildCardGateKeyReserve: GateKey[] = ["safari-nation", "crypti-plus"];
 const wildCardGateKeyReservePoints =
-  wildCardGateKeyReserve.reduce((totalCoins, gateKeyId) => {
+  wildCardGateKeyReserve.reduce((totalTokens, gateKeyId) => {
     const gateKey = gateKeys.find((candidate) => candidate.id === gateKeyId);
 
-    return totalCoins + (gateKey?.coinCost ?? 0);
-  }, 0) * bayoCoinExchangeRate;
+    return totalTokens + (gateKey?.tokenCost ?? 0);
+  }, 0) * bayoTokenExchangeRate * bayoCoinExchangeRate;
 export const baySpaceWildCardPointAward = Math.max(
   100000,
   getBayRankConfig("graduation").minLifetimePoints +
@@ -155,7 +163,10 @@ type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
   _dailySpinDate?: string;
   _dailySpinPoints?: number;
   _lifetimeBayoTokens?: number;
+  _impossibleBadgeAuthorizedAt?: string;
+  _impossibleBadgeReserve?: number;
   _onboardingCompletedAt?: string;
+  _participationRewardKeys?: string[];
   _cryptiStats?: MemberCryptiStats;
   _moneyPrinter?: MemberMoneyPrinter;
   _stats?: MemberStats;
@@ -405,7 +416,10 @@ function publicMember(member: MemberRow, roles: string[] = []): BayMember {
       member.crypti_agreement_accepted_at ?? undefined,
     cryptiAgreementVersion: member.crypti_agreement_version ?? undefined,
     cryptiRank: normalizeCryptiRank(member.crypti_rank),
-    gateKeys: normalizeStringArray<GateKey>(member.gate_keys),
+    gateKeys: getMemberGateKeysWithLegacyImpossible(member),
+    impossibleBadgeReady:
+      normalizePointBalance(member.links?._impossibleBadgeReserve) >=
+      impossibleBadgePointCost,
     lifetimePoints: normalizePointBalance(member.lifetime_points),
     lifetimeTokens: getMemberLifetimeBayoTokens(member),
     member: formatMemberId(member.member_number),
@@ -606,6 +620,19 @@ function getMemberGateKeys(member: Pick<MemberRow, "gate_keys">) {
   return normalizeStringArray<GateKey>(member.gate_keys);
 }
 
+function getMemberGateKeysWithLegacyImpossible(
+  member: Pick<MemberRow, "gate_keys" | "links">,
+) {
+  const gateKeyIds = getMemberGateKeys(member);
+  const legacyCards = member.links?._bayoCards;
+  const hasLegacyImpossibleCard =
+    Array.isArray(legacyCards) && legacyCards.includes("impossible-card");
+
+  return hasLegacyImpossibleCard && !gateKeyIds.includes("impossible-badge")
+    ? [...gateKeyIds, "impossible-badge" as const]
+    : gateKeyIds;
+}
+
 function getMemberBayoTokens(member: Pick<MemberRow, "links">) {
   return normalizePointBalance(member.links?._bayoTokens);
 }
@@ -728,6 +755,10 @@ function canPurchaseGateKey(
   gateKeyIds: GateKey[],
   member: MemberRow,
 ) {
+  if (gateKeyId === "impossible-badge") {
+    return false;
+  }
+
   if (gateKeyId === "oracle-badge") {
     return (
       gateKeyIds.includes("crypti-plus") &&
@@ -779,15 +810,83 @@ function getCryptiRankAfterGateKeyPurchase(
 }
 
 function getMemberPointAwardBody(member: MemberRow, points: number) {
-  const availablePoints = normalizePointBalance(member.available_points) + points;
-  const lifetimePoints = normalizePointBalance(member.lifetime_points) + points;
+  const baseLifetimePoints =
+    normalizePointBalance(member.lifetime_points) + points;
+  const nextRank = getPromotedBayRankForLifetimePoints(
+    baseLifetimePoints,
+    member.rank,
+  );
+  const nextCryptiRank = getPromotedMemberCryptiRank(
+    member,
+    baseLifetimePoints,
+  );
+  const promotionBonusPoints = getPromotionBonusPoints(
+    { cryptiRank: member.crypti_rank ?? "", rank: member.rank ?? "reader" },
+    { cryptiRank: nextCryptiRank, rank: nextRank },
+  );
 
   return {
-    available_points: availablePoints,
-    crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
-    lifetime_points: lifetimePoints,
-    rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
+    available_points:
+      normalizePointBalance(member.available_points) +
+      points +
+      promotionBonusPoints,
+    crypti_rank: nextCryptiRank,
+    lifetime_points: baseLifetimePoints + promotionBonusPoints,
+    rank: nextRank,
   };
+}
+
+function getMemberParticipationRewardKeys(member: MemberRow) {
+  return normalizeStringArray<string>(member.links?._participationRewardKeys);
+}
+
+async function applyMemberParticipationReward(
+  member: MemberRow,
+  rewardKey: string,
+  points: number,
+  enabled: boolean,
+) {
+  const rewardKeys = getMemberParticipationRewardKeys(member);
+  const hasReward = rewardKeys.includes(rewardKey);
+
+  if (enabled === hasReward) {
+    return member;
+  }
+
+  const nextRewardKeys = enabled
+    ? [...rewardKeys, rewardKey]
+    : rewardKeys.filter((key) => key !== rewardKey);
+  const pointBody = enabled
+    ? getMemberPointAwardBody(member, points)
+    : {
+        available_points: Math.max(
+          0,
+          normalizePointBalance(member.available_points) - points,
+        ),
+        lifetime_points: Math.max(
+          0,
+          normalizePointBalance(member.lifetime_points) - points,
+        ),
+      };
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      ...pointBody,
+      links: {
+        ...(member.links ?? {}),
+        _participationRewardKeys: nextRewardKeys,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      id: `eq.${member.id}`,
+      select: "*",
+      updated_at: `eq.${member.updated_at}`,
+    },
+  });
+
+  return rows[0] ?? member;
 }
 
 function getAccruedMoneyPrinterPoints(
@@ -1479,19 +1578,9 @@ export async function applyMemberWildCard(memberId: string) {
     return null;
   }
 
-  const availablePoints =
-    normalizePointBalance(member.available_points) +
-    baySpaceWildCardPointAward;
-  const lifetimePoints =
-    normalizePointBalance(member.lifetime_points) +
-    baySpaceWildCardPointAward;
-
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      available_points: availablePoints,
-      lifetime_points: lifetimePoints,
-      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
-      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
+      ...getMemberPointAwardBody(member, baySpaceWildCardPointAward),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -1519,26 +1608,19 @@ export async function applyMemberNamasteReward(memberId: string) {
     };
   }
 
-  const availablePoints =
-    normalizePointBalance(member.available_points) + namastePointAward;
-  const lifetimePoints =
-    normalizePointBalance(member.lifetime_points) + namastePointAward;
   const bayoTokens = getMemberBayoTokens(member) + namasteTokenAward;
   const lifetimeTokens =
     getMemberLifetimeBayoTokens(member) + namasteTokenAward;
 
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      available_points: availablePoints,
-      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
-      lifetime_points: lifetimePoints,
+      ...getMemberPointAwardBody(member, namastePointAward),
       links: {
         ...(member.links ?? {}),
         _bayoTokens: bayoTokens,
         _lifetimeBayoTokens: lifetimeTokens,
       },
       namaste_redeemed_at: new Date().toISOString(),
-      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -1751,20 +1833,31 @@ export async function purchaseMemberGraduation(memberId: string) {
     return getPublicMemberFromRow(member);
   }
 
-  const bayoCoins = normalizePointBalance(member.bayo_coins);
+  const bayoTokens = getMemberBayoTokens(member);
 
-  if (bayoCoins < graduationCoinCost) {
+  if (bayoTokens < graduationTokenCost) {
     return null;
   }
 
   const graduatedMember = { ...member, rank: "graduation" };
+  const promotionBonusPoints = getPromotionBonusPoints(
+    { cryptiRank: member.crypti_rank ?? "", rank: member.rank ?? "reader" },
+    { cryptiRank: member.crypti_rank ?? "", rank: "graduation" },
+  );
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      bayo_coins: bayoCoins - graduationCoinCost,
+      available_points:
+        normalizePointBalance(member.available_points) + promotionBonusPoints,
       crypti_rank: getPromotedMemberCryptiRank(
         graduatedMember,
         normalizePointBalance(member.lifetime_points),
       ),
+      lifetime_points:
+        normalizePointBalance(member.lifetime_points) + promotionBonusPoints,
+      links: {
+        ...(member.links ?? {}),
+        _bayoTokens: bayoTokens - graduationTokenCost,
+      },
       rank: "graduation",
       title: getWildCardTitle(member),
       updated_at: new Date().toISOString(),
@@ -1801,27 +1894,30 @@ export async function purchaseMemberGateKey(
     return null;
   }
 
-  const usesTokens = isTokenGateKey(gateKey.id);
-  const bayoCoins = normalizePointBalance(member.bayo_coins);
   const bayoTokens = getMemberBayoTokens(member);
 
-  if ((usesTokens ? bayoTokens : bayoCoins) < gateKey.coinCost) {
+  if (bayoTokens < gateKey.tokenCost) {
     return null;
   }
 
   const nextGateKeyIds = [...gateKeyIds, gateKey.id];
+  const nextCryptiRank = getCryptiRankAfterGateKeyPurchase(gateKey.id, member);
+  const promotionBonusPoints = getPromotionBonusPoints(
+    { cryptiRank: member.crypti_rank ?? "", rank: member.rank ?? "reader" },
+    { cryptiRank: nextCryptiRank, rank: member.rank ?? "reader" },
+  );
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      ...(usesTokens
-        ? {
-            links: {
-              ...(member.links ?? {}),
-              _bayoTokens: bayoTokens - gateKey.coinCost,
-            },
-          }
-        : { bayo_coins: bayoCoins - gateKey.coinCost }),
-      crypti_rank: getCryptiRankAfterGateKeyPurchase(gateKey.id, member),
+      available_points:
+        normalizePointBalance(member.available_points) + promotionBonusPoints,
+      crypti_rank: nextCryptiRank,
       gate_keys: nextGateKeyIds,
+      lifetime_points:
+        normalizePointBalance(member.lifetime_points) + promotionBonusPoints,
+      links: {
+        ...(member.links ?? {}),
+        _bayoTokens: bayoTokens - gateKey.tokenCost,
+      },
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -1829,6 +1925,104 @@ export async function purchaseMemberGateKey(
     query: {
       member_number: `eq.${member.member_number}`,
       select: "*",
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+function isImpossibleBadgeEligible(member: MemberRow) {
+  const cryptiRank = normalizeCryptiRank(member.crypti_rank);
+
+  return (
+    normalizeBayRank(member.rank) === "graduation" &&
+    (cryptiRank === "poster-v" || cryptiRank === "oracle")
+  );
+}
+
+export async function authorizeMemberImpossibleBadge(
+  memberId: string,
+  accessKey: string,
+) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (
+    !member ||
+    accessKey.trim().toLowerCase() !== impossibleBadgeAccessKey ||
+    !isImpossibleBadgeEligible(member) ||
+    getMemberGateKeysWithLegacyImpossible(member).includes("impossible-badge")
+  ) {
+    return null;
+  }
+
+  if (
+    normalizePointBalance(member.links?._impossibleBadgeReserve) >=
+    impossibleBadgePointCost
+  ) {
+    return getPublicMemberFromRow(member);
+  }
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      links: {
+        ...(member.links ?? {}),
+        _impossibleBadgeAuthorizedAt: new Date().toISOString(),
+        _impossibleBadgeReserve: impossibleBadgePointCost,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+      updated_at: `eq.${member.updated_at}`,
+    },
+  });
+
+  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+}
+
+export async function purchaseMemberImpossibleBadge(memberId: string) {
+  const member = await getMemberRowByNumber(memberId);
+
+  if (!member || !isImpossibleBadgeEligible(member)) {
+    return null;
+  }
+
+  const gateKeyIds = getMemberGateKeysWithLegacyImpossible(member);
+
+  if (gateKeyIds.includes("impossible-badge")) {
+    return getPublicMemberFromRow(member);
+  }
+
+  if (
+    normalizePointBalance(member.links?._impossibleBadgeReserve) <
+    impossibleBadgePointCost
+  ) {
+    return null;
+  }
+
+  const {
+    _impossibleBadgeAuthorizedAt: _authorizedAt,
+    _impossibleBadgeReserve: _reserve,
+    ...nextLinks
+  } = member.links ?? {};
+  void _authorizedAt;
+  void _reserve;
+
+  const rows = await supabaseRequest<MemberRow[]>("members", {
+    body: {
+      gate_keys: [...gateKeyIds, "impossible-badge"],
+      links: nextLinks,
+      updated_at: new Date().toISOString(),
+    },
+    method: "PATCH",
+    prefer: "return=representation",
+    query: {
+      member_number: `eq.${member.member_number}`,
+      select: "*",
+      updated_at: `eq.${member.updated_at}`,
     },
   });
 
@@ -1853,18 +2047,18 @@ export async function purchaseMemberBayoCard(
     return getPublicMemberFromRow(syncedMember);
   }
 
-  const bayoTokens = getMemberBayoTokens(syncedMember);
+  const bayoCoins = normalizePointBalance(syncedMember.bayo_coins);
 
-  if (bayoTokens < card.tokenCost) {
+  if (bayoCoins < card.coinCost) {
     return null;
   }
 
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
+      bayo_coins: bayoCoins - card.coinCost,
       links: {
         ...(syncedMember.links ?? {}),
         _bayoCards: [...ownedCards, card.id],
-        _bayoTokens: bayoTokens - card.tokenCost,
       },
       updated_at: new Date().toISOString(),
     },
@@ -2168,7 +2362,10 @@ export async function removeMemberOwnedCryptiTickerSymbol(
     : ownedTickerSymbols;
 }
 
-export async function incrementMemberProfileVisitCount(memberId: string) {
+export async function incrementMemberProfileVisitCount(
+  memberId: string,
+  viewerMemberId?: string,
+) {
   const member = await getMemberRowByNumber(memberId);
 
   if (!member) {
@@ -2176,23 +2373,29 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
   }
 
   const profileVisits = getMemberProfileVisits(member) + 1;
-  const availablePoints =
-    normalizePointBalance(member.available_points) + profileVisitPointValue;
-  const lifetimePoints =
-    normalizePointBalance(member.lifetime_points) + profileVisitPointValue;
+  const rewardKey = viewerMemberId
+    ? `profile-visit:${normalizeMember(viewerMemberId)}`
+    : "";
+  const rewardKeys = getMemberParticipationRewardKeys(member);
+  const shouldReward =
+    Boolean(rewardKey) &&
+    normalizeMember(viewerMemberId ?? "") !== formatMemberId(member.member_number) &&
+    !rewardKeys.includes(rewardKey);
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      available_points: availablePoints,
-      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
-      lifetime_points: lifetimePoints,
+      ...(shouldReward
+        ? getMemberPointAwardBody(member, profileVisitPointValue)
+        : {}),
       links: {
         ...(member.links ?? {}),
+        _participationRewardKeys: shouldReward
+          ? [...rewardKeys, rewardKey]
+          : rewardKeys,
         _stats: {
           ...(member.links?._stats ?? {}),
           profileVisits,
         },
       },
-      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -2208,7 +2411,7 @@ export async function incrementMemberProfileVisitCount(memberId: string) {
   return {
     member: await getPublicMemberFromRow(updatedMember),
     pageVisits: getMemberProfileVisits(updatedMember),
-    points: profileVisitPointValue,
+    points: shouldReward ? profileVisitPointValue : 0,
   };
 }
 
@@ -2624,31 +2827,130 @@ export async function createPostComment(
     getCommentablePostRow(postId),
     memberId ? getMemberRowByNumber(memberId) : Promise.resolve(null),
   ]);
-  const commentBody = body.trim().replace(/\s+\n/g, "\n").slice(0, 600);
+  const normalizedBody = body.trim();
+  const commentBody = Array.from(normalizedBody).slice(0, 500).join("");
 
   if (!post || !commentBody) {
     return null;
   }
 
-  const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
-    body: {
-      author_member_id: member?.id ?? null,
-      author_member_number: member?.member_number ?? null,
-      body: commentBody,
-      post_id: post.id,
-    },
-    method: "POST",
-    prefer: "return=representation",
-    query: { select: "*" },
-  });
+  const isCurrentEvents =
+    post.category === "daily-food" || post.category === "top-story";
+  const pointCost = isCurrentEvents ? Array.from(commentBody).length : 0;
 
-  return publicPostComment(comments[0], member ?? undefined);
+  if (isCurrentEvents && !member) {
+    throw new BaySpaceStorageError(
+      "Sign in to comment on Current Events",
+      401,
+    );
+  }
+
+  if (
+    member &&
+    pointCost > normalizePointBalance(member.available_points)
+  ) {
+    throw new BaySpaceStorageError(
+      `This comment costs ${pointCost} points. Your available balance is ${normalizePointBalance(member.available_points)}.`,
+      402,
+    );
+  }
+
+  let chargedMember: MemberRow | null = null;
+
+  if (member && pointCost > 0) {
+    const chargedRows = await supabaseRequest<MemberRow[]>("members", {
+      body: {
+        available_points:
+          normalizePointBalance(member.available_points) - pointCost,
+        updated_at: new Date().toISOString(),
+      },
+      method: "PATCH",
+      prefer: "return=representation",
+      query: {
+        id: `eq.${member.id}`,
+        select: "*",
+        updated_at: `eq.${member.updated_at}`,
+      },
+    });
+
+    chargedMember = chargedRows[0] ?? null;
+
+    if (!chargedMember) {
+      throw new BaySpaceStorageError(
+        "Your point balance changed. Please try the comment again.",
+        409,
+      );
+    }
+  }
+
+  try {
+    const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
+      body: {
+        author_member_id: member?.id ?? null,
+        author_member_number: member?.member_number ?? null,
+        body: commentBody,
+        post_id: post.id,
+      },
+      method: "POST",
+      prefer: "return=representation",
+      query: { select: "*" },
+    });
+    const rewardedMember =
+      member && post.category === "theory" && post.author_member_id !== member.id
+        ? await applyMemberParticipationReward(
+            member,
+            `comment:${post.id}`,
+            participationCommentPointValue,
+            true,
+          )
+        : null;
+
+    return {
+      comment: publicPostComment(comments[0], member ?? undefined),
+      pointCost,
+      remainingPoints: rewardedMember
+        ? normalizePointBalance(rewardedMember.available_points)
+        : chargedMember
+          ? normalizePointBalance(chargedMember.available_points)
+        : member
+          ? normalizePointBalance(member.available_points)
+          : null,
+    };
+  } catch (error) {
+    if (chargedMember && pointCost > 0) {
+      try {
+        await supabaseRequest<MemberRow[]>("members", {
+          body: {
+            available_points:
+              normalizePointBalance(chargedMember.available_points) + pointCost,
+            updated_at: new Date().toISOString(),
+          },
+          method: "PATCH",
+          prefer: "return=minimal",
+          query: {
+            id: `eq.${chargedMember.id}`,
+            updated_at: `eq.${chargedMember.updated_at}`,
+          },
+        });
+      } catch (refundError) {
+        console.error("Unable to refund failed Current Events comment", refundError);
+      }
+    }
+
+    throw error;
+  }
 }
 
 export async function deleteRecentPostComment(
   postId: string,
   commentId: string,
 ) {
+  const post = await getCommentablePostRow(postId);
+
+  if (!post || post.category !== "theory") {
+    return "not-conspiracy" as const;
+  }
+
   const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
   const deletedAt = new Date().toISOString();
   const comments = await supabaseRequest<PostCommentRow[]>("post_comments", {
@@ -2668,7 +2970,7 @@ export async function deleteRecentPostComment(
     },
   });
 
-  return comments.length > 0;
+  return comments.length > 0 ? ("deleted" as const) : ("expired" as const);
 }
 
 export async function getPostTruthVoteSummary(
@@ -2715,8 +3017,9 @@ export async function togglePostTruthVote(
     },
   );
   const existingVote = existingVotes[0] ?? null;
+  const removesVote = existingVote?.score === normalizedScore;
 
-  if (existingVote?.score === normalizedScore) {
+  if (removesVote) {
     await supabaseRequest<null>("post_truth_votes", {
       method: "DELETE",
       query: {
@@ -2753,6 +3056,20 @@ export async function togglePostTruthVote(
       method: "POST",
       prefer: "return=minimal",
     });
+  }
+
+  if (post.author_member_id !== member.id) {
+    const rewardPoints =
+      post.category === "daily-food" || post.category === "top-story"
+        ? currentEventTruthVotePointValue
+        : participationTruthVotePointValue;
+
+    await applyMemberParticipationReward(
+      member,
+      `truth-vote:${post.id}`,
+      rewardPoints,
+      !removesVote,
+    );
   }
 
   return syncPostTruthVoteMeta(post, member.id);
@@ -2880,7 +3197,7 @@ async function recordMemberPostShare(member: MemberRow, post: PostRow) {
     );
   } catch (error) {
     if (isMemberPostShareTableMissing(error)) {
-      return;
+      return false;
     }
 
     throw error;
@@ -2901,7 +3218,7 @@ async function recordMemberPostShare(member: MemberRow, post: PostRow) {
         post_id: `eq.${post.id}`,
       },
     });
-    return;
+    return false;
   }
 
   try {
@@ -2914,16 +3231,17 @@ async function recordMemberPostShare(member: MemberRow, post: PostRow) {
       method: "POST",
       prefer: "return=minimal",
     });
+    return true;
   } catch (error) {
     if (isMemberPostShareTableMissing(error)) {
-      return;
+      return false;
     }
 
     if (!isMemberPostShareUniqueViolation(error)) {
       throw error;
     }
 
-    await recordMemberPostShare(member, post);
+    return false;
   }
 }
 
@@ -3307,6 +3625,19 @@ export async function togglePostTicketVote(memberId: string, postId: string) {
     }),
   ]);
 
+  if (post.category === "theory" && post.author_member_id !== member.id) {
+    const updatedMember = await getMemberRowByNumber(memberId);
+
+    if (updatedMember) {
+      await applyMemberParticipationReward(
+        updatedMember,
+        `ticket:${post.id}`,
+        participationTicketPointValue,
+        !isTicketed,
+      );
+    }
+  }
+
   return {
     post: publicPost(updatedPosts[0]),
     ticketed: !isTicketed,
@@ -3315,16 +3646,9 @@ export async function togglePostTicketVote(memberId: string, postId: string) {
 }
 
 async function awardArticleReadPoints(member: MemberRow) {
-  const availablePoints =
-    normalizePointBalance(member.available_points) + articleReadPointValue;
-  const lifetimePoints =
-    normalizePointBalance(member.lifetime_points) + articleReadPointValue;
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      available_points: availablePoints,
-      lifetime_points: lifetimePoints,
-      crypti_rank: getPromotedMemberCryptiRank(member, lifetimePoints),
-      rank: getPromotedBayRankForLifetimePoints(lifetimePoints, member.rank),
+      ...getMemberPointAwardBody(member, articleReadPointValue),
       updated_at: new Date().toISOString(),
     },
     method: "PATCH",
@@ -3486,7 +3810,16 @@ export async function incrementPostShareLinkClickCount(
     : null;
 
   if (sharer) {
-    await recordMemberPostShare(sharer, post);
+    const isFirstShare = await recordMemberPostShare(sharer, post);
+
+    if (isFirstShare && post.author_member_id !== sharer.id) {
+      await applyMemberParticipationReward(
+        sharer,
+        `share:${post.id}`,
+        participationSharePointValue,
+        true,
+      );
+    }
   }
 
   return {
@@ -3966,10 +4299,21 @@ export async function listSavedPostsByMember(memberId: string) {
 }
 
 export async function toggleSavedPost(memberId: string, postId: string) {
-  const member = await getMemberRowByNumber(memberId);
+  const [member, posts] = await Promise.all([
+    getMemberRowByNumber(memberId),
+    supabaseRequest<PostRow[]>("posts", {
+      query: {
+        deleted_at: "is.null",
+        id: `eq.${postId}`,
+        moderation_status: "eq.active",
+        select: "*",
+      },
+    }),
+  ]);
+  const post = posts[0] ?? null;
 
-  if (!member) {
-    throw new BaySpaceStorageError("Authenticated member not found.");
+  if (!member || !post) {
+    throw new BaySpaceStorageError("Member or post not found.", 404);
   }
 
   const existing = await supabaseRequest<SavedPostRow[]>("saved_posts", {
@@ -3989,6 +4333,15 @@ export async function toggleSavedPost(memberId: string, postId: string) {
       },
     });
 
+    if (post.author_member_id !== member.id) {
+      await applyMemberParticipationReward(
+        member,
+        `favorite:${post.id}`,
+        participationFavoritePointValue,
+        false,
+      );
+    }
+
     return false;
   }
 
@@ -4000,6 +4353,15 @@ export async function toggleSavedPost(memberId: string, postId: string) {
     method: "POST",
     prefer: "return=minimal",
   });
+
+  if (post.author_member_id !== member.id) {
+    await applyMemberParticipationReward(
+      member,
+      `favorite:${post.id}`,
+      participationFavoritePointValue,
+      true,
+    );
+  }
 
   return true;
 }

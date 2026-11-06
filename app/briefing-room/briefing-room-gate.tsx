@@ -34,6 +34,7 @@ import {
   getAllowedPostCategories,
   isBayoClub,
   isCrypti,
+  isOracle,
 } from "../../lib/bay-space-roles";
 import {
   bayoCards,
@@ -46,8 +47,7 @@ import {
   getBayRankLevel,
   getCryptiRankLabel,
   getNextPromotionProgress,
-  graduationCoinCost,
-  isTokenGateKey,
+  graduationTokenCost,
 } from "../../lib/bay-space-ranks";
 import type {
   BayRank,
@@ -90,6 +90,7 @@ type SavedMember = {
   cryptiRank?: CryptiRank;
   gateKeys?: GateKey[];
   lifetimePoints?: number;
+  impossibleBadgeReady?: boolean;
   member: string;
   name: string;
   purchasedTitles?: BayoTitleId[];
@@ -910,6 +911,19 @@ export default function BriefingRoomGate({
     : defaultPostDraftCategory;
   const isBayoClubMember = isBayoClub(savedMember);
   const isCryptiMember = isCrypti(savedMember);
+  const isOracleMember = isOracle(savedMember);
+  const hasImpossibleBadge = Boolean(
+    savedMember?.gateKeys?.includes("impossible-badge"),
+  );
+  const isImpossibleBadgeEligible = Boolean(
+    savedMember?.rank === "graduation" &&
+      (savedMember?.cryptiRank === "poster-v" ||
+        savedMember?.cryptiRank === "oracle"),
+  );
+  const isOracleEligible =
+    savedMember?.rank === "graduation" &&
+    savedMember?.cryptiRank === "poster-v" &&
+    !savedMember?.gateKeys?.includes("oracle-badge");
   const isAdminMember = canAccessAdminAnalytics(savedMember);
   const hasCryptiGateKeyOrRank = Boolean(
     savedMember?.gateKeys?.includes("crypti-plus") || savedMember?.cryptiRank,
@@ -2516,6 +2530,32 @@ export default function BriefingRoomGate({
     setWildCardMessage("");
 
     try {
+      if (isImpossibleBadgeEligible && !hasImpossibleBadge) {
+        const impossibleResponse = await fetch(
+          `/api/members/${resolvedMember}`,
+          {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              accessKey: wildCardAccessKey,
+              action: "authorize-impossible-badge",
+            }),
+          },
+        );
+        const impossibleData = (await impossibleResponse.json()) as {
+          member?: SavedMember;
+        };
+
+        if (impossibleResponse.ok && impossibleData.member) {
+          setSavedMember(impossibleData.member);
+          applySettingsFields(impossibleData.member);
+          setWildCardAccessKey("");
+          setWildCardMessage("private authorization accepted");
+          window.dispatchEvent(new Event("bay-space-auth"));
+          return;
+        }
+      }
+
       const response = await fetch(`/api/members/${resolvedMember}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
@@ -2555,6 +2595,38 @@ export default function BriefingRoomGate({
           ? `wild card accepted - ${pointAward} points + ${formatPointCount(tokenAward)} tokens loaded`
           : `wild card accepted - ${pointAward} points loaded`,
       );
+      window.dispatchEvent(new Event("bay-space-auth"));
+    } finally {
+      setIsWildCardLoading(false);
+    }
+  }
+
+  async function claimImpossibleBadge() {
+    if (!savedMember?.impossibleBadgeReady || hasImpossibleBadge) {
+      return;
+    }
+
+    setIsWildCardLoading(true);
+    setWildCardMessage("");
+    try {
+      const response = await fetch(`/api/members/${resolvedMember}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "purchase-impossible-badge" }),
+      });
+      const data = (await response.json()) as {
+        member?: SavedMember;
+        message?: string;
+      };
+
+      if (!response.ok || !data.member) {
+        setWildCardMessage(data.message ?? "badge unavailable");
+        return;
+      }
+
+      setSavedMember(data.member);
+      applySettingsFields(data.member);
+      setWildCardMessage("IMPOSSIBLE badge acquired");
       window.dispatchEvent(new Event("bay-space-auth"));
     } finally {
       setIsWildCardLoading(false);
@@ -2673,7 +2745,13 @@ export default function BriefingRoomGate({
           briefing room
         </h1>
         {isUnlocked && canCreatePosts ? (
-          <div className="grid w-full gap-3 sm:w-fit sm:grid-cols-[repeat(3,max-content)] sm:items-center">
+          <div
+            className={`grid w-full gap-3 sm:w-fit sm:items-center ${
+              hasImpossibleBadge
+                ? "sm:grid-cols-[repeat(4,max-content)]"
+                : "sm:grid-cols-[repeat(3,max-content)]"
+            }`}
+          >
             <a
               href={lazyPostGptUrl}
               target="_blank"
@@ -2704,13 +2782,31 @@ export default function BriefingRoomGate({
                 🌀 PASTE &amp; GO 🎢
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={openPostWindow}
-              className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
-            >
-              📝 START FROM SCRATCH
-            </button>
+            {hasImpossibleBadge ? (
+              <>
+                <Link
+                  href="/polls?create=1"
+                  className="inline-flex min-h-[52px] w-full items-center justify-center border-2 border-[#90d587] bg-[#102011] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#dce9d9] shadow-[0_0_14px_rgba(114,193,106,0.28)] transition hover:bg-[#72c16a]/25 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
+                >
+                  🗳 START FROM SCRATCH
+                </Link>
+                <button
+                  type="button"
+                  onClick={openPostWindow}
+                  className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-4 py-3 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit"
+                >
+                  📝 article
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={openPostWindow}
+                className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
+              >
+                📝 START FROM SCRATCH
+              </button>
+            )}
           </div>
         ) : null}
       </div>
@@ -3061,6 +3157,15 @@ export default function BriefingRoomGate({
               </div>
               <fieldset className="mt-5 grid gap-3 sm:grid-cols-2">
                 <legend className="sr-only">Choose post type</legend>
+                {hasImpossibleBadge ? (
+                  <Link
+                    href="/polls?create=1"
+                    className="relative flex items-center gap-5 overflow-visible border border-[#90d587] bg-[#72c16a]/12 px-5 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#dce9d9] shadow-[0_0_18px_rgba(114,193,106,0.28)] transition hover:bg-[#72c16a]/22"
+                  >
+                    <span className="relative block h-4 w-4 shrink-0 rounded-full border border-[#90d587] bg-[#72c16a] shadow-[0_0_10px_rgba(114,193,106,0.55)]" />
+                    <span>Poll</span>
+                  </Link>
+                ) : null}
                 {availablePostCategories.map((category) => (
                   <label
                     key={category.id}
@@ -4308,13 +4413,13 @@ export default function BriefingRoomGate({
                             disabled={
                               isExchangeLoading ||
                               isGraduated ||
-                              (savedMember.bayoCoins ?? 0) < graduationCoinCost
+                              (savedMember.bayoTokens ?? 0) < graduationTokenCost
                             }
                             className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
                           >
                             {isGraduated
                               ? "owned"
-                              : `${graduationCoinCost} coins`}
+                              : `${graduationTokenCost} tokens`}
                           </button>
                         </div>
                       );
@@ -4326,7 +4431,6 @@ export default function BriefingRoomGate({
                       const isInstantRankPromotionII =
                         gateKey.id === "instant-rank-promotion-ii";
                       const isOracleBadge = gateKey.id === "oracle-badge";
-                      const isPromotionGate = isTokenGateKey(gateKey.id);
                       const hasCryptiPlus = Boolean(
                         savedMember.gateKeys?.includes("crypti-plus"),
                       );
@@ -4350,15 +4454,11 @@ export default function BriefingRoomGate({
                               : isOracleBadge
                                 ? isGraduated && hasCryptiPlus && hasPosterV
                               : isGraduated;
-                      const purchaseBalance = isPromotionGate
-                        ? (savedMember.bayoTokens ?? 0)
-                        : (savedMember.bayoCoins ?? 0);
                       const canBuy =
                         isGraduated &&
                         !isOwned &&
                         gateRequirementsMet &&
-                        purchaseBalance >= gateKey.coinCost;
-                      const costUnit = isPromotionGate ? "tokens" : "coins";
+                        (savedMember.bayoTokens ?? 0) >= gateKey.tokenCost;
 
                       return (
                         <div
@@ -4366,7 +4466,7 @@ export default function BriefingRoomGate({
                           className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
                             isOracleBadge
                               ? "border-[#b6d88f] text-[#e4f0d5]"
-                              : isCryptiGate || isPromotionGate
+                              : isCryptiGate
                               ? "border-[#72d7ff] text-[#d7f5ff]"
                               : "border-[#1d7f12] text-[#d7ffd0]"
                           }`}
@@ -4392,7 +4492,7 @@ export default function BriefingRoomGate({
                             {isOwned
                               ? "owned"
                               : isGraduated && gateRequirementsMet
-                                ? `${gateKey.coinCost} ${costUnit}`
+                                ? `${gateKey.tokenCost} tokens`
                                 : "locked"}
                           </button>
                         </div>
@@ -4417,9 +4517,9 @@ export default function BriefingRoomGate({
                         <>
                           <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-xs font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
                             <p>
-                              tokens
+                              Bayo Coins
                               <span className="mt-2 block text-xl text-[#39ff14]">
-                                {formatPointCount(savedMember.bayoTokens)}
+                                {formatPointCount(savedMember.bayoCoins)}
                               </span>
                             </p>
                             <p>
@@ -4443,7 +4543,7 @@ export default function BriefingRoomGate({
                               const canBuy =
                                 isGraduated &&
                                 !isOwned &&
-                                (savedMember.bayoTokens ?? 0) >= card.tokenCost;
+                                (savedMember.bayoCoins ?? 0) >= card.coinCost;
                               const wouldUseOpenSlot =
                                 activeCards.includes("doublay-card") &&
                                 !isActive &&
@@ -4455,7 +4555,7 @@ export default function BriefingRoomGate({
                                 (isActive || !wouldUseOpenSlot || hasOpenSlot);
                               const buttonLabel = !isOwned
                                 ? isGraduated
-                                  ? `${formatPointCount(card.tokenCost)} tokens`
+                                  ? `${formatPointCount(card.coinCost)} coins`
                                   : "locked"
                                 : isActive
                                   ? "turn off"
@@ -4939,6 +5039,17 @@ export default function BriefingRoomGate({
                           {wildCardMessage}
                         </p>
                       ) : null}
+                      {savedMember?.impossibleBadgeReady &&
+                      !hasImpossibleBadge ? (
+                        <button
+                          type="button"
+                          onClick={claimImpossibleBadge}
+                          disabled={isWildCardLoading}
+                          className="w-fit border border-[#d7ffd0] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0] transition hover:bg-[#d7ffd0] hover:text-black disabled:opacity-50"
+                        >
+                          claim IMPOSSIBLE
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -4957,6 +5068,20 @@ export default function BriefingRoomGate({
                   →
                 </span>
               </button>
+              <div className={styles.balanceBar} aria-label="Exchange balances">
+                <span>
+                  <small>Points</small>
+                  <strong>{formatPointCount(savedMember.availablePoints)}</strong>
+                </span>
+                <span>
+                  <small>Coins</small>
+                  <strong>{formatPointCount(savedMember.bayoCoins)}</strong>
+                </span>
+                <span>
+                  <small>Tokens</small>
+                  <strong>{formatPointCount(savedMember.bayoTokens)}</strong>
+                </span>
+              </div>
               <p className="font-mono text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 EXPLORER NUMBER - #{savedMember.member}
               </p>
@@ -5005,17 +5130,23 @@ export default function BriefingRoomGate({
                 </div>
               </div>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                RANK: LEVEL {getBayRankLevel(savedMember.rank)} -{" "}
-                {getBayRankLabel(savedMember.rank)}
+                RANK: LEVEL {isOracleMember ? 9 : getBayRankLevel(savedMember.rank)} -{" "}
+                {isOracleMember ? "Oracle" : getBayRankLabel(savedMember.rank)}
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#72d7ff]">
-                +CRYPTI RANK: {getCryptiRankLabel(savedMember.cryptiRank) || "-"}
+                {isOracleMember
+                  ? "+CRYPTI PATH: POSTER V COMPLETE"
+                  : `+CRYPTI RANK: ${getCryptiRankLabel(savedMember.cryptiRank) || "-"}`}
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 POINTS: {formatPointCount(savedMember.availablePoints)} available
                 / {formatPointCount(savedMember.lifetimePoints)} lifetime
               </p>
-              {promotionProgress ? (
+              {isOracleEligible ? (
+                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#b6d88f]">
+                  FINAL PROMOTION: ORACLE BADGE REQUIRED
+                </p>
+              ) : promotionProgress ? (
                 <p
                   className={`mt-4 text-sm font-black uppercase tracking-[0.2em] ${
                     promotionProgress.track === "crypti"
@@ -5036,7 +5167,7 @@ export default function BriefingRoomGate({
               </p>
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                 NAME: {savedMember.name}
-                {isBayoClubMember ? " 🦉" : ""}
+                {isOracleMember ? " 🔮" : isBayoClubMember ? " 🦉" : ""}
               </p>
               <TicketVoteCounter />
               <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
