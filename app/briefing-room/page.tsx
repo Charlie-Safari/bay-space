@@ -24,7 +24,7 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
         </p>
         <BriefingRoomGate
           initialInboxMember={inboxMember}
-          initialPanel={shouldOpenInbox ? "inbox" : "id-card"}
+          initialPanel={shouldOpenInbox ? "inbox" : panel === "quiz" ? "quiz" : panel === "exchange" ? "exchange" : "id-card"}
           member={member}
         />
       </section>

@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./profile.module.css";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -201,7 +203,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
   function renderMemberList(memberList: PublicCircleMember[]) {
     if (!memberList.length) {
       return (
-        <p className="border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+        <p className="border-l-2 border-[#72c16a] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#dce9d9]">
           empty
         </p>
       );
@@ -213,7 +215,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
           <Link
             key={listMember.member}
             href={`/profile/${listMember.member}`}
-            className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="rounded-xl border border-[#365d36] bg-[#09150c] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a]/15 hover:text-[#dce9d9] focus:outline-none focus:ring-2 focus:ring-[#dce9d9]"
           >
             {listMember.name}
             {listMember.label ? ` (${listMember.label})` : ""}
@@ -226,7 +228,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
   function renderCircleList(circleList: BayCircle[], locked: boolean) {
     if (!circleList.length) {
       return (
-        <p className="border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+        <p className="border-l-2 border-[#72c16a] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#dce9d9]">
           empty
         </p>
       );
@@ -237,10 +239,10 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
         {circleList.map((circle) => (
           <div
             key={circle.id}
-            className={`border px-3 py-3 ${
+            className={`rounded-xl border px-3 py-3 ${
               locked
                 ? "border-[#7f6d12] bg-[#140f00]"
-                : "border-[#1d7f12] bg-[#001100]"
+                : "border-[#365d36] bg-[#09150c]"
             }`}
           >
             {locked ? (
@@ -252,14 +254,14 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
             ) : (
               <Link
                 href={`/circles/${encodeURIComponent(circle.id)}`}
-                className="block w-full text-left text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="block w-full text-left text-sm font-black uppercase tracking-[0.14em] text-[#dce9d9] transition hover:text-[#72c16a] focus:outline-none focus:ring-2 focus:ring-[#dce9d9]"
               >
                 {circle.circleLogo ? `${circle.circleLogo} ` : ""}
                 {circle.name}
                 {circle.ownerMember === member.member ? " (FOUNDER)" : ""}
               </Link>
             )}
-            <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+            <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] text-[#9abc96]">
               {circle.ownerName} / {circle.visibility} circle
             </p>
             {locked ? (
@@ -270,7 +272,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                   setAccessCircleId("");
                   setJoinMessage("");
                 }}
-                className="mt-3 border border-[#7f6d12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
+                className="mt-3 rounded-full border border-[#7f6d12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
               >
                 Open private circle
               </button>
@@ -278,10 +280,10 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
             <button
               type="button"
               onClick={() => followCircle(circle)}
-              className={`mt-3 border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 ${
+              className={`mt-3 rounded-full border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 ${
                 locked
                   ? "border-[#7f6d12] text-[#f5d76e] hover:bg-[#f5d76e] hover:text-black focus:ring-[#f5d76e]"
-                  : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:ring-[#d7ffd0]"
+                  : "border-[#365d36] text-[#72c16a] hover:border-[#72c16a] hover:bg-[#72c16a]/15 hover:text-[#dce9d9] focus:ring-[#dce9d9]"
               }`}
             >
               Join this circle
@@ -299,13 +301,13 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                     onChange={(event) =>
                       setAccessCode(event.target.value.slice(0, 12))
                     }
-                    className="border border-[#7f6d12] bg-black px-3 py-2 text-sm font-black tracking-[0.12em] text-[#f5d76e] outline-none focus:ring-2 focus:ring-[#f5d76e]"
+                    className="rounded-xl border border-[#7f6d12] bg-black px-3 py-2 text-sm font-black tracking-[0.12em] text-[#f5d76e] outline-none focus:ring-2 focus:ring-[#f5d76e]"
                   />
                 </label>
                 <button
                   type="button"
                   onClick={() => followCircle(circle, accessCode)}
-                  className="w-fit border border-[#f5d76e] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
+                  className="w-fit rounded-full border border-[#f5d76e] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
                 >
                   unlock
                 </button>
@@ -326,15 +328,15 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
 
     return (
       <details
-        className={`border px-3 py-3 ${
-          isGold ? "border-[#7f6d12] bg-[#140f00]" : "border-[#1d7f12] bg-black"
+        className={`rounded-xl border px-3 py-3 ${
+          isGold ? "border-[#7f6d12] bg-[#140f00]" : "border-[#365d36] bg-black"
         }`}
       >
         <summary
           className={`cursor-pointer list-none text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 [&::-webkit-details-marker]:hidden ${
             isGold
               ? "text-[#f5d76e] hover:text-[#fff2a8] focus:ring-[#f5d76e]"
-              : "text-[#d7ffd0] hover:text-[#39ff14] focus:ring-[#d7ffd0]"
+              : "text-[#dce9d9] hover:text-[#72c16a] focus:ring-[#dce9d9]"
           }`}
         >
           {title}
@@ -359,18 +361,18 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
           setJoinMessage("");
         }
       }}
-      className="group w-full border-2 border-[#39ff14] bg-black shadow-[0_0_18px_rgba(57,255,20,0.18)]"
+      className={styles.disclosure}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0] transition hover:bg-[#001100] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+      <summary className={styles.summary}>
         <span>Circles</span>
         <span
           aria-hidden="true"
-          className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+          className="text-lg leading-none text-[#72c16a] transition group-open:rotate-180"
         >
           ▾
         </span>
       </summary>
-      <div className="border-t border-[#1d7f12] p-4">
+      <div className={styles.disclosureBody}>
         {selectedCircle ? (
           <div>
             <button
@@ -380,18 +382,18 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                 setAccessCircleId("");
                 setJoinMessage("");
               }}
-              className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="rounded-xl border border-[#365d36] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a]/15 hover:text-[#dce9d9] focus:outline-none focus:ring-2 focus:ring-[#dce9d9]"
             >
               back
             </button>
             <div
-              className={`mt-5 border-2 p-4 shadow-[0_0_18px_rgba(57,255,20,0.22)] ${
+              className={`mt-5 rounded-xl border p-4 shadow-[0_0_18px_rgba(114,193,106,0.22)] ${
                 selectedCircle.visibility === "private"
                   ? "border-[#f5d76e] bg-[#140f00]"
-                  : "border-[#39ff14] bg-black"
+                  : "border-[#72c16a] bg-black"
               }`}
             >
-              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#39ff14]">
+              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#72c16a]">
                 {selectedCircle.visibility === "private" ? "🔒 " : ""}
                 {selectedCircle.circleLogo
                   ? `${selectedCircle.circleLogo} `
@@ -401,7 +403,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                   ? " (FOUNDER)"
                   : ""}
               </p>
-              <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+              <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#dce9d9]">
                 {canViewSelectedCircle ? (
                   <>
                     <p>Circle owner: {selectedCircle.ownerName}</p>
@@ -428,7 +430,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                 <button
                   type="button"
                   onClick={() => followCircle(selectedCircle)}
-                  className="w-fit border border-[#39ff14] px-3 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit rounded-full border border-[#72c16a] px-3 py-2 text-[#72c16a] transition hover:bg-[#72c16a]/15 hover:text-[#dce9d9] focus:outline-none focus:ring-2 focus:ring-[#dce9d9]"
                 >
                   Join this circle
                 </button>
@@ -444,12 +446,12 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                       onChange={(event) =>
                         setAccessCode(event.target.value.slice(0, 12))
                       }
-                      className="border border-[#7f6d12] bg-black px-3 py-2 text-[#f5d76e] outline-none focus:ring-2 focus:ring-[#f5d76e]"
+                      className="rounded-xl border border-[#7f6d12] bg-black px-3 py-2 text-[#f5d76e] outline-none focus:ring-2 focus:ring-[#f5d76e]"
                     />
                     <button
                       type="button"
                       onClick={() => followCircle(selectedCircle, accessCode)}
-                      className="w-fit border border-[#f5d76e] px-3 py-2 text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
+                      className="w-fit rounded-full border border-[#f5d76e] px-3 py-2 text-[#f5d76e] transition hover:bg-[#f5d76e] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#f5d76e]"
                     >
                       unlock
                     </button>
@@ -465,10 +467,10 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
                 type="button"
                 onClick={followProfile}
                 disabled={isProfileFollowed}
-                className={`w-full border px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                className={`w-full rounded-xl border px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#dce9d9] ${
                   isProfileFollowed
-                    ? "border-[#39ff14] bg-[#39ff14] text-black"
-                    : "border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#1d7f12] disabled:hover:bg-black"
+                    ? "border-[#72c16a] bg-[#72c16a] text-black"
+                    : "border-[#72c16a] text-[#72c16a] hover:bg-[#72c16a]/15 hover:text-[#dce9d9] disabled:border-[#365d36] disabled:text-[#365d36] disabled:hover:bg-black"
                 }`}
               >
                 {isProfileFollowed ? "Following" : "Follow this user"}
@@ -496,7 +498,7 @@ export default function PublicCirclesCard({ member }: PublicCirclesCardProps) {
         )}
 
         {joinMessage ? (
-          <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#dce9d9]">
             {joinMessage}
           </p>
         ) : null}

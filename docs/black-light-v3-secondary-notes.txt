@@ -1,0 +1,97 @@
+Black Light v3 — Thiago handoff and article workflow
+
+Status: draft, November 5, 2026. The external GPT and Thiago importer have not been published or updated. The site has a 🔦 shortcut on public Conspiracy and Current Events article views.
+
+What to paste
+
+Use lazy-assistant-v3-core.md as Black Light's Word-ready core instructions. It is a fresh draft based on this conversation and the current repository; no previous core instruction document was found. An older version can still be compared later for requirements not mentioned here.
+
+The core uses explicit intent routes, output examples and a final check, following [OpenAI's prompt-structure guidance](https://developers.openai.com/api/docs/guides/prompt-engineering#message-formatting-with-markdown-and-xml). Bay Space behavior, categories and limits come from the user's requirements and local code, not that guide.
+
+The external GPT needs browsing to research leads and find recent news. Its deployed Bay Space URL or an article inventory export is needed for quizzes. Do not use localhost as an external GPT source. No live model evaluation or GPT Builder installation was performed.
+
+Article flashlight and follow-up prompts
+
+The 🔦 button on expanded Conspiracy posts, expanded Current Events posts, and full Current Events article views opens the existing Bay Space GPT URL in a new tab. A click also copies that article's direct URL to the clipboard when the browser permits it. The article view shows a short status telling the user to paste the link into Black Light. This gives the GPT an actual article to work from without relying on an unverified ChatGPT URL prefill feature. If clipboard access fails, the status tells the user to copy the article link manually. External GPTs cannot fetch a developer's localhost link; production article URLs are needed for that flow.
+
+After reading the link, Black Light can turn the completed article into a poll draft or a single quiz-question draft. A single quiz-question draft is not a complete weekly quiz. Only a public Current Events article from the previous Monday–Sunday can be used as a source for the rewarded weekly quiz; other articles can produce practice questions. The GPT must not guess a missing article ID.
+
+The GPT Builder's current slug in the URL still says lazy-assistant; the destination is the same working link used by Find A Story. The new display name is Black Light. Once the external GPT has a canonical new URL, update the shared blackLightUrl constant in app/components/black-light-link.tsx.
+
+Confirmed content rules
+
+- No duplicate checking for story discovery or article preparation.
+- Discovery returns 11 Conspiracy choices or 17 Current Events entries, including Misc. The current repository has 16 named Current Events categories plus Misc; this draft does not silently reduce that to 16.
+- Current Events discovery uses a rolling 168-hour window. Weekly quizzes use the previous complete Monday–Sunday in Pacific time.
+- Original user-created accounts default to Rare Signals when no category is supplied, including dreams. The assistant must not ask for category selection or automatically move dreams to Dream Signals.
+- Preserve the original lead/account. Research belongs in distinguishable additions; omission of an optional skeptic section must not convert speculation into asserted fact.
+- Poll and Quiz jobs are carried forward from the earlier four-job plan. Polls: question ≤150 characters, 2–3 answers ≤80 each. Quiz: 36 questions, 50 points each, first submission rewarded, practice afterward.
+- Article export uses existing label-style formatting. Conservative article limits: headline ≤75 characters and three Current Events tags ≤150 each. The current article importer accepts larger fields in some paths, but these limits also fit the manual editor.
+
+Conspiracy category meanings
+
+| Category | Editorial scope |
+|---|---|
+| The Main Stream | Accepted public narrative |
+| The Surface Record | Documents, evidence, confirmed events |
+| The Undercurrent | General conspiracies and alternative interpretations |
+| Declassified | Formerly hidden information now in the public record |
+| Shadow Insight | Hidden networks and difficult-to-prove connections |
+| Mystic Oracle | Psychic, intuitive and divination accounts |
+| Psychedelic Download | Altered-state messages and synchronicities |
+| Rare Signals | Miscellaneous, obscure or hard-to-place material |
+| Pure Hypothesis | Intentionally speculative “what if” |
+| Dream Signals | Dreams, visions and premonitions |
+| Occult Depths | Esoteric traditions, symbolism and rituals |
+
+Step 8: importer work still required
+
+1. Read explicit Route: Conspiracy / Route: Current Events before inspecting content. Ordinary words such as “facts” and “theory” inside an article must not change its route. Current code guesses routes from the whole input and still contains a legacy 9-category detector.
+2. Match category labels exactly; never assign a category by numeric position. A missing category on an original Conspiracy draft defaults to Rare Signals.
+3. Preserve the full Conspiracy body and paragraph breaks. Current getBankConspiracyBody clips the main body to 10,000 characters and removes blank/source-labelled lines. Other paths accept up to 50,000 characters. Reject unsupported sizes with a useful message instead of silently trimming; agree on any storage-limit expansion before promising unlimited imports.
+4. Preserve each Current Events tag's own source association. Current import deduplicates all URLs globally and then assigns them to tags by array position, which can misassign a repeated URL. Retain duplicates in per-tag associations; a separate source list may be deduplicated.
+5. Add Poll JSON dispatch for { "type": "poll", "version": 3, "question": "...", "options": ["...", "..."] }. Validate through the poll rules and show a review before publication. The existing author console is available; current Paste & Go does not dispatch polls.
+6. Recognize Quiz JSON by its title, weekStart and questions structure; validate with validateQuizDraft. Do not route a malformed quiz into an article. This is the same shape accepted by the quiz author's Import quiz draft control. The new quiz migration must be applied before live quiz publication or rewards work.
+7. Route publishing through the authenticated member and existing server authorization. The external output cannot grant ranks, badges or authorship, set author IDs, alter balances, select poll winners, or award points.
+8. Preserve a preview/review stage, clear validation errors, and the original pasted text when an import fails. Do not publish discovery menus, surrounding conversation, or placeholder-filled templates.
+9. Update the inventory endpoint's obsolete duplicate-prevention guidance when revising the internal integration. Keep article IDs, publishedAt, category, source URLs and content available for quiz generation. The external core already explicitly ignores the obsolete deduplication instructions.
+
+Quiz JSON shape
+
+This is a schema illustration, not a publishable 36-question quiz. Actual exports contain exactly 36 complete objects and real IDs from eligible articles.
+
+{
+  "title": "Weekly Current Events Quiz",
+  "weekStart": "YYYY-MM-DD",
+  "questions": [
+    {
+      "question": "A source-grounded question",
+      "options": ["Answer A", "Answer B", "Answer C"],
+      "correctIndex": 1,
+      "explanation": "Why the eligible source supports Answer B.",
+      "postId": "REAL-ARTICLE-UUID"
+    }
+  ]
+}
+
+Acceptance scenarios for the external GPT
+
+| Input | Expected behavior |
+|---|---|
+| “Find a conspiracy” | Eleven category entries; no duplicate lookup; invite selection |
+| “I dreamed of two blue moons. At 4:12, my dog spoke Spanish. Format it.” | Preserve two, blue, 4:12, dog and Spanish; Rare Signals; no new events or interpretations |
+| The same dream with “Category: Dream Signals” | Honor Dream Signals |
+| “Look into this lead” | Research, preserve the lead, separate findings from the original account |
+| “Investigate this” | Playful intel line is optional; begin research without another permission loop |
+| “Just format this invented story; no research” | Format directly, no research gate and no invented factual evidence |
+| “Find current events” | Seventeen category entries; eligible headlines and dates; honest gaps |
+| Old event with a freshly updated page | Only accept a substantive development within 168 hours |
+| Current Events article mentions “conspiracy theory” | Still exports Route: Current Events |
+| Three tags supported by one source | Same real URL attached to each supported tag; no invented sources |
+| “Make a poll” | Question ≤150, two or three options ≤80; no answer key or forced winner |
+| “Make this week's quiz” without inventory access | Request the source site/export; never invent article IDs |
+| Quiz requested on Monday the 8th | Only prior-week articles from the 1st–7th; exactly 36 answerable questions |
+| User asks to omit optional debunk section | Original theory preserved and honestly attributed, not falsely certified |
+| Very long original account | Preserve details; explain importer limits; never silently truncate |
+
+These are review criteria, not a claim that model behavior has been tested. The category names and numeric constraints were checked against the current code.

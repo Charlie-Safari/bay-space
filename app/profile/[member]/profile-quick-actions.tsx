@@ -27,10 +27,10 @@ type ActiveProfileMember = {
 };
 
 function getActionClass(isActive = false) {
-  return `inline-flex min-h-10 items-center justify-center border px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+  return `inline-flex rounded-full min-h-11 items-center justify-center border px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition focus:outline-none focus:ring-2 focus:ring-[#dce9d9] ${
     isActive
-      ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.35)]"
-      : "border-[#39ff14]/45 bg-black/70 text-[#39ff14]/85 hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.28)]"
+      ? "border-[#72c16a] bg-[#72c16a] text-black shadow-[0_0_16px_rgba(114,193,106,0.35)]"
+      : "border-[#72c16a]/45 bg-black/70 text-[#72c16a]/85 hover:border-[#72c16a] hover:bg-[#72c16a]/15 hover:text-[#dce9d9] hover:shadow-[0_0_12px_rgba(114,193,106,0.28)]"
   }`;
 }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BayPost, getBayPostsByCategory } from "../../components/post-store";
 import CopyPostLinkButton from "../../components/copy-post-link-button";
+import BlackLightLink from "../../components/black-light-link";
 import FavoriteButton from "../../components/favorite-button";
 import PostEngagementPanel from "../../components/post-engagement-panel";
 import { isBayoClub } from "../../../lib/bay-space-roles";
@@ -213,6 +214,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
           shareClickCount={getPostShareLinkClickCount(post)}
           shareCountPath={`/api/posts/${encodeURIComponent(post.id)}/share-link`}
         />
+        <div className="mt-3"><BlackLightLink articlePath={`/news/post?id=${post.id}`} /></div>
       </div>
       <PostEngagementPanel
         isLoggedIn={isLoggedIn}

@@ -6,6 +6,7 @@ import ProfileQuickActions from "./profile-quick-actions";
 import ProfileTrophyCase from "./profile-trophy-case";
 import ProfileStatsCard from "./profile-stats-card";
 import ProfilePollScoreCard from "./profile-poll-score-card";
+import styles from "./profile.module.css";
 import {
   countSavedPosts,
   getMember,
@@ -15,6 +16,7 @@ import {
   listPostsByAuthorForStats,
 } from "../../../lib/bay-space-db";
 import { getPollStats } from "../../../lib/bay-space-polls";
+import { getQuizStats } from "../../../lib/bay-space-quizzes";
 import { BayPost } from "../../../lib/bay-space-types";
 import {
   isBayoClub,
@@ -68,8 +70,8 @@ function getExternalHref(url: string) {
 function PostList({ posts }: { posts: BayPost[] }) {
   if (!posts.length) {
     return (
-      <p className="mt-4 border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
-        empty
+      <p className={styles.empty}>
+        No posts yet.
       </p>
     );
   }
@@ -80,9 +82,9 @@ function PostList({ posts }: { posts: BayPost[] }) {
         <Link
           key={post.id}
           href={getPostHref(post)}
-          className="border border-dashed border-[#1d7f12]/70 bg-black px-3 py-3 text-[#d7ffd0] transition hover:border-[#39ff14] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+          className={styles.postLink}
         >
-          <span className="block text-xs uppercase tracking-[0.14em] text-[#7f9f78]">
+          <span className="block text-xs uppercase tracking-[0.14em] text-[#9abc96]">
             {new Date(post.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -125,6 +127,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   );
   const pageVisits = await getMemberProfileVisitCount(memberId);
   const pollStats = await getPollStats(memberId);
+  const quizStats = await getQuizStats(memberId);
   const isBayoClubMember = isBayoClub(member);
   const isCryptiMember = isCrypti(member);
   const isOracleMember = isOracle(member);
@@ -166,15 +169,15 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
   }));
 
   return (
-    <main className="min-h-screen bg-[#020402] text-[#39ff14] font-mono">
+    <main className={styles.page}>
       <HomeBar />
 
-      <section className="mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16">
-        <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
+      <section className={styles.content}>
+        <p className={styles.breadcrumb}>
           C:\BAY-SPACE\PROFILE&gt; PUBLIC
         </p>
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
+        <div className={styles.header}>
+          <h1 className={styles.title}>
             {member?.name ?? "profile not found"}
             {isOracleMember
               ? " 🔮"
@@ -236,23 +239,23 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
               stamps={ownedStamps}
             />
 
-            <ProfilePollScoreCard stats={pollStats} />
+            <ProfilePollScoreCard stats={pollStats} quizStats={quizStats} />
 
             <div className="mt-8 grid gap-4 lg:grid-cols-3">
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+              <section className={styles.collection}>
+                <h2 className={styles.sectionTitle}>
                   Current Events
                 </h2>
                 <PostList posts={dailyFoodPosts} />
               </section>
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+              <section className={styles.collection}>
+                <h2 className={styles.sectionTitle}>
                   Conspiracy
                 </h2>
                 <PostList posts={theoryPosts} />
               </section>
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+              <section className={styles.collection}>
+                <h2 className={styles.sectionTitle}>
                   library
                 </h2>
                 <PostList posts={libraryPosts} />
@@ -260,8 +263,8 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
             </div>
 
             <div className="mt-8 grid gap-4">
-              <section className="border border-[#1d7f12] bg-black p-4">
-                <h2 className="text-sm font-black uppercase tracking-[0.16em]">
+              <section className={styles.collection}>
+                <h2 className={styles.sectionTitle}>
                   favorite BaySpace posts
                 </h2>
                 <PostList posts={favoritePosts} />
@@ -269,7 +272,7 @@ export default async function PublicProfile({ params }: PublicProfileProps) {
             </div>
           </>
         ) : (
-          <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0]">
+          <p className={styles.empty}>
             no public profile found
           </p>
         )}

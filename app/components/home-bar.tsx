@@ -7,7 +7,7 @@ import { MouseEvent, useEffect, useRef, useState } from "react";
 import { canAccessCrypti } from "../../lib/bay-space-roles";
 import type { BayMember } from "../../lib/bay-space-types";
 import MemberLookup from "./member-lookup";
-import TerminalLoadingShell from "./terminal-loading-shell";
+import MatrixLoadingScreen from "./matrix-loading-screen";
 
 type HomeTab = {
   ariaLabel?: string;
@@ -18,7 +18,7 @@ type HomeTab = {
 
 const baySpaceTabs: HomeTab[] = [
   { label: "Conspiracy", href: "/theories" },
-  { label: "Current Events", shortLabel: "Events", href: "/facts-on-news" },
+  { label: "Current Events", href: "/facts-on-news" },
   { label: "Polls", href: "/polls" },
 ];
 
@@ -258,17 +258,11 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
   return (
     <>
       {pendingRouteLabel ? (
-        <div
-          className={`bay-route-transition fixed inset-0 z-50 grid place-items-center bg-[#020402]/95 px-4 ${
-            guestMode ? "text-[#72c16a]" : "text-[#39ff14]"
-          }`}
-        >
-          <div className="w-full max-w-4xl">
-            <TerminalLoadingShell
-              label="c:\\bay-space\\router> switching-channel"
-              title={pendingRouteLabel}
-            />
-          </div>
+        <div className="bay-route-transition fixed inset-0 z-50 overflow-hidden">
+          <MatrixLoadingScreen
+            label="c:\\bay-space\\matrix> switching-channel"
+            title={pendingRouteLabel}
+          />
         </div>
       ) : null}
 

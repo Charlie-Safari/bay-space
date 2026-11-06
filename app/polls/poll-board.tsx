@@ -344,26 +344,11 @@ export default function PollBoard({ initialCreate = false }: { initialCreate?: b
 
   return (
     <div>
-      <div className="flex flex-col gap-5 border-b border-[#72c16a]/25 pb-8 md:flex-row md:items-end md:justify-between">
+      <div>
         <div>
           <p className="text-xs font-black uppercase tracking-[0.32em] text-[#9abc96]">c:\bay-space\polls&gt; public-board</p>
           <h1 className="mt-4 text-5xl font-black uppercase tracking-[0.12em] text-[#72c16a] [text-shadow:0_0_24px_rgba(114,193,106,0.35)] sm:text-7xl">Polls</h1>
-          <p className="mt-4 max-w-2xl text-sm font-bold leading-6 text-[#afc7ac]">Choose a side, leave room for the middle, and return when the seven-day window closes.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#72c16a]/35 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#a9cda5]">{data.activeCount} live</span>
-          <span className="rounded-full border border-[#72c16a]/35 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#a9cda5]">{data.availableSlots} slots open</span>
-          {data.viewer ? <span className="rounded-full border border-[#72c16a]/25 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#8bae87]">{data.viewer.bayoCoins}c · {data.viewer.bayoTokens}t</span> : null}
-        </div>
-      </div>
-
-      {data.canAuthor && showComposer ? <div className="mt-8"><PollComposer availableSlots={data.availableSlots} onCreated={refresh} /></div> : null}
-      {data.canAuthor ? <button onClick={() => setShowComposer((visible) => !visible)} className="mt-6 rounded-full border border-[#90d587]/50 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#cce2c9] hover:bg-[#72c16a]/12">{showComposer ? "close author console" : "author a poll"}</button> : null}
-
-      <div className="mt-8 flex flex-wrap gap-2">
-        {(["open", "closing", "results", ...(data.viewer ? ["mine" as const] : []), "all"] as PollFilter[]).map((item) => (
-          <button key={item} onClick={() => setFilter(item)} className={`rounded-full border px-4 py-2 text-[0.68rem] font-black uppercase tracking-[0.16em] ${filter === item ? "border-[#90d587]/65 bg-[#72c16a]/18 text-[#dce9d9]" : "border-[#72c16a]/25 text-[#8bae87]"}`}>{item === "mine" ? "my polls" : item === "closing" ? "closing soon" : item}</button>
-        ))}
       </div>
 
       {message ? <p className="mt-8 rounded-2xl border border-[#b67272]/35 bg-black/40 p-4 text-sm font-bold text-[#d2a3a3]">{message}</p> : null}
@@ -376,6 +361,22 @@ export default function PollBoard({ initialCreate = false }: { initialCreate?: b
           <p className="text-sm font-black uppercase tracking-[0.22em] text-[#9abc96]">No polls in this lane yet.</p>
         </div>
       )}
+
+      <section aria-label="Poll counts and filters" className="mt-8 border-t border-[#72c16a]/25 pt-6">
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border border-[#72c16a]/35 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#a9cda5]">{data.activeCount} live</span>
+          <span className="rounded-full border border-[#72c16a]/35 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#a9cda5]">{data.availableSlots} slots open</span>
+          {data.viewer ? <span className="rounded-full border border-[#72c16a]/25 bg-black/35 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-[#8bae87]">{data.viewer.bayoCoins}c · {data.viewer.bayoTokens}t</span> : null}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {(["open", "closing", "results", ...(data.viewer ? ["mine" as const] : []), "all"] as PollFilter[]).map((item) => (
+            <button key={item} onClick={() => setFilter(item)} className={`rounded-full border px-4 py-2 text-[0.68rem] font-black uppercase tracking-[0.16em] ${filter === item ? "border-[#90d587]/65 bg-[#72c16a]/18 text-[#dce9d9]" : "border-[#72c16a]/25 text-[#8bae87]"}`}>{item === "mine" ? "my polls" : item === "closing" ? "closing soon" : item}</button>
+          ))}
+        </div>
+      </section>
+
+      {data.canAuthor ? <button onClick={() => setShowComposer((visible) => !visible)} className="mt-6 rounded-full border border-[#90d587]/50 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#cce2c9] hover:bg-[#72c16a]/12">{showComposer ? "close author console" : "author a poll"}</button> : null}
+      {data.canAuthor && showComposer ? <div className="mt-8"><PollComposer availableSlots={data.availableSlots} onCreated={refresh} /></div> : null}
     </div>
   );
 }

@@ -5,6 +5,9 @@ import Link from "next/link";
 import CirclesPanel from "./circles-panel";
 import InboxPanel from "./inbox-panel";
 import StatsPanel from "./stats-panel";
+import { blackLightUrl } from "../components/black-light-link";
+import QuizPanel from "./quiz-panel";
+import ExchangeConversion, { roundExchangeAmount } from "./exchange-conversion";
 import styles from "./briefing-room.module.css";
 import {
   FormEvent,
@@ -62,6 +65,7 @@ import {
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
 import { theoryCategories } from "../../lib/theory-categories";
+import { parseThiagoV3, type ThiagoIntake } from "../../lib/thiago-v3-intake";
 import {
   baySpaceAgreementHref,
   cryptiAgreementAcceptedStorageKey,
@@ -147,6 +151,7 @@ type SourceDraft = {
 
 type FavoriteCategory = "daily-food" | "theory" | "library-submission";
 type BriefingPanel =
+  | "quiz"
   | "id-card"
   | "post"
   | "stats"
@@ -287,12 +292,11 @@ const postCategories: { id: PostCategory; label: string }[] = [
 
 const activeMemberStorageKey = "bay-space-active-member";
 const openPostDraftsStorageKey = "bay-space-open-post-drafts";
-const lazyPostGptUrl =
-  "https://chatgpt.com/g/g-6a0c0390b6b08191991a65f1b3753fe7-lazy-assistant";
 const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "Rare Signals";
 const supportEmail = "bayoadmin@protonmail.com";
 const optionRoomPanels: BriefingPanel[] = [
+  "quiz",
   "exchange",
   "circles",
   "stats",
@@ -806,6 +810,8 @@ export default function BriefingRoomGate({
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyPostPreview, setLazyPostPreview] =
     useState<PostPreviewDraft | null>(null);
+  const [lazyStructuredPreview, setLazyStructuredPreview] = useState<Extract<ThiagoIntake, { kind: "poll" | "quiz" }> | null>(null);
+  const [isThiagoPublishing, setIsThiagoPublishing] = useState(false);
   const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
     useState(false);
   const [lazyShakeTarget, setLazyShakeTarget] = useState<
@@ -935,6 +941,7 @@ export default function BriefingRoomGate({
   const needsCryptiAgreementAcceptance =
     hasCryptiGateKeyOrRank && !hasAcceptedCurrentCryptiAgreement;
   const availableBankCategories = getBankPostCategories(allowedPostCategories);
+  const canUseThiago = availableBankCategories.length > 0 || hasImpossibleBadge;
   const isOptionsRoom = isOptionRoomPanel(activePanel);
   const promotionProgress = savedMember
     ? getNextPromotionProgress(savedMember.lifetimePoints ?? 0, savedMember)
@@ -1878,7 +1885,7 @@ export default function BriefingRoomGate({
     setIsLazyAssistantMinimized(false);
     setActivePanel("lazy-assistant");
 
-    if (!availableBankCategories.length) {
+    if (!canUseThiago) {
       setLazyResponse("LA Bay-Space: Thiago engine unavailable");
       shakeLazyButton("bank");
       return;
@@ -1906,6 +1913,7 @@ export default function BriefingRoomGate({
     setLazyBankInput("");
     setLazyBankError("");
     setLazyPostPreview(null);
+    setLazyStructuredPreview(null);
     setLazyShakeTarget("");
     setIsLazyAssistantMinimized(false);
     setActivePanel("id-card");
@@ -1956,12 +1964,41 @@ export default function BriefingRoomGate({
   }
 
   function submitLazyBank() {
-    if (!availableBankCategories.length) {
+    if (!canUseThiago) {
       setLazyBankError("Thiago engine unavailable");
       shakeLazyButton("bank-submit");
       return;
     }
 
+    let structured: ThiagoIntake | null;
+    try { structured = parseThiagoV3(lazyBankInput); }
+    catch (error) {
+      setLazyBankError(error instanceof Error ? error.message : "Unable to read draft.");
+      return;
+    }
+    if (structured?.kind === "poll" || structured?.kind === "quiz") {
+      if (!hasImpossibleBadge) { setLazyBankError("Poll and Quiz authorship is unavailable for this account."); return; }
+      setLazyStructuredPreview(structured);
+      setLazyPostPreview(null);
+      setLazyBankError("");
+      setLazyMode("preview");
+      return;
+    }
+    if (structured?.kind === "article") {
+      if (!availableBankCategories.includes(structured.category)) { setLazyBankError("This article route is unavailable for this account."); return; }
+      const nextPreview: PostPreviewDraft = {
+        category: structured.category, title: structured.title, body: structured.body,
+        anonymous: false, incognito: false, author: resolvedMember || "unknown",
+        meta: structured.category === "daily-food"
+          ? { tags: structured.tags, tagSources: structured.tagSources, sources: structured.sources, dailyFoodCategory: structured.section, topicTags: structured.topicTags }
+          : { sources: structured.sources, theoryCategory: structured.section, topicTags: structured.topicTags, skepticDebunkEvidence: structured.skepticDebunkEvidence },
+      };
+      setLazyPostPreview(nextPreview);
+      setLazyStructuredPreview(null);
+      setLazyBankError("");
+      setLazyMode("preview");
+      return;
+    }
     const parsedPost = parseBankPostInput(lazyBankInput, availableBankCategories);
 
     if (parsedPost.error || !parsedPost.post) {
@@ -1979,6 +2016,7 @@ export default function BriefingRoomGate({
     }
 
     setLazyPostPreview(nextPreview);
+    setLazyStructuredPreview(null);
     setLazyBankError("");
     setLazyMode("preview");
   }
@@ -2007,8 +2045,30 @@ export default function BriefingRoomGate({
 
   function editLazyBankPost() {
     setLazyPostPreview(null);
+    setLazyStructuredPreview(null);
     setLazyBankError("");
     setLazyMode("bank");
+  }
+
+  async function confirmStructuredIntake() {
+    if (!lazyStructuredPreview || !hasImpossibleBadge || isThiagoPublishing) return;
+    const preview = lazyStructuredPreview;
+    setIsThiagoPublishing(true);
+    setLazyBankError("");
+    try {
+      const response = await fetch(preview.kind === "poll" ? "/api/polls" : "/api/quiz", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(preview.kind === "poll" ? { question: preview.question, options: preview.options } : preview.draft),
+      });
+      const data = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(data.message ?? "Unable to publish draft.");
+      setLazyStructuredPreview(null);
+      setLazyBankInput("");
+      setLazyResponse(preview.kind === "poll" ? "Thiago: poll staged. Voting opens in two minutes." : "Thiago: weekly quiz published.");
+      setLazyMode("chat");
+    } catch (error) {
+      setLazyBankError(error instanceof Error ? error.message : "Unable to publish draft.");
+    } finally { setIsThiagoPublishing(false); }
   }
 
   async function wipeAllPosts() {
@@ -2338,21 +2398,21 @@ export default function BriefingRoomGate({
   }
 
   async function exchangePointsForCoins() {
-    const points = Number(exchangePoints);
+    const points = roundExchangeAmount(exchangePoints, bayoCoinExchangeRate);
 
     if (!Number.isFinite(points) || points < bayoCoinExchangeRate) {
       setExchangeMessage(`minimum exchange is ${bayoCoinExchangeRate} points`);
       return;
     }
 
-    await runExchangeAction(
+    const exchangedMember = await runExchangeAction(
       {
         action: "exchange-points",
         points,
       },
       "points exchanged for Bayo Coins",
     );
-    setExchangePoints("");
+    if (exchangedMember) setExchangePoints("");
   }
 
   async function claimDailySpin() {
@@ -2439,21 +2499,21 @@ export default function BriefingRoomGate({
   }
 
   async function exchangeCoinsForTokens() {
-    const coins = Number(exchangeCoins);
+    const coins = roundExchangeAmount(exchangeCoins, bayoTokenExchangeRate);
 
     if (!Number.isFinite(coins) || coins < bayoTokenExchangeRate) {
       setExchangeMessage(`minimum exchange is ${bayoTokenExchangeRate} coins`);
       return;
     }
 
-    await runExchangeAction(
+    const exchangedMember = await runExchangeAction(
       {
         action: "exchange-coins",
         coins,
       },
       "coins exchanged for tokens",
     );
-    setExchangeCoins("");
+    if (exchangedMember) setExchangeCoins("");
   }
 
   async function purchaseGraduation() {
@@ -2753,12 +2813,12 @@ export default function BriefingRoomGate({
             }`}
           >
             <a
-              href={lazyPostGptUrl}
+              href={blackLightUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:justify-start"
-              aria-label="Open Find A Story"
-              title="Find A Story"
+              aria-label="Open Black Light"
+              title="Black Light"
             >
               <Image
                 src="/brand/bay-space-logo.png"
@@ -2768,10 +2828,10 @@ export default function BriefingRoomGate({
                 className="h-8 w-8 object-contain"
               />
               <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
-                Find A Story
+                Black Light
               </span>
             </a>
-            {availableBankCategories.length ? (
+            {canUseThiago ? (
               <button
                 type="button"
                 onClick={openLazyBank}
@@ -2894,6 +2954,12 @@ export default function BriefingRoomGate({
               }`}
             >
               stats
+            </button>
+            <button
+              onClick={() => setActivePanel("quiz")}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] ${activePanel === "quiz" ? "border-[#39ff14] bg-[#39ff14] text-black" : "border-[#1d7f12] text-[#39ff14]"}`}
+            >
+              QUIZ
             </button>
             <button
               onClick={() => {
@@ -3983,7 +4049,35 @@ export default function BriefingRoomGate({
                   </button>
                 </div>
               </div>
-              {lazyMode === "preview" && lazyPostPreview ? (
+              {lazyMode === "preview" && lazyStructuredPreview ? (
+                <div className="mt-5 rounded-2xl border border-[#72c16a]/35 bg-[#07130a] p-5 text-[#dce9d9]">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9abc96]">Thiago review · {lazyStructuredPreview.kind}</p>
+                  {lazyStructuredPreview.kind === "poll" ? (
+                    <div className="mt-4">
+                      <h2 className="text-xl font-bold">{lazyStructuredPreview.question}</h2>
+                      <ol className="mt-3 list-inside list-decimal space-y-2">{lazyStructuredPreview.options.map(option => <li key={option}>{option}</li>)}</ol>
+                      <p className="mt-3 text-xs text-[#9abc96]">Voting opens two minutes after publication and closes seven days later.</p>
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <h2 className="text-xl font-bold">{lazyStructuredPreview.draft.title}</h2>
+                      <p className="mt-2 text-sm">Week of {lazyStructuredPreview.draft.weekStart} · 36 questions</p>
+                      <details className="mt-4 rounded-xl border border-[#72c16a]/25 p-4">
+                        <summary className="cursor-pointer">Review all 36 questions and answers</summary>
+                        <ol className="mt-4 list-inside list-decimal space-y-4 text-sm">{lazyStructuredPreview.draft.questions.map((item, index) => <li key={index}>
+                          <strong>{item.question}</strong> — {item.options[item.correctIndex]}
+                          <span className="block text-[#9abc96]">Source: {item.postId} · {item.explanation}</span>
+                        </li>)}</ol>
+                      </details>
+                    </div>
+                  )}
+                  {lazyBankError ? <p role="alert" className="mt-4 text-[#ff9b9b]">{lazyBankError}</p> : null}
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button type="button" disabled={isThiagoPublishing} onClick={confirmStructuredIntake} className="rounded-xl border border-[#72c16a] px-5 py-3 font-bold text-[#dce9d9] disabled:opacity-50">{isThiagoPublishing ? "Publishing…" : `Publish ${lazyStructuredPreview.kind}`}</button>
+                    <button type="button" onClick={editLazyBankPost} className="rounded-xl border border-[#72c16a]/40 px-5 py-3">Edit pasted text</button>
+                  </div>
+                </div>
+              ) : lazyMode === "preview" && lazyPostPreview ? (
                 <div className="mt-5">
                   <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
                     preview
@@ -4030,6 +4124,13 @@ export default function BriefingRoomGate({
                     <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
                       {lazyPostPreview.body || "no body entered"}
                     </p>
+                    {lazyPostPreview.category === "daily-food" && Array.isArray(lazyPostPreview.meta?.tags) ? (
+                      <div className="mt-4 space-y-2 text-xs text-[#9abc96]">
+                        {lazyPostPreview.meta.tags.map((tag, index) => <p key={index}>
+                          Tag {index + 1}: {tag}<br />Source: {Array.isArray(lazyPostPreview.meta?.tagSources) ? lazyPostPreview.meta.tagSources[index] : ""}
+                        </p>)}
+                      </div>
+                    ) : null}
                     {getPostSources(lazyPostPreview).length ? (
                       <div className="mt-5 border-t border-[#1d7f12] pt-3">
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
@@ -4068,6 +4169,7 @@ export default function BriefingRoomGate({
                       </div>
                     ) : null}
                   </article>
+                  {lazyBankError ? <p role="alert" className="mt-4 text-[#ff9b9b]">{lazyBankError}</p> : null}
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button
                       type="button"
@@ -4091,7 +4193,7 @@ export default function BriefingRoomGate({
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
                       ✅💰 Bay-Space engine:{" "}
                       <span className="text-[#39ff14]">
-                        {availableBankCategories.length
+                        {canUseThiago
                           ? `${baySpaceLazyEngineLabel} / auto route`
                           : "unavailable"}
                       </span>
@@ -4108,8 +4210,8 @@ export default function BriefingRoomGate({
                     </button>
                   </div>
                   <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
-                    Paste Thiago output from Conspiracy - Top 10, Facts - Top 10,
-                    or Fact Check. Press ✅💰 or hit Enter.
+                    Paste a Conspiracy, Current Events, Poll, or complete Weekly Quiz draft.
+                    Press ✅💰 or Command/Control + Enter to review before publishing.
                   </p>
                   <textarea
                     aria-label="BaySpace Thiago money-bag intake"
@@ -4144,7 +4246,7 @@ export default function BriefingRoomGate({
                         ? "animate-[option-shake_180ms_linear]"
                         : ""
                     }`}
-                    aria-label="Submit BaySpace Thiago money-bag post"
+                    aria-label="Review Bay Space Thiago intake"
                   >
                     ✅💰
                   </button>
@@ -4185,7 +4287,7 @@ export default function BriefingRoomGate({
                       🌀
                     </button>
                     <a
-                      href={lazyPostGptUrl}
+                      href={blackLightUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
@@ -4216,6 +4318,8 @@ export default function BriefingRoomGate({
                 </div>
               )}
             </div>
+          ) : activePanel === "quiz" && savedMember ? (
+            <QuizPanel />
           ) : activePanel === "inbox" && savedMember ? (
             <InboxPanel
               initialMember={targetInboxMember}
@@ -4275,123 +4379,191 @@ export default function BriefingRoomGate({
                   ) : null}
                 </div>
               ) : null}
-              <div className="mt-5 grid gap-4">
-                <details className="border-2 border-[#39ff14] bg-[#001100] p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
-                  <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
-                    Point Exchange
-                  </summary>
-                  <div className="mt-4 grid gap-3 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
-                    <p>
-                      available points
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {formatPointCount(savedMember.availablePoints)}
-                      </span>
-                    </p>
-                    <p>
-                      Bayo Coins
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {formatPointCount(savedMember.bayoCoins)}
-                      </span>
-                    </p>
-                    <p>
-                      exchange rate
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {bayoCoinExchangeRate}:1
-                      </span>
-                    </p>
-                  </div>
-                  <div className="mt-5 flex flex-wrap items-end gap-3">
-                    <label className="grid gap-2">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                        points to trade
-                      </span>
-                      <input
-                        inputMode="numeric"
-                        value={exchangePoints}
-                        onChange={(event) => {
-                          setExchangePoints(
-                            event.target.value.replace(/\D/g, "").slice(0, 8),
-                          );
-                          setExchangeMessage("");
-                        }}
-                        placeholder={String(bayoCoinExchangeRate)}
-                        className="w-40 border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={exchangePointsForCoins}
-                      disabled={isExchangeLoading}
-                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
-                    >
-                      trade for coins
-                    </button>
+              <div className={styles.exchangeSections}>
+                <ExchangeConversion
+                  kind="coins"
+                  rate={bayoCoinExchangeRate}
+                  value={exchangePoints}
+                  onChange={(value) => { setExchangePoints(value); setExchangeMessage(""); }}
+                  onTrade={exchangePointsForCoins}
+                  loading={isExchangeLoading}
+                  balance={savedMember.bayoCoins ?? 0}
+                  available={savedMember.availablePoints ?? 0}
+                />
+
+                <details className={styles.exchangeSection}>
+                  <summary>Stamps</summary>
+                  <div className="mt-4 grid gap-4">
+                    <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-xs font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-2">
+                      <p>
+                        Bayo Coins
+                        <span className="mt-2 block text-xl text-[#39ff14]">
+                          {formatPointCount(savedMember.bayoCoins)}
+                        </span>
+                      </p>
+                      <p>
+                        rule
+                        <span className="mt-2 block text-[#7f9f78]">
+                          stamps are identity collectibles and appear in the
+                          profile Trophy Case once owned.
+                        </span>
+                      </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {bayoStamps.map((stamp) => {
+                        const isOwned = savedMember.bayoStamps?.includes(stamp.id);
+                        const canBuy =
+                          !isOwned &&
+                          (savedMember.bayoCoins ?? 0) >= stamp.coinCost;
+                        const costLabel =
+                          stamp.coinCost === 0
+                            ? "free"
+                            : `${stamp.coinCost} ${
+                                stamp.coinCost === 1 ? "coin" : "coins"
+                              }`;
+
+                        return (
+                          <div
+                            key={stamp.id}
+                            className={`relative grid gap-3 border p-4 pb-10 ${
+                              isOwned
+                                ? "border-[#39ff14] bg-[#001100]"
+                                : "border-[#1d7f12]"
+                            }`}
+                          >
+                            <div>
+                              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                                {stamp.label}
+                              </p>
+                              <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                                {stamp.description}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => purchaseStamp(stamp.id)}
+                              disabled={
+                                isExchangeLoading || Boolean(isOwned) || !canBuy
+                              }
+                              className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
+                            >
+                              {isOwned ? "owned" : costLabel}
+                            </button>
+                            <span className="absolute bottom-2 right-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                              {formatPointCount(stampCounts[stamp.id] ?? 0)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </details>
 
-                <details className="border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_14px_rgba(57,255,20,0.12)]">
-                  <summary className="cursor-pointer text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
-                    Token Exchange
-                  </summary>
-                  <div className="mt-4 grid gap-3 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
-                    <p>
-                      Bayo Coins
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {formatPointCount(savedMember.bayoCoins)}
-                      </span>
-                    </p>
-                    <p>
-                      tokens
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {formatPointCount(savedMember.bayoTokens)}
-                      </span>
-                    </p>
-                    <p>
-                      exchange rate
-                      <span className="mt-2 block text-xl text-[#39ff14]">
-                        {bayoTokenExchangeRate}:1
-                      </span>
-                    </p>
-                  </div>
-                  <div className="mt-5 flex flex-wrap items-end gap-3">
-                    <label className="grid gap-2">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                        coins to trade
-                      </span>
-                      <input
-                        inputMode="numeric"
-                        value={exchangeCoins}
-                        onChange={(event) => {
-                          setExchangeCoins(
-                            event.target.value.replace(/\D/g, "").slice(0, 8),
-                          );
-                          setExchangeMessage("");
-                        }}
-                        placeholder={String(bayoTokenExchangeRate)}
-                        className="w-40 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      onClick={exchangeCoinsForTokens}
-                      disabled={isExchangeLoading}
-                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
-                    >
-                      trade for tokens
-                    </button>
+                <details className={styles.exchangeSection}>
+                  <summary>Cards</summary>
+                  <div className="mt-4 grid gap-4">
+                    {(() => {
+                      const ownedCards = savedMember.bayoCards ?? [];
+                      const activeCards = savedMember.activeBayoCards ?? [];
+                      const activeSlotCount =
+                        getBayoCardActiveSlotCount(activeCards);
+                      const isGraduated = savedMember.rank === "graduation";
+
+                      return (
+                        <>
+                          <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-xs font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
+                            <p>
+                              Bayo Coins
+                              <span className="mt-2 block text-xl text-[#39ff14]">
+                                {formatPointCount(savedMember.bayoCoins)}
+                              </span>
+                            </p>
+                            <p>
+                              active slots
+                              <span className="mt-2 block text-xl text-[#39ff14]">
+                                {activeCards.length}/{activeSlotCount}
+                              </span>
+                            </p>
+                            <p>
+                              rule
+                              <span className="mt-2 block text-[#7f9f78]">
+                                one active card. Doublay allows three.
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="grid gap-3">
+                            {bayoCards.map((card) => {
+                              const isOwned = ownedCards.includes(card.id);
+                              const isActive = activeCards.includes(card.id);
+                              const canBuy =
+                                isGraduated &&
+                                !isOwned &&
+                                (savedMember.bayoCoins ?? 0) >= card.coinCost;
+                              const wouldUseOpenSlot =
+                                activeCards.includes("doublay-card") &&
+                                !isActive &&
+                                card.id !== "doublay-card";
+                              const hasOpenSlot =
+                                activeCards.length < activeSlotCount;
+                              const canToggle =
+                                isOwned &&
+                                (isActive || !wouldUseOpenSlot || hasOpenSlot);
+                              const buttonLabel = !isOwned
+                                ? isGraduated
+                                  ? `${formatPointCount(card.coinCost)} coins`
+                                  : "locked"
+                                : isActive
+                                  ? "turn off"
+                                  : canToggle
+                                    ? "activate"
+                                    : "slots full";
+
+                              return (
+                                <div
+                                  key={card.id}
+                                  className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
+                                    isActive
+                                      ? "border-[#39ff14] bg-[#001100] text-[#d7ffd0]"
+                                      : "border-[#1d7f12] text-[#d7ffd0]"
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                                      {card.label}
+                                      {isActive ? " / active" : ""}
+                                    </p>
+                                    <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
+                                      {card.description}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      isOwned
+                                        ? toggleCard(card.id)
+                                        : purchaseCard(card.id)
+                                    }
+                                    disabled={
+                                      isExchangeLoading ||
+                                      (isOwned ? !canToggle : !canBuy)
+                                    }
+                                    className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
+                                  >
+                                    {buttonLabel}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </details>
 
-                {exchangeMessage ? (
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                    {exchangeMessage}
-                  </p>
-                ) : null}
-
-                <details className="border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_14px_rgba(57,255,20,0.12)]">
-                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
-                    Badge Quest
-                  </summary>
+                <details className={styles.exchangeSection}>
+                  <summary>Badge Quest</summary>
                   <div className="mt-4 grid gap-3">
                     {(() => {
                       const isGraduated = savedMember.rank === "graduation";
@@ -4501,180 +4673,20 @@ export default function BriefingRoomGate({
                   </div>
                 </details>
 
-                <details className="border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_14px_rgba(57,255,20,0.12)]">
-                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
-                    Cards
-                  </summary>
-                  <div className="mt-4 grid gap-4">
-                    {(() => {
-                      const ownedCards = savedMember.bayoCards ?? [];
-                      const activeCards = savedMember.activeBayoCards ?? [];
-                      const activeSlotCount =
-                        getBayoCardActiveSlotCount(activeCards);
-                      const isGraduated = savedMember.rank === "graduation";
+                <ExchangeConversion
+                  kind="tokens"
+                  rate={bayoTokenExchangeRate}
+                  value={exchangeCoins}
+                  onChange={(value) => { setExchangeCoins(value); setExchangeMessage(""); }}
+                  onTrade={exchangeCoinsForTokens}
+                  loading={isExchangeLoading}
+                  balance={savedMember.bayoTokens ?? 0}
+                  available={savedMember.bayoCoins ?? 0}
+                />
 
-                      return (
-                        <>
-                          <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-xs font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-3">
-                            <p>
-                              Bayo Coins
-                              <span className="mt-2 block text-xl text-[#39ff14]">
-                                {formatPointCount(savedMember.bayoCoins)}
-                              </span>
-                            </p>
-                            <p>
-                              active slots
-                              <span className="mt-2 block text-xl text-[#39ff14]">
-                                {activeCards.length}/{activeSlotCount}
-                              </span>
-                            </p>
-                            <p>
-                              rule
-                              <span className="mt-2 block text-[#7f9f78]">
-                                one active card. Doublay allows three.
-                              </span>
-                            </p>
-                          </div>
-
-                          <div className="grid gap-3">
-                            {bayoCards.map((card) => {
-                              const isOwned = ownedCards.includes(card.id);
-                              const isActive = activeCards.includes(card.id);
-                              const canBuy =
-                                isGraduated &&
-                                !isOwned &&
-                                (savedMember.bayoCoins ?? 0) >= card.coinCost;
-                              const wouldUseOpenSlot =
-                                activeCards.includes("doublay-card") &&
-                                !isActive &&
-                                card.id !== "doublay-card";
-                              const hasOpenSlot =
-                                activeCards.length < activeSlotCount;
-                              const canToggle =
-                                isOwned &&
-                                (isActive || !wouldUseOpenSlot || hasOpenSlot);
-                              const buttonLabel = !isOwned
-                                ? isGraduated
-                                  ? `${formatPointCount(card.coinCost)} coins`
-                                  : "locked"
-                                : isActive
-                                  ? "turn off"
-                                  : canToggle
-                                    ? "activate"
-                                    : "slots full";
-
-                              return (
-                                <div
-                                  key={card.id}
-                                  className={`grid gap-3 border p-4 sm:grid-cols-[1fr_auto] sm:items-center ${
-                                    isActive
-                                      ? "border-[#39ff14] bg-[#001100] text-[#d7ffd0]"
-                                      : "border-[#1d7f12] text-[#d7ffd0]"
-                                  }`}
-                                >
-                                  <div>
-                                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                                      {card.label}
-                                      {isActive ? " / active" : ""}
-                                    </p>
-                                    <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                                      {card.description}
-                                    </p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      isOwned
-                                        ? toggleCard(card.id)
-                                        : purchaseCard(card.id)
-                                    }
-                                    disabled={
-                                      isExchangeLoading ||
-                                      (isOwned ? !canToggle : !canBuy)
-                                    }
-                                    className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
-                                  >
-                                    {buttonLabel}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </details>
-
-                <details className="border-2 border-[#1d7f12] bg-black p-4 shadow-[0_0_14px_rgba(57,255,20,0.12)]">
-                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]">
-                    Stamps
-                  </summary>
-                  <div className="mt-4 grid gap-4">
-                    <div className="grid gap-3 border border-[#1d7f12] bg-[#001100] p-4 text-xs font-black uppercase leading-5 tracking-[0.14em] text-[#d7ffd0] sm:grid-cols-2">
-                      <p>
-                        Bayo Coins
-                        <span className="mt-2 block text-xl text-[#39ff14]">
-                          {formatPointCount(savedMember.bayoCoins)}
-                        </span>
-                      </p>
-                      <p>
-                        rule
-                        <span className="mt-2 block text-[#7f9f78]">
-                          stamps are identity collectibles and appear in the
-                          profile Trophy Case once owned.
-                        </span>
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {bayoStamps.map((stamp) => {
-                        const isOwned = savedMember.bayoStamps?.includes(stamp.id);
-                        const canBuy =
-                          !isOwned &&
-                          (savedMember.bayoCoins ?? 0) >= stamp.coinCost;
-                        const costLabel =
-                          stamp.coinCost === 0
-                            ? "free"
-                            : `${stamp.coinCost} ${
-                                stamp.coinCost === 1 ? "coin" : "coins"
-                              }`;
-
-                        return (
-                          <div
-                            key={stamp.id}
-                            className={`relative grid gap-3 border p-4 pb-10 ${
-                              isOwned
-                                ? "border-[#39ff14] bg-[#001100]"
-                                : "border-[#1d7f12]"
-                            }`}
-                          >
-                            <div>
-                              <p className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                                {stamp.label}
-                              </p>
-                              <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                                {stamp.description}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => purchaseStamp(stamp.id)}
-                              disabled={
-                                isExchangeLoading || Boolean(isOwned) || !canBuy
-                              }
-                              className="w-fit border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black disabled:text-[#7f9f78] disabled:hover:border-[#1d7f12] disabled:hover:bg-transparent"
-                            >
-                              {isOwned ? "owned" : costLabel}
-                            </button>
-                            <span className="absolute bottom-2 right-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-                              {formatPointCount(stampCounts[stamp.id] ?? 0)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </details>
+                {exchangeMessage ? (
+                  <p className={styles.exchangeFeedback} role="status">{exchangeMessage}</p>
+                ) : null}
               </div>
             </div>
           ) : activePanel === "settings" ? (

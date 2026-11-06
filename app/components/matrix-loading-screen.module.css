@@ -1,0 +1,270 @@
+.screen {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100vh;
+  overflow: hidden;
+  isolation: isolate;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(44, 119, 47, 0.16), transparent 30rem),
+    #000;
+  color: #bcd8b8;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.matrixField {
+  position: absolute;
+  z-index: -3;
+  inset: -12vh 0;
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: repeat(12, 1fr);
+  color: #72c16a;
+  opacity: 0.48;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, transparent 7rem, black 28rem);
+}
+
+.matrixField span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: clamp(0.64rem, 1.45vw, 1.08rem);
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  line-height: 1.65;
+  opacity: 0.72;
+  text-align: center;
+  text-shadow: 0 0 0.7rem rgba(114, 231, 102, 0.88);
+  writing-mode: vertical-rl;
+  animation: matrix-fall 1.4s linear infinite;
+}
+
+.grid {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(114, 193, 106, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(114, 193, 106, 0.07) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.scanlines {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  opacity: 0.12;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(143, 225, 130, 0.14) 4px
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.centerpiece {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: min(30rem, calc(100% - 2rem));
+  justify-items: center;
+  gap: 1.25rem;
+  padding: 2rem;
+}
+
+.centerpiece::before {
+  position: absolute;
+  z-index: -1;
+  width: 24rem;
+  height: 24rem;
+  border: 1px solid rgba(114, 193, 106, 0.16);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(4, 15, 5, 0.94), rgba(0, 0, 0, 0.25) 66%, transparent 72%);
+  box-shadow:
+    0 0 5rem rgba(74, 170, 70, 0.13),
+    inset 0 0 4rem rgba(114, 193, 106, 0.05);
+  content: "";
+  animation: matrix-ring-pulse 1.8s ease-in-out infinite;
+}
+
+.logoFrame {
+  position: relative;
+  width: clamp(11rem, 30vw, 17rem);
+  overflow: hidden;
+  border: 1px solid rgba(144, 213, 135, 0.24);
+  border-radius: 50%;
+  background: rgba(1, 5, 2, 0.84);
+  box-shadow:
+    0 0 0 0.55rem rgba(114, 193, 106, 0.025),
+    0 0 3.5rem rgba(91, 198, 82, 0.2),
+    inset 0 0 2rem rgba(114, 193, 106, 0.07);
+  animation: logo-arrival 420ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+
+.logoFrame::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    110deg,
+    transparent 28%,
+    rgba(204, 255, 196, 0.14) 48%,
+    transparent 68%
+  );
+  content: "";
+  transform: translateX(-130%);
+  animation: logo-scan 1.8s 280ms ease-in-out infinite;
+}
+
+.logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: saturate(0.72) brightness(0.85) contrast(1.06);
+}
+
+.copy {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  text-align: center;
+}
+
+.path {
+  padding: 0.42rem 0.72rem;
+  border: 1px solid rgba(114, 193, 106, 0.2);
+  border-radius: 999px;
+  background: rgba(1, 7, 2, 0.78);
+  color: #8da389;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.destination {
+  color: #c4d9c1;
+  font-size: clamp(0.74rem, 2.2vw, 0.9rem);
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  text-shadow: 0 0 1rem rgba(114, 193, 106, 0.3);
+}
+
+.progress {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.progress span {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 50%;
+  background: #72c16a;
+  box-shadow: 0 0 0.7rem rgba(114, 193, 106, 0.8);
+  animation: progress-pulse 900ms ease-in-out infinite;
+}
+
+.progress span:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.progress span:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes matrix-fall {
+  from {
+    transform: translateY(-105%);
+  }
+
+  to {
+    transform: translateY(105%);
+  }
+}
+
+@keyframes logo-arrival {
+  from {
+    opacity: 0;
+    transform: scale(0.76) rotate(-2deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes logo-scan {
+  0%,
+  38% {
+    transform: translateX(-130%);
+  }
+
+  78%,
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes matrix-ring-pulse {
+  50% {
+    opacity: 0.62;
+    transform: scale(1.035);
+  }
+}
+
+@keyframes progress-pulse {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-0.16rem);
+  }
+}
+
+@media (max-width: 520px) {
+  .matrixField {
+    grid-template-columns: repeat(8, 1fr);
+  }
+
+  .matrixField span:nth-child(n + 9) {
+    display: none;
+  }
+
+  .centerpiece {
+    padding: 1rem;
+  }
+
+  .centerpiece::before {
+    width: 19rem;
+    height: 19rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrixField span,
+  .centerpiece::before,
+  .logoFrame,
+  .logoFrame::after,
+  .progress span {
+    animation: none;
+  }
+
+  .matrixField {
+    opacity: 0.24;
+  }
+}

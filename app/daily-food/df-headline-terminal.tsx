@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CopyPostLinkButton from "../components/copy-post-link-button";
+import BlackLightLink from "../components/black-light-link";
 import FavoriteButton from "../components/favorite-button";
 import PostEngagementPanel from "../components/post-engagement-panel";
 import TicketVoteButton from "../components/ticket-vote-button";
@@ -1159,6 +1160,7 @@ export default function DfHeadlineTerminal({
             ) : null}
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <CopyPostLinkButton path={getPostLinkPath(displayedPost)} />
+              <BlackLightLink articlePath={getPostLinkPath(displayedPost)} />
               {getMetaString(displayedPost, "dailyFoodCode") ? (
                 <span className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
                   {getMetaString(displayedPost, "dailyFoodCode")}

@@ -809,6 +809,24 @@ function getCryptiRankAfterGateKeyPurchase(
   return currentCryptiRank;
 }
 
+export async function recordWeeklyQuizReward(memberNumber: string, quizId: string, answers: number[], points: number) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const member = await getMemberRowByNumber(memberNumber);
+    if (!member) throw new Error("Member not found.");
+    const award = getMemberPointAwardBody(member, points);
+    const result = await supabaseRequest<{ claimed: boolean; retry?: boolean; points: number; promotionBonus: number }>("rpc/submit_weekly_quiz", {
+      method: "POST",
+      body: {
+        p_member_number: Number(memberNumber), p_quiz_id: quizId, p_answers: answers,
+        p_expected: { available_points: member.available_points, lifetime_points: member.lifetime_points, rank: member.rank, crypti_rank: member.crypti_rank, gate_keys: member.gate_keys },
+        p_award: award,
+      },
+    });
+    if (!result.retry) return result;
+  }
+  throw new Error("Your balance changed. Please submit again.");
+}
+
 function getMemberPointAwardBody(member: MemberRow, points: number) {
   const baseLifetimePoints =
     normalizePointBalance(member.lifetime_points) + points;

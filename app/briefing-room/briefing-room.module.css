@@ -456,3 +456,55 @@
     transition: none !important;
   }
 }
+.exchangeSections { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.exchangeSection {
+  min-width: 0;
+  padding: 1.2rem;
+  border: 1px solid rgba(114, 193, 106, 0.28);
+  border-radius: 1.4rem;
+  background: linear-gradient(135deg, rgba(114, 193, 106, 0.07), rgba(3, 11, 6, 0.65));
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.16);
+}
+.exchangeSection > summary {
+  cursor: pointer;
+  color: #dce9d9;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.4rem;
+}
+.exchangeSection > summary::marker { color: #72c16a; }
+.exchangeSection > summary:focus-visible { outline: 2px solid #72c16a; outline-offset: 4px; }
+.conversionBody { max-width: 30rem; padding: 1.5rem 0.4rem 0.4rem; }
+.conversionLabel { display: block; }
+.gate input.conversionInput {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(114, 193, 106, 0.65);
+  border-radius: 0;
+  padding: 0.5rem 0;
+  background: transparent !important;
+  box-shadow: none;
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.conversionButton {
+  width: 100%;
+  margin-top: 1.25rem;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid rgba(114, 193, 106, 0.5);
+  background: rgba(114, 193, 106, 0.1);
+  color: #90d587;
+  font-size: 0.85rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.conversionButton:disabled { opacity: 0.45; cursor: not-allowed; }
+.conversionBalances { display: grid; gap: 0.85rem; margin-top: 1.5rem; }
+.conversionBalances > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; }
+.conversionBalances dt { color: #a4bfa0; font-size: 0.8rem; }
+.conversionBalances dd { color: #dce9d9; font-weight: 800; font-variant-numeric: tabular-nums; }
+.conversionNotice { color: #e6a29b; font-size: 0.8rem; margin-top: 0.75rem; }
+.exchangeFeedback { color: #90d587; font-size: 0.85rem; }

@@ -9,6 +9,7 @@ import {
   postStoreEvent,
 } from "../components/post-store";
 import CopyPostLinkButton from "../components/copy-post-link-button";
+import BlackLightLink from "../components/black-light-link";
 import FavoriteButton from "../components/favorite-button";
 import PostEngagementPanel from "../components/post-engagement-panel";
 import {
@@ -1046,6 +1047,7 @@ export default function TheoryBoard() {
                   ) : null}
                   <div className="mt-5">
                     <CopyPostLinkButton path={`/theories#post-${post.id}`} />
+                    <div className="mt-3"><BlackLightLink articlePath={`/theories#post-${post.id}`} /></div>
                   </div>
                   <PostEngagementPanel
                     isLoggedIn={isLoggedIn}

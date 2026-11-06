@@ -1,0 +1,25 @@
+.quiz { color: #dce9d9; display: grid; gap: 1.5rem; min-width: 0; }
+.quiz h2 { color: #72c16a; font: 900 clamp(2.2rem, 6vw, 4rem)/1.1 Arial, sans-serif; margin: 0.6rem 0 1rem; }
+.quiz h3 { font-size: 1.35rem; font-weight: 800; }
+.quiz h4 { font-weight: 800; }
+.quiz p { color: #a4bfa0; line-height: 1.65; margin: 0.75rem 0; font-size: 0.9rem; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.7rem !important; }
+.card { border: 1px solid #72c16a40; border-radius: 1.5rem; background: linear-gradient(145deg, #72c16a0d, #030b06b3); padding: clamp(1rem, 3vw, 1.6rem); box-shadow: 0 1rem 2rem #0003; min-width: 0; }
+.quiz button { border: 1px solid #72c16a65; padding: 0.7rem 1rem; background: #72c16a15; color: #90d587; font-weight: 800; margin-top: 0.8rem; }
+.quiz button:disabled { opacity: 0.4; cursor: not-allowed; }
+.quiz :is(button, summary):focus-visible { outline: 2px solid #90d587; outline-offset: 3px; }
+.quiz summary { cursor: pointer; padding: 0.5rem 0; color: #cde0ca; font-weight: 800; }
+.quiz label:not(.answer) { display: grid; gap: 0.5rem; margin: 1rem 0; font-size: 0.8rem; }
+.quiz input:not([type=radio]), .quiz textarea, .quiz select { width: 100%; min-width: 0; border: 1px solid #72c16a40; padding: 0.7rem; }
+.quiz textarea { resize: vertical; }
+.quiz select { text-overflow: ellipsis; }
+.quiz progress { width: 100%; height: 0.45rem; accent-color: #72c16a; }
+.quiz fieldset { margin: 1.5rem 0; min-width: 0; }
+.quiz legend { font-size: 1.2rem; font-weight: 800; margin-bottom: 1rem; }
+.answer { display: flex; gap: 0.8rem; align-items: start; padding: 1rem; border: 1px solid #72c16a40; border-radius: 1rem; cursor: pointer; margin: 0.7rem 0; }
+.answer:has(input:checked) { background: #72c16a1f; border-color: #90d587; }
+.answer input { margin-top: 0.25rem; accent-color: #72c16a; }
+.actions { display: flex; gap: 0.8rem; justify-content: space-between; }
+.review, .editor { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #72c16a30; overflow-wrap: anywhere; }
+.quiz a { color: #90d587; text-decoration: underline; text-underline-offset: 0.2em; }
+.notice { padding: 1rem; border: 1px solid #d78c7b80; border-radius: 1rem; color: #edb0a3; }
