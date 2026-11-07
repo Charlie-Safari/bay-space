@@ -43,6 +43,7 @@ import {
   bayoCoinExchangeRate,
   bayoStamps,
   bayoTokenExchangeRate,
+  defaultStampPointReward,
   gateKeys,
   getBayoCardActiveSlotCount,
   getBayRankLabel,
@@ -72,7 +73,7 @@ import {
   cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
 import { getPostTopicTags } from "../../lib/bay-space-tags";
-import { getPacificDateKey } from "../../lib/pacific-date";
+import { getPacificDateKey, isBirthdayOn } from "../../lib/pacific-date";
 import TicketVoteCounter from "../components/ticket-vote-counter";
 import { openExternalBrowser } from "../components/open-external-browser";
 
@@ -104,6 +105,7 @@ type SavedMember = {
   roles: string;
   title: string;
   email?: string;
+  birthdayDay?: string;
   birthdayMonth?: string;
   birthdayYear?: string;
   links?: SettingsLinks;
@@ -302,6 +304,9 @@ const openPostDraftsStorageKey = "bay-space-open-post-drafts";
 const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "Rare Signals";
 const supportEmail = "bayoadmin@protonmail.com";
+const settingsAgreementHref = `${baySpaceAgreementHref}?${new URLSearchParams({
+  returnTo: "/briefing-room?panel=settings",
+})}`;
 const optionRoomPanels: BriefingPanel[] = [
   "quiz",
   "exchange",
@@ -845,10 +850,32 @@ export default function BriefingRoomGate({
   const [exchangePoints, setExchangePoints] = useState("");
   const [exchangeCoins, setExchangeCoins] = useState("");
   const [exchangeMessage, setExchangeMessage] = useState("");
+  const [stampMessage, setStampMessage] = useState("");
+  const [postingLock, setPostingLock] = useState<{ shortcut: "post" | "bank" } | null>(null);
+  const lockedShortcut = postingLock?.shortcut;
   const [isExchangeLoading, setIsExchangeLoading] = useState(false);
   const [isDailySpinOpen, setIsDailySpinOpen] = useState(false);
   const [isDailySpinLoading, setIsDailySpinLoading] = useState(false);
   const [dailySpinMessage, setDailySpinMessage] = useState("");
+  const [hasDailySpinResult, setHasDailySpinResult] = useState(false);
+
+  useEffect(() => {
+    if (!postingLock) return;
+
+    const timer = window.setTimeout(() => setPostingLock(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [postingLock]);
+
+  useEffect(() => {
+    if (!isDailySpinOpen || !hasDailySpinResult) return;
+
+    const timer = window.setTimeout(() => {
+      setIsDailySpinOpen(false);
+      setDailySpinMessage("");
+      setHasDailySpinResult(false);
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [isDailySpinOpen, hasDailySpinResult]);
   const [pacificDate, setPacificDate] = useState(getPacificDateKey);
   const hasClaimedDailySpin = savedMember?.dailySpinClaimedOn === pacificDate;
 
@@ -858,6 +885,7 @@ export default function BriefingRoomGate({
   }, []);
   const [stampCounts, setStampCounts] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
+  const [birthdayDay, setBirthdayDay] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
   const [birthdayYear, setBirthdayYear] = useState("");
   const [hasOpenedCryptiAgreement, setHasOpenedCryptiAgreement] =
@@ -1108,6 +1136,7 @@ export default function BriefingRoomGate({
     );
 
     setEmail(memberRecord?.email ?? "");
+    setBirthdayDay(memberRecord?.birthdayDay ?? "");
     setBirthdayMonth(memberRecord?.birthdayMonth ?? "");
     setBirthdayYear(memberRecord?.birthdayYear ?? "");
     setMemberReferenceNameInput(getEditableMemberReferenceName(memberRecord));
@@ -1147,6 +1176,8 @@ export default function BriefingRoomGate({
     setActiveFavoriteCategory("");
     setSettingsMessage("");
     setExchangeMessage("");
+    setStampMessage("");
+    setPostingLock(null);
     setWildCardMessage("");
     setIsCryptiAgreementAlert(false);
     setIsChangingPassword(false);
@@ -1640,6 +1671,7 @@ export default function BriefingRoomGate({
       return;
     }
 
+    setPostingLock(null);
     const currentDraft = getCurrentDraft();
     const newDraft = createBlankPostDraft(
       nextDraftId,
@@ -1883,6 +1915,7 @@ export default function BriefingRoomGate({
   }
 
   function openLazyBank() {
+    setPostingLock(null);
     setLazyPostPreview(null);
     setLazyStructuredPreview(null);
     setLazyBankError("");
@@ -1901,6 +1934,16 @@ export default function BriefingRoomGate({
     restoreLazyAssistant();
     setLazyMode("chat");
     setLazyBankError("");
+  }
+
+  function showPostingLock(button: HTMLButtonElement, shortcut: "post" | "bank") {
+    setPostingLock({ shortcut });
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      button.animate(
+        [0, -5, 5, -4, 4, 0].map((offset) => ({ transform: `translateX(${offset}px)` })),
+        { duration: 300 },
+      );
+    }
   }
 
   function minimizeLazyAssistant() {
@@ -2353,6 +2396,7 @@ export default function BriefingRoomGate({
         action: "settings",
         settings: {
           email,
+          birthdayDay,
           birthdayMonth,
           birthdayYear,
           cryptiAgreementAccepted: needsCryptiAgreementAcceptance
@@ -2362,10 +2406,10 @@ export default function BriefingRoomGate({
         },
       }),
     });
-    const data = (await response.json()) as { member?: SavedMember };
+    const data = (await response.json()) as { member?: SavedMember; message?: string };
 
     if (!response.ok || !data.member) {
-      setSettingsMessage("settings not saved");
+      setSettingsMessage(data.message ?? "settings not saved");
       return;
     }
 
@@ -2378,15 +2422,16 @@ export default function BriefingRoomGate({
 
   async function runExchangeAction(
     payload: Record<string, unknown>,
-    successMessage: string,
+    successMessage: string | ((result: { alreadyOwned?: boolean; points?: number }) => string),
+    reportMessage = setExchangeMessage,
   ) {
     if (!savedMember) {
-      setExchangeMessage("no account found");
+      reportMessage("no account found");
       return null;
     }
 
     setIsExchangeLoading(true);
-    setExchangeMessage("");
+    reportMessage("");
 
     try {
       const response = await fetch(`/api/members/${resolvedMember}`, {
@@ -2397,16 +2442,18 @@ export default function BriefingRoomGate({
       const data = (await response.json()) as {
         member?: SavedMember;
         message?: string;
+        alreadyOwned?: boolean;
+        points?: number;
       };
 
       if (!response.ok || !data.member) {
-        setExchangeMessage(data.message ?? "exchange failed");
+        reportMessage(data.message ?? "exchange failed");
         return null;
       }
 
       setSavedMember(data.member);
       applySettingsFields(data.member);
-      setExchangeMessage(successMessage);
+      reportMessage(typeof successMessage === "string" ? successMessage : successMessage(data));
       window.dispatchEvent(new Event("bay-space-auth"));
       return data.member;
     } finally {
@@ -2439,6 +2486,7 @@ export default function BriefingRoomGate({
 
     setIsDailySpinLoading(true);
     setDailySpinMessage("");
+    setHasDailySpinResult(false);
 
     try {
       const response = await fetch(`/api/members/${resolvedMember}`, {
@@ -2469,7 +2517,10 @@ export default function BriefingRoomGate({
           ? `today's spin was +${formatPointCount(points)} points`
           : `you won +${formatPointCount(points)} points`,
       );
+      setHasDailySpinResult(true);
       window.dispatchEvent(new Event("bay-space-auth"));
+    } catch {
+      setDailySpinMessage("spin unavailable");
     } finally {
       setIsDailySpinLoading(false);
     }
@@ -2584,7 +2635,12 @@ export default function BriefingRoomGate({
     const wasAlreadyOwned = Boolean(savedMember?.bayoStamps?.includes(stamp));
     const member = await runExchangeAction(
       { action: "purchase-stamp", stamp },
-      "stamp added",
+      ({ alreadyOwned, points }) => alreadyOwned
+        ? "Stamp already owned."
+        : points
+          ? `Stamp added. +${formatPointCount(points)} points.`
+          : "Stamp added.",
+      setStampMessage,
     );
 
     if (member && !wasAlreadyOwned) {
@@ -2815,14 +2871,15 @@ export default function BriefingRoomGate({
     );
   }
 
-  const header = isOptionsRoom ? null : (
+  const isComposingPost = isPostOpen && activePanel === "post";
+  const header = isOptionsRoom || isComposingPost ? null : (
     <div className={`${styles.gateHeader} w-full max-w-4xl`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="flex flex-col items-center gap-4 text-center">
         <h1 className={`${styles.gateTitle} font-mono text-4xl font-black uppercase sm:text-6xl`}>
           briefing room
         </h1>
         {isUnlocked && (savedMember || canCreatePosts) ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col items-center gap-2">
             {savedMember ? (
               <button
                 type="button"
@@ -2831,6 +2888,7 @@ export default function BriefingRoomGate({
                 onClick={() => {
                   setIsDailySpinOpen((isOpen) => !isOpen);
                   setDailySpinMessage("");
+                  setHasDailySpinResult(false);
                 }}
                 className={styles.dailySpinIcon}
                 data-spin-available={!hasClaimedDailySpin}
@@ -2838,25 +2896,35 @@ export default function BriefingRoomGate({
                 🎰
               </button>
             ) : null}
-            {canCreatePosts ? (
-              <button
+            <button
                 type="button"
-                onClick={openPostWindow}
+                onClick={(event) => canCreatePosts
+                  ? openPostWindow()
+                  : showPostingLock(event.currentTarget, "post")}
+                aria-expanded={!canCreatePosts ? lockedShortcut === "post" : undefined}
                 className="border border-[#39ff14] bg-[#031403] px-2.5 py-1.5 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                📝 Create a post
-              </button>
-            ) : null}
-            {canCreatePosts && canUseThiago ? (
-              <button
+            >
+              📝 Create a post
+            </button>
+            <button
                 type="button"
-                onClick={openLazyBank}
+                onClick={(event) => canUseThiago
+                  ? openLazyBank()
+                  : showPostingLock(event.currentTarget, "bank")}
+                aria-expanded={!canUseThiago ? lockedShortcut === "bank" : undefined}
                 className="border border-dashed border-[#39ff14] bg-black px-2.5 py-1.5 text-xs font-black tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 aria-label="Open 🌀 PASTE & GO 🎢"
                 title="🌀 PASTE & GO 🎢"
-              >
-                🌀 PASTE &amp; GO 🎢
-              </button>
+            >
+              🌀 PASTE &amp; GO 🎢
+            </button>
+            {(lockedShortcut === "post" && !canCreatePosts) ||
+            (lockedShortcut === "bank" && !canUseThiago) ? (
+              <div className={styles.postingLock}>
+                <p role="status">
+                  Earn 1,000 lifetime points to rank up to Poster I. Earn points by participating.
+                </p>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -2922,13 +2990,13 @@ export default function BriefingRoomGate({
       <div className={styles.gate}>
         {header}
         <div
-          className={`${styles.workspace} ${isOptionsRoom ? "mt-0" : "mt-10"} grid w-full max-w-4xl gap-6 ${
-            (isPostOpen && activePanel === "post") || isOptionsRoom
+          className={`${styles.workspace} ${isOptionsRoom || isComposingPost ? "mt-0" : "mt-10"} grid w-full max-w-4xl gap-6 ${
+            isComposingPost || isOptionsRoom
               ? ""
               : "md:grid-cols-[220px_1fr]"
           }`}
         >
-        {(isPostOpen && activePanel === "post") || isOptionsRoom ? null : (
+        {isComposingPost || isOptionsRoom ? null : (
         <aside className={`${styles.optionsRail} order-2 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] md:order-1`}>
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
             options
@@ -3121,7 +3189,7 @@ export default function BriefingRoomGate({
         <section
           key={`${activePanel}:${activeDraftId ?? "room"}`}
           className={`${styles.panelSurface} briefing-panel-surface border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)] ${
-            (isPostOpen && activePanel === "post") || isOptionsRoom
+            isComposingPost || isOptionsRoom
               ? "order-1"
               : "order-1 md:order-2"
           }`}
@@ -4426,21 +4494,33 @@ export default function BriefingRoomGate({
                         </span>
                       </p>
                       <p>
-                        rule
-                        <span className="mt-2 block text-[#7f9f78]">
-                          stamps are identity collectibles and appear in the
-                          profile Trophy Case once owned.
+                        Tokens
+                        <span className="mt-2 block text-xl text-[#e7c654]">
+                          {formatPointCount(savedMember.bayoTokens)}
                         </span>
                       </p>
                     </div>
+                    <p className="text-xs font-bold text-[#a9c3a4]">
+                      Collected stamps appear in your profile Trophy Case.
+                    </p>
+                    {stampMessage ? (
+                      <p className={styles.exchangeFeedback} role="status">{stampMessage}</p>
+                    ) : null}
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {bayoStamps.map((stamp) => {
+                      {bayoStamps.filter((stamp) => stamp.id !== "birthday" ||
+                        isBirthdayOn(savedMember.birthdayMonth, savedMember.birthdayDay, pacificDate),
+                      ).map((stamp) => {
                         const isOwned = savedMember.bayoStamps?.includes(stamp.id);
+                        const tokenCost = stamp.tokenCost ?? 0;
+                        const points = stamp.pointReward ?? defaultStampPointReward;
                         const canBuy =
                           !isOwned &&
-                          (savedMember.bayoCoins ?? 0) >= stamp.coinCost;
+                          (savedMember.bayoCoins ?? 0) >= stamp.coinCost &&
+                          (savedMember.bayoTokens ?? 0) >= tokenCost;
                         const costLabel =
-                          stamp.coinCost === 0
+                          tokenCost > 0
+                            ? `${tokenCost} ${tokenCost === 1 ? "token" : "tokens"}`
+                            : stamp.coinCost === 0
                             ? "free"
                             : `${stamp.coinCost} ${
                                 stamp.coinCost === 1 ? "coin" : "coins"
@@ -4462,6 +4542,11 @@ export default function BriefingRoomGate({
                               <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
                                 {stamp.description}
                               </p>
+                              {!isOwned && points > 0 ? (
+                                <p className="mt-1 text-xs font-bold text-[#a7e19e]">
+                                  +{formatPointCount(points)} points
+                                </p>
+                              ) : null}
                             </div>
                             <button
                               type="button"
@@ -4744,9 +4829,13 @@ export default function BriefingRoomGate({
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
                     Birthday
                   </p>
+                  <p className="text-xs text-[#a9c3a4]">
+                    Save your month and day to claim a Birthday stamp on your birthday. Year is optional.
+                  </p>
                   <div className="flex flex-wrap gap-3">
                     <input
                       inputMode="numeric"
+                      aria-label="Birthday month"
                       placeholder="month"
                       value={birthdayMonth}
                       onChange={(event) => {
@@ -4759,6 +4848,18 @@ export default function BriefingRoomGate({
                     />
                     <input
                       inputMode="numeric"
+                      aria-label="Birthday day"
+                      placeholder="day"
+                      value={birthdayDay}
+                      onChange={(event) => {
+                        setBirthdayDay(event.target.value.replace(/\D/g, "").slice(0, 2));
+                        setSettingsMessage("");
+                      }}
+                      className="w-28 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                    <input
+                      inputMode="numeric"
+                      aria-label="Birthday year (optional)"
                       placeholder="year"
                       value={birthdayYear}
                       onChange={(event) => {
@@ -4918,11 +5019,11 @@ export default function BriefingRoomGate({
                       not hide records from BaySpace systems.
                     </p>
                     <a
-                      href={baySpaceAgreementHref}
+                      href={settingsAgreementHref}
                       target="_blank"
                       rel="external noopener noreferrer"
                       onClick={(event) => {
-                        if (openExternalBrowser(baySpaceAgreementHref)) {
+                        if (openExternalBrowser(settingsAgreementHref)) {
                           event.preventDefault();
                         }
                       }}
@@ -5166,6 +5267,32 @@ export default function BriefingRoomGate({
             <div>
               <button
                 type="button"
+                onClick={() => setActivePanel("circles")}
+                className={styles.exchangeCard}
+              >
+                <span className={styles.exchangeEyebrow}>Bay Space</span>
+                <span className={styles.exchangeTitle}>Circles</span>
+                <span className={styles.exchangeArrow} aria-hidden="true">→</span>
+              </button>
+              <nav className={`${styles.exchangeCard} ${styles.feedShortcuts}`} aria-label="Article feeds">
+                <Link href="/theories">
+                  <span className={styles.exchangeTitle}>Conspiracy<br />Theories</span>
+                </Link>
+                <Link href="/facts-on-news">
+                  <span className={styles.exchangeTitle}>Current<br />Events</span>
+                </Link>
+              </nav>
+              <button
+                type="button"
+                onClick={openBlackLight}
+                className={`${styles.exchangeCard} ${styles.blackLightCard}`}
+              >
+                <span className={styles.exchangeEyebrow}>Ask Thiago</span>
+                <span className={styles.exchangeTitle}>Black Light</span>
+                <span className={styles.exchangeArrow} aria-hidden="true">→</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActivePanel("exchange")}
                 className={styles.exchangeCard}
               >
@@ -5175,7 +5302,11 @@ export default function BriefingRoomGate({
                   →
                 </span>
               </button>
-              <div className={styles.balanceBar} aria-label="Exchange balances">
+              <div className={`${styles.balanceBar} ${styles.exchangeBalances}`} aria-label="Exchange balances">
+                <span>
+                  <small>Lifetime<br />Points</small>
+                  <strong>{formatPointCount(savedMember.lifetimePoints)}</strong>
+                </span>
                 <span>
                   <small>Points</small>
                   <strong>{formatPointCount(savedMember.availablePoints)}</strong>
@@ -5189,28 +5320,16 @@ export default function BriefingRoomGate({
                   <strong>{formatPointCount(savedMember.bayoTokens)}</strong>
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={openBlackLight}
-                className={`${styles.exchangeCard} ${styles.blackLightCard}`}
-              >
-                <span className={styles.exchangeEyebrow}>Ask Thiago</span>
-                <span className={styles.exchangeTitle}>Black Light</span>
-                <span className={styles.exchangeArrow} aria-hidden="true">
-                  →
+              <div className={`${styles.balanceBar} ${styles.rankBar}`} aria-label="Rank progress">
+                <span>
+                  <small>Rank</small>
+                  <strong>{isOracleMember ? "Oracle" : getCryptiRankLabel(savedMember.cryptiRank) || getBayRankLabel(savedMember.rank)}</strong>
                 </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActivePanel("circles")}
-                className={styles.exchangeCard}
-              >
-                <span className={styles.exchangeEyebrow}>Bay Space</span>
-                <span className={styles.exchangeTitle}>Circles</span>
-                <span className={styles.exchangeArrow} aria-hidden="true">
-                  →
+                <span>
+                  <small>Points till next rank</small>
+                  <strong>{isOracleEligible ? "Oracle Badge required" : formatPointCount(promotionProgress?.pointsUntil ?? 0)}</strong>
                 </span>
-              </button>
+              </div>
             </div>
           ) : (
             <>

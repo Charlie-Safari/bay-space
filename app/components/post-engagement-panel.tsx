@@ -66,6 +66,7 @@ export default function PostEngagementPanel({
   const [commentBody, setCommentBody] = useState("");
   const [availablePoints, setAvailablePoints] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [voteError, setVoteError] = useState("");
   const [isCommentSaving, setIsCommentSaving] = useState(false);
   const [deletingCommentIds, setDeletingCommentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -210,10 +211,11 @@ export default function PostEngagementPanel({
     const score = dimension === "truth" ? truthScore : relevanceScore;
     const savedScore = dimension === "truth"
       ? truthSummary.userScore : truthSummary.relevance?.userScore;
-    if (isCurrentEvents && score === 0) return;
+    const remove = isCurrentEvents && savedScore != null;
+    if (isCurrentEvents && !remove && score === 0) return;
 
     setVotingDimension(dimension);
-    setErrorMessage("");
+    setVoteError("");
 
     try {
       const response = await fetch(
@@ -222,27 +224,28 @@ export default function PostEngagementPanel({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(isCurrentEvents
-            ? { score, dimension, remove: savedScore === score }
+            ? { score, dimension, remove }
             : { score }),
         },
       );
       const data = (await response.json()) as TruthVoteResponse;
 
+      if (data.summary) {
+        setTruthSummary(data.summary);
+        if (dimension === "truth") {
+          setTruthScore(data.summary.userScore ?? (isCurrentEvents ? 0 : truthScore));
+        } else {
+          setRelevanceScore(data.summary.relevance?.userScore ?? 0);
+        }
+        onTruthSummaryChange?.(data.summary);
+      }
       if (!response.ok || !data.summary) {
-        setErrorMessage(data.message ?? "truth vote not saved");
+        setVoteError(data.message ?? "Vote not saved. Try again.");
         return;
       }
-
-      setTruthSummary(data.summary);
-      if (dimension === "truth") {
-        setTruthScore(data.summary.userScore ?? (isCurrentEvents ? 0 : truthScore));
-      } else {
-        setRelevanceScore(data.summary.relevance?.userScore ?? 0);
-      }
-      onTruthSummaryChange?.(data.summary);
       if (isCurrentEvents) window.dispatchEvent(new Event("bay-space-auth"));
     } catch {
-      setErrorMessage("truth vote not saved");
+      setVoteError("Vote not saved. Try again.");
     } finally {
       setVotingDimension(null);
     }
@@ -296,15 +299,16 @@ export default function PostEngagementPanel({
     commentCharacterCount > availablePoints;
 
   return (
-    <section className="mt-6 grid gap-5 border-t border-[#1d7f12] pt-5">
+    <section className="mt-6 grid min-w-0 grid-cols-1 gap-5 border-t border-[#1d7f12] pt-5 [overflow-wrap:anywhere]">
       {isCurrentEvents ? (
-        <div className="grid gap-6">
+        <div className="grid min-w-0 grid-cols-1 gap-6">
           <CurrentEventRatingScale
             title="truth vote"
             labels={["Fallacious", "Biased", "Factual"]}
             value={truthScore}
             savedValue={truthSummary.userScore}
             voteCount={truthSummary.voteCount}
+            otherVoteCounts={truthSummary.otherVoteCounts}
             disabled={!isLoggedIn || isLoading || isVoting}
             saving={votingDimension === "truth"}
             onChange={setTruthScore}
@@ -316,6 +320,7 @@ export default function PostEngagementPanel({
             value={relevanceScore}
             savedValue={truthSummary.relevance?.userScore ?? null}
             voteCount={truthSummary.relevance?.voteCount ?? 0}
+            otherVoteCounts={truthSummary.relevance?.otherVoteCounts}
             disabled={!isLoggedIn || isLoading || isVoting}
             saving={votingDimension === "relevance"}
             onChange={setRelevanceScore}
@@ -360,7 +365,11 @@ export default function PostEngagementPanel({
         </div>
       )}
 
-      <div className="grid gap-3">
+      {voteError ? (
+        <p role="alert" className="bay-terminal-copy text-xs text-[#ff7379]">{voteError}</p>
+      ) : null}
+
+      <div className="grid min-w-0 grid-cols-1 gap-3">
         <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
           comments
         </h3>
@@ -369,11 +378,11 @@ export default function PostEngagementPanel({
             loading
           </p>
         ) : comments.length ? (
-          <div className="grid max-h-72 gap-3 overflow-y-auto pr-2">
+          <div className="grid max-h-72 min-w-0 grid-cols-1 gap-3 overflow-y-auto pr-2">
             {comments.map((comment) => (
               <article
                 key={comment.id}
-                className="relative border border-[#1d7f12] bg-black px-3 py-3 pr-11"
+                className={`relative min-w-0 border border-[#1d7f12] bg-black px-3 py-3 ${postCategory === "theory" ? "pr-11" : ""}`}
               >
                 {postCategory === "theory" &&
                 now - new Date(comment.createdAt).getTime() <
@@ -421,13 +430,13 @@ export default function PostEngagementPanel({
           </p>
         )}
 
-        <form onSubmit={saveComment} className="grid gap-3">
+        <form onSubmit={saveComment} className="grid min-w-0 grid-cols-1 gap-3">
           <textarea
             value={commentBody}
             onChange={(event) => setCommentBody(limitCharacters(event.target.value))}
             rows={3}
             disabled={commentRequiresLogin}
-            className="bay-terminal-field min-h-24 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+            className="bay-terminal-field min-h-24 w-full min-w-0 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
             placeholder={
               commentRequiresLogin
                 ? "sign in to comment on Current Events"

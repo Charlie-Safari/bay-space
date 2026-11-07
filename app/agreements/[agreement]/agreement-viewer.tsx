@@ -85,10 +85,12 @@ export default function AgreementViewer({
     const returnHref = returnTo || fallbackHref;
     const url = new URL(returnHref, window.location.origin);
 
-    url.searchParams.set("agreementRead", agreement);
+    if (isCryptiAgreement) {
+      url.searchParams.set("agreementRead", agreement);
 
-    if (isCryptiAgreement && hasConfirmedAgreement) {
-      url.searchParams.set("cryptiAgreementAccepted", "true");
+      if (hasConfirmedAgreement) {
+        url.searchParams.set("cryptiAgreementAccepted", "true");
+      }
     }
 
     return `${url.pathname}${url.search}${url.hash}`;

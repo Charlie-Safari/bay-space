@@ -43,11 +43,13 @@ export type BayPostTruthVoteSummary = {
   scoreTotal: number;
   userScore: number | null;
   voteCount: number;
+  otherVoteCounts?: number[];
   relevance?: {
     averageScore: number;
     scoreTotal: number;
     userScore: number | null;
     voteCount: number;
+    otherVoteCounts?: number[];
   };
 };
 
@@ -138,6 +140,7 @@ export type BayMember = {
   title: string;
   createdAt: string;
   email?: string;
+  birthdayDay?: string;
   birthdayMonth?: string;
   birthdayYear?: string;
   links?: {

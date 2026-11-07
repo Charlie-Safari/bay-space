@@ -16,7 +16,7 @@ function truthVoteErrorResponse(error: unknown) {
 
   if (storageMessage) {
     console.error(storageMessage);
-    return Response.json({ message: storageMessage }, { status: 503 });
+    return Response.json({ message: "Voting is temporarily unavailable. Try again later." }, { status: 503 });
   }
 
   console.error(error);
@@ -82,6 +82,13 @@ export async function POST(request: Request, context: TruthVoteContext) {
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
+    }
+
+    if ("alreadyVoted" in result && result.alreadyVoted) {
+      return Response.json(
+        { summary: result.summary, message: "Remove your existing vote before casting a new one." },
+        { status: 409 },
+      );
     }
 
     revalidatePath("/daily-food");

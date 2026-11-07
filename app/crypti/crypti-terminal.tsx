@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChangeEvent,
@@ -46,6 +44,9 @@ import {
 } from "../../lib/bay-space-scoring";
 import CryptiCirclesPanel from "./crypti-circles-panel";
 import CryptiProfileCirclesCard from "./crypti-profile-circles-card";
+import { CryptiBaseCamp } from "./crypti-base-camp";
+import CryptiNavigation, { cryptiTabs } from "./crypti-navigation";
+import styles from "./crypti.module.css";
 
 type VoteRange = "today" | "all-time";
 type CryptiPanel =
@@ -792,6 +793,8 @@ export default function CryptiTerminal() {
   const profileMemberParam = searchParams.get("profile") ?? "";
   const sourceModeParam = searchParams.get("source")?.toUpperCase() ?? "";
   const tickerSymbolParam = normalizeCryptiSymbol(searchParams.get("ticker") ?? "");
+  const viewParam = searchParams.get("view");
+  const initialTab = cryptiTabs.find((tab) => tab.id === viewParam);
   const initialSourcePanel =
     sourceModeParam === "R" ||
     sourceModeParam === "Q" ||
@@ -806,7 +809,7 @@ export default function CryptiTerminal() {
       ? "crypti-profile"
       : tickerSymbolParam
         ? "tickers"
-        : initialSourcePanel ?? "smoke",
+        : initialSourcePanel ?? initialTab?.id ?? "signal-room",
   );
   const [isCategoryGridOpen, setIsCategoryGridOpen] = useState(false);
   const [selectedCryptiCategory, setSelectedCryptiCategory] = useState("");
@@ -2248,42 +2251,42 @@ export default function CryptiTerminal() {
         aria-label="R News date navigator"
         className={`justify-self-start ${className}`}
       >
-        <div className="flex w-28 flex-col items-center gap-3 text-[#39ff14]">
+        <div className="flex w-28 flex-col items-center gap-3 text-[#79ceff]">
           <div className="flex h-24 flex-col items-center justify-center gap-3">
             {canMoveRNewsDateForward ? (
               <button
                 type="button"
                 onClick={() => moveRNewsDate(1)}
-                className="border-2 border-[#1d7f12] px-5 py-2 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="border-2 border-[#355a76] px-5 py-2 text-lg font-black leading-none transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 aria-label="Move R News date forward one day"
               >
                 ^
               </button>
             ) : (
-              <span className="text-xs font-black uppercase tracking-[0.3em] text-[#7f9f78]">
+              <span className="text-xs font-black uppercase tracking-[0.3em] text-[#a0b9d1]">
                 current
               </span>
             )}
-            <span className="h-16 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
+            <span className="h-16 w-px bg-[#79ceff] shadow-[0_0_12px_#79ceff]" />
           </div>
           <div className="text-center">
-            <div className="text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+            <div className="text-sm font-black uppercase tracking-[0.24em] text-[#deeffd]">
               {formatTimelineMonth(activeRNewsDate)}
             </div>
-            <div className="mt-1 text-6xl font-black leading-none [text-shadow:0_0_14px_#39ff14] sm:text-7xl">
+            <div className="mt-1 text-6xl font-black leading-none [text-shadow:0_0_14px_#79ceff] sm:text-7xl">
               {activeRNewsDate.getDate()}
             </div>
           </div>
           <div className="flex h-24 flex-col items-center justify-center gap-3">
-            <span className="h-16 w-px bg-[#39ff14] shadow-[0_0_12px_#39ff14]" />
-            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+            <span className="h-16 w-px bg-[#79ceff] shadow-[0_0_12px_#79ceff]" />
+            <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
               {formatTimelineDate(previousRNewsDate)}
             </span>
           </div>
           <button
             type="button"
             onClick={() => moveRNewsDate(-1)}
-            className="border-2 border-[#1d7f12] px-5 py-2 text-lg font-black leading-none transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="border-2 border-[#355a76] px-5 py-2 text-lg font-black leading-none transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
             aria-label="Move R News date back one day"
           >
             v
@@ -2307,32 +2310,32 @@ export default function CryptiTerminal() {
         tabIndex={0}
         onClick={() => openCryptiPostDetail(post.id)}
         onKeyDown={(event) => openCryptiPostDetailFromKeyboard(event, post.id)}
-        className="daily-food-card cursor-pointer border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+        className="daily-food-card cursor-pointer border-2 border-[#355a76] bg-black px-4 py-4 shadow-[0_0_14px_rgba(121,206,255,0.12)] transition hover:border-[#79ceff] hover:shadow-[0_0_20px_rgba(121,206,255,0.28)] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
               {categoryLabel}
             </p>
-            <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+            <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
               {formatPostTimestamp(post.createdAt)}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
+            <span className="text-xs font-black uppercase tracking-[0.12em] text-[#79ceff]">
               {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
             </span>
           </div>
         </div>
-        <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+        <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#79ceff]">
           {post.title}
         </h2>
         {!options.headlineOnly && receiptLines.length ? (
-          <div className="mt-4 grid gap-3 text-base leading-7 text-[#d7ffd0]">
+          <div className="mt-4 grid gap-3 text-base leading-7 text-[#deeffd]">
             {receiptLines.map((line, index) => (
               <div key={`${post.id}-${line}-${index}`} className="flex items-start gap-3">
                 <span
-                  className="mt-2 h-2 w-2 shrink-0 bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,0.75)]"
+                  className="mt-2 h-2 w-2 shrink-0 bg-[#79ceff] shadow-[0_0_8px_rgba(121,206,255,0.75)]"
                   aria-hidden="true"
                 />
                 <p>{line}</p>
@@ -2340,13 +2343,13 @@ export default function CryptiTerminal() {
             ))}
           </div>
         ) : !options.headlineOnly ? (
-          <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
+          <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#deeffd]">
             no receipts entered
           </p>
         ) : null}
         {!options.headlineOnly && getPostSources(post).length ? (
-          <section className="mt-5 border-t border-[#1d7f12] pt-3">
-            <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+          <section className="mt-5 border-t border-[#355a76] pt-3">
+            <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
               SOURCES
             </h3>
             <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
@@ -2355,7 +2358,7 @@ export default function CryptiTerminal() {
                   <a
                     href={getSourceHref(source)}
                     onClick={(event) => event.stopPropagation()}
-                    className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                    className="break-all text-[#deeffd] underline decoration-[#79ceff] underline-offset-4"
                   >
                     {source}
                   </a>
@@ -2390,10 +2393,10 @@ export default function CryptiTerminal() {
 
                 castVote(ticker, option.value);
               }}
-              className={`border px-2 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+              className={`border px-2 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                 ticker.userVote === option.value
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                  ? "border-[#79ceff] bg-[#79ceff] text-black"
+                  : "border-[#355a76] bg-black text-[#79ceff] hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black"
               }`}
             >
               <span className="block text-lg" aria-hidden="true">
@@ -2426,7 +2429,7 @@ export default function CryptiTerminal() {
 
     return (
       <div
-        className="relative grid gap-4 border border-dashed border-[#1d7f12] bg-black px-3 py-3"
+        className="relative grid gap-4 border border-dashed border-[#355a76] bg-black px-3 py-3"
         onClick={(event) => {
           if (stopCardClick) {
             event.stopPropagation();
@@ -2447,10 +2450,10 @@ export default function CryptiTerminal() {
         >
           x
         </button>
-        <p className="pr-8 text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+        <p className="pr-8 text-xs font-black uppercase tracking-[0.18em] text-[#deeffd]">
           vote graph
         </p>
-        <div className="grid grid-cols-4 items-end gap-3 border-b border-l border-[#1d7f12] px-3 pb-3 pt-2">
+        <div className="grid grid-cols-4 items-end gap-3 border-b border-l border-[#355a76] px-3 pb-3 pt-2">
           {voteOptions.map((option) => {
             const voteCount = getVoteCount(counts, option.value);
             const barHeight =
@@ -2464,18 +2467,18 @@ export default function CryptiTerminal() {
 
             return (
               <div key={option.value} className="grid min-w-0 gap-2">
-                <div className="flex h-28 items-end border border-[#1d7f12] bg-[#001100] px-2">
+                <div className="flex h-28 items-end border border-[#355a76] bg-[#0a1829] px-2">
                   {voteCount > 0 ? (
                     <div
-                      className="w-full bg-[#39ff14] shadow-[0_0_10px_rgba(57,255,20,0.55)]"
+                      className="w-full bg-[#79ceff] shadow-[0_0_10px_rgba(121,206,255,0.55)]"
                       style={{ height: barHeight }}
                     />
                   ) : null}
                 </div>
-                <p className="text-center text-sm font-black text-[#39ff14]">
+                <p className="text-center text-sm font-black text-[#79ceff]">
                   {voteCount}
                 </p>
-                <p className="min-h-8 text-center text-[0.58rem] font-black uppercase leading-4 tracking-[0.08em] text-[#d7ffd0]">
+                <p className="min-h-8 text-center text-[0.58rem] font-black uppercase leading-4 tracking-[0.08em] text-[#deeffd]">
                   {graphLabel}
                 </p>
               </div>
@@ -2483,8 +2486,8 @@ export default function CryptiTerminal() {
           })}
         </div>
         {confirmRevoteTickerId === ticker.id ? (
-          <div className="mt-2 border border-dashed border-[#39ff14] bg-[#001100] px-3 py-3">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <div className="mt-2 border border-dashed border-[#79ceff] bg-[#0a1829] px-3 py-3">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
               cancel vote?
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -2494,14 +2497,14 @@ export default function CryptiTerminal() {
                   setRevoteTickerId(ticker.id);
                   setConfirmRevoteTickerId("");
                 }}
-                className="border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="border border-[#79ceff] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
               >
                 yes
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmRevoteTickerId("")}
-                className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="border border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#79ceff] transition hover:border-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
               >
                 no
               </button>
@@ -2515,7 +2518,7 @@ export default function CryptiTerminal() {
   function renderCryptiProfilePostList(posts: BayPost[]) {
     if (!posts.length) {
       return (
-        <p className="mt-6 border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+        <p className="mt-6 border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
           empty
         </p>
       );
@@ -2530,12 +2533,12 @@ export default function CryptiTerminal() {
             tabIndex={0}
             onClick={() => openCryptiPostDetail(post.id)}
             onKeyDown={(event) => openCryptiPostDetailFromKeyboard(event, post.id)}
-            className="cursor-pointer border border-dashed border-[#1d7f12] bg-black px-4 py-4 transition hover:border-[#39ff14] hover:shadow-[0_0_14px_rgba(57,255,20,0.22)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="cursor-pointer border border-dashed border-[#355a76] bg-black px-4 py-4 transition hover:border-[#79ceff] hover:shadow-[0_0_14px_rgba(121,206,255,0.22)] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
           >
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
               {formatPostTimestamp(post.createdAt)}
             </p>
-            <h3 className="mt-3 text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0]">
+            <h3 className="mt-3 text-sm font-black uppercase tracking-[0.14em] text-[#deeffd]">
               {post.title}
             </h3>
           </article>
@@ -2547,7 +2550,7 @@ export default function CryptiTerminal() {
   function renderCryptiProfileTickerList(profileTickers: CryptiTicker[]) {
     if (!profileTickers.length) {
       return (
-        <p className="mt-6 border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+        <p className="mt-6 border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
           empty
         </p>
       );
@@ -2563,17 +2566,17 @@ export default function CryptiTerminal() {
               key={ticker.id}
               type="button"
               onClick={() => openTickerFrame(ticker)}
-              className="grid gap-2 border border-dashed border-[#1d7f12] bg-black px-4 py-4 text-left transition hover:border-[#39ff14] hover:shadow-[0_0_14px_rgba(57,255,20,0.22)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:grid-cols-[1fr_auto] sm:items-center"
+              className="grid gap-2 border border-dashed border-[#355a76] bg-black px-4 py-4 text-left transition hover:border-[#79ceff] hover:shadow-[0_0_14px_rgba(121,206,255,0.22)] focus:outline-none focus:ring-2 focus:ring-[#deeffd] sm:grid-cols-[1fr_auto] sm:items-center"
             >
               <div>
-                <h4 className="text-lg font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                <h4 className="text-lg font-black uppercase tracking-[0.18em] text-[#79ceff]">
                   {ticker.symbol}
                 </h4>
-                <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-[#7f9f78]">
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-[#a0b9d1]">
                   {formatPostTimestamp(ticker.createdAt)}
                 </p>
               </div>
-              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+              <p className="text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                 {formatScore(counts.score)} pts
               </p>
             </button>
@@ -2596,97 +2599,35 @@ export default function CryptiTerminal() {
     "r-news": "R NEWS",
     secrets: "SHARE YOUR SECRETS",
     "s-buzz": "S BUZZ",
-    "signal-room": "SIGNAL-ROOM",
-    smoke: "TODAYS SMOKE",
+    "signal-room": "BASE CAMP",
+    smoke: "TODAY’S SMOKE",
     tickers: "TICKERS",
   };
 
   return (
-    <div className="grid gap-6">
-      <header className="w-full">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-4 flex flex-wrap items-center gap-x-1 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-              <span>C:\</span>
-              <Link
-                href="/"
-                className="text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                BAY-SPACE
-              </Link>
-              <span>\</span>
-              <button
-                type="button"
-                onClick={openSignalRoom}
-                className="border-0 bg-transparent p-0 text-left uppercase text-[#d7ffd0] [font:inherit] [letter-spacing:inherit] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              >
-                +CRYPTI
-              </button>
-              <span>&gt;</span>
-              <span>{cryptiTerminalPathLabel[activePanel]}</span>
-            </p>
-            <div className="flex flex-wrap items-end gap-5">
-              <h1 className="text-5xl font-black uppercase tracking-[0.2em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
-                <button
-                  type="button"
-                  onClick={openSignalRoom}
-                  className="border-0 bg-transparent p-0 text-left uppercase text-[#d7ffd0] [font:inherit] [letter-spacing:inherit] [text-shadow:inherit] transition hover:text-[#39ff14] hover:[text-shadow:0_0_16px_#39ff14] focus:outline-none focus:text-[#39ff14] focus:ring-2 focus:ring-[#d7ffd0] focus:[text-shadow:0_0_16px_#39ff14] active:text-[#39ff14] active:[text-shadow:0_0_16px_#39ff14]"
-                  aria-label="Open +CRYPTI Signal Room"
-                >
-                  +CRYPTI
-                </button>
-              </h1>
-              {!isCryptiPostWindowOpen ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCryptiCategory("");
-                    setActivePanel("smoke");
-                  }}
-                  className={`mb-2 border-2 px-5 py-3 text-xs font-black uppercase tracking-[0.22em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                    activePanel === "smoke"
-                      ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
-                      : "border-[#39ff14] bg-black text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.2)] hover:bg-[#39ff14] hover:text-black"
-                  }`}
-                >
-                  Today&apos;s Smoke
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {!isCryptiPostWindowOpen ? (
-        <div className="flex flex-wrap gap-3">
-          {[
-            { id: "signal-room", label: "Signal Room" },
-            { id: "tickers", label: "Tickers" },
-            { id: "r-news", label: "R News" },
-            { id: "q-degen", label: "Q Degen" },
-            { id: "s-buzz", label: "S Buzz" },
-          ].map((panel) => (
-            <button
-              key={panel.id}
-              type="button"
-              onClick={() => {
-                setSelectedCryptiCategory("");
-                setActivePanel(panel.id as CryptiPanel);
-              }}
-              className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                activePanel === panel.id
-                  ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_16px_rgba(57,255,20,0.5)]"
-                  : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
-              }`}
-            >
-              {panel.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+    <div className="grid min-w-0 gap-6">
+      <CryptiNavigation
+        activePanel={activePanel}
+        showTabs={!isCryptiPostWindowOpen}
+        onSelect={(tab) => {
+          if (tab === "signal-room") {
+            openSignalRoom();
+            return;
+          }
+          setSelectedCryptiCategory("");
+          setActivePanel(tab);
+        }}
+      />
+      {activePanel === "signal-room" ? (
+        <CryptiBaseCamp />
+      ) : (
+        <h1 className={styles.breadcrumb}>
+          +CRYPTI / {cryptiTerminalPathLabel[activePanel]}
+        </h1>
+      )}
 
       {minimizedCryptiDrafts.length ? (
-        <div className="flex flex-wrap gap-2 border border-dashed border-[#1d7f12] bg-black px-3 py-3">
+        <div className="flex flex-wrap gap-2 border border-dashed border-[#355a76] bg-black px-3 py-3">
           {minimizedCryptiDrafts
             .slice()
             .sort((leftDraft, rightDraft) => leftDraft.id - rightDraft.id)
@@ -2695,10 +2636,10 @@ export default function CryptiTerminal() {
                 key={draft.id}
                 type="button"
                 onClick={() => restoreCryptiPostDraft(draft.id)}
-                className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                   activePanel === "post" && activeCryptiDraftId === draft.id
-                    ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_14px_rgba(57,255,20,0.45)]"
-                    : "border-[#1d7f12] bg-[#001100] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                    ? "border-[#79ceff] bg-[#79ceff] text-black shadow-[0_0_14px_rgba(121,206,255,0.45)]"
+                    : "border-[#355a76] bg-[#0a1829] text-[#79ceff] hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black"
                 }`}
               >
                 new post {draft.id}
@@ -2708,103 +2649,61 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "signal-room" ? (
-        <section className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)] lg:grid-cols-[minmax(12rem,16rem)_1fr]">
-          <div className="order-2 grid content-start gap-3 border border-dashed border-[#1d7f12] bg-[#001100] p-3 lg:order-1">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCryptiCategory("");
-                setCryptiProfileMemberNumber(currentMemberNumber);
-                setActivePanel("crypti-profile");
-              }}
-              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              +CRYPTI - Profile
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCryptiCategory("");
-                setMyPostsOpenLane(null);
-                setActivePanel("my-posts");
-              }}
-              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              My Posts
-            </button>
-            <button
-              type="button"
-              onClick={() => {
+        <div className={styles.campTools}>
+          <section className={styles.toolPanel} aria-labelledby="crypti-posting-tools">
+            <h2 id="crypti-posting-tools">Post a signal</h2>
+            <div className={styles.actions}>
+              <button type="button" className={styles.action} onClick={openCryptiPost}>
+                New Post <span aria-hidden="true">↗</span>
+              </button>
+              <button type="button" className={styles.action} onClick={openCryptiBank}>
+                🌀 Paste &amp; Go 🎢 <span aria-hidden="true">↗</span>
+              </button>
+              <button type="button" className={styles.action} onClick={openShareSecrets}>
+                Share Your Secrets <span aria-hidden="true">↗</span>
+              </button>
+              <a className={styles.action} href={lazyAssistantUrl} target="_blank" rel="noopener noreferrer">
+                Find A Story <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </section>
+          <section className={styles.toolPanel} aria-labelledby="crypti-explorer-tools">
+            <h2 id="crypti-explorer-tools">Explorer tools</h2>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => {
+                  setSelectedCryptiCategory("");
+                  setCryptiProfileMemberNumber(currentMemberNumber);
+                  setActivePanel("crypti-profile");
+                }}
+              >
+                Profile <span aria-hidden="true">↗</span>
+              </button>
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => {
+                  setSelectedCryptiCategory("");
+                  setMyPostsOpenLane(null);
+                  setActivePanel("my-posts");
+                }}
+              >
+                My Posts <span aria-hidden="true">↗</span>
+              </button>
+              <button type="button" className={styles.action} onClick={() => {
                 setSelectedCryptiCategory("");
                 setActivePanel("favorites");
-              }}
-              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              Favorites
-            </button>
-            <button
-              type="button"
-              onClick={openCryptiBank}
-              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              LA + CRYPTI ✅💰
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCryptiCategory("");
-                setActivePanel("crypti-circles");
-              }}
-              className="w-full border border-[#1d7f12] px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              +CIRCLES
-            </button>
-          </div>
-
-          <div className="order-1 grid content-center gap-4 sm:grid-cols-2 lg:order-2">
-            <button
-              type="button"
-              onClick={openCryptiBank}
-              className="min-h-24 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-sm font-black tracking-[0.18em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open 🌀 PASTE & GO 🎢"
-            >
-              🌀 PASTE &amp; GO 🎢
-            </button>
-            <a
-              href={lazyAssistantUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-24 items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-              aria-label="Open Find A Story"
-              title="Find A Story"
-            >
-              <Image
-                src="/brand/crypti-green-logo.png"
-                alt=""
-                width={50}
-                height={50}
-                className="h-[50px] w-[50px] object-contain"
-              />
-              <span className="text-left text-sm font-black uppercase tracking-[0.18em]">
-                Find A Story
-              </span>
-            </a>
-            <button
-              type="button"
-              onClick={openShareSecrets}
-              className="min-h-24 border-2 border-dashed border-[#39ff14] bg-black px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              Share Your Secrets
-            </button>
-            <button
-              type="button"
-              onClick={openCryptiPost}
-              className="min-h-24 border-2 border-[#39ff14] bg-[#031403] px-5 py-4 text-sm font-black uppercase tracking-[0.24em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-            >
-              New Post
-            </button>
-          </div>
-        </section>
+              }}>
+                Favorites <span aria-hidden="true">↗</span>
+              </button>
+              <button type="button" className={styles.action} onClick={() => setActivePanel("how-to")}>
+                Field Guide <span aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {activePanel === "crypti-circles" ? (
@@ -2814,8 +2713,8 @@ export default function CryptiTerminal() {
             member={currentCryptiCircleMember}
           />
         ) : (
-          <section className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
-            <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <section className="grid gap-5 border-2 border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
+            <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
               sign in required
             </p>
           </section>
@@ -2835,8 +2734,8 @@ export default function CryptiTerminal() {
             </div>
             <button
               type="button"
-              onClick={() => setActivePanel("tickers")}
-              className="border border-[#72d7ff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              onClick={openSignalRoom}
+              className="border border-[#72d7ff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
             >
               back
             </button>
@@ -2848,7 +2747,7 @@ export default function CryptiTerminal() {
               body: [
                 "Graduation comes first. In the Bay Space Briefing Room, open Exchange, trade available points for Bayo Coins, then buy Graduation in Badge Quest for 500 coins.",
                 "After Graduation is owned, the other gate keys unlock. Buy +CRYPTI for 250 coins to open the blue branch.",
-                "Once +CRYPTI is owned, the blue +CRYPTI logo appears in the Bay Space nav beside Conspiracy. That button opens this terminal.",
+                "Once +CRYPTI is owned, the blue +CRYPTI logo appears in the Bay Space nav beside Conspiracy. That button opens +CRYPTI Base Camp.",
               ],
             },
             {
@@ -2935,13 +2834,13 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "bank" ? (
-        <section className="grid gap-5 border-2 border-dashed border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <section className="grid gap-5 border-2 border-dashed border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#deeffd]">
                 LA +CRYPTI
               </p>
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                 ✅💰 +Crypti engine: {cryptiLazyEngineLabel}
               </p>
             </div>
@@ -2959,12 +2858,12 @@ export default function CryptiTerminal() {
           </div>
 
           {cryptiBankPreview ? (
-            <div className="grid gap-4 border border-[#39ff14] bg-[#001100] p-4">
+            <div className="grid gap-4 border border-[#79ceff] bg-[#0a1829] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#deeffd]">
                   review
                 </p>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                   {cryptiBankPreview.kind === "ticker"
                     ? "TICKER UPLOAD"
                     : `${getCryptiSourceModeOption(cryptiBankPreview.sourceMode).label} / ${
@@ -2973,7 +2872,7 @@ export default function CryptiTerminal() {
                 </p>
               </div>
               {cryptiBankPreview.kind === "ticker" ? (
-                <div className="grid gap-3 text-sm font-bold text-[#d7ffd0]">
+                <div className="grid gap-3 text-sm font-bold text-[#deeffd]">
                   {[
                     ["ticker", cryptiBankPreview.symbol],
                     ["company", cryptiBankPreview.company],
@@ -2982,10 +2881,10 @@ export default function CryptiTerminal() {
                     ["asset description box", cryptiBankPreview.note],
                   ].map(([label, value]) => (
                     <div key={label} className="grid gap-1">
-                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                         {label}
                       </span>
-                      <p className="whitespace-pre-wrap text-[#d7ffd0]">
+                      <p className="whitespace-pre-wrap text-[#deeffd]">
                         {value || "not entered"}
                       </p>
                     </div>
@@ -2994,31 +2893,31 @@ export default function CryptiTerminal() {
               ) : (
                 <>
                   <div className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                       headline
                     </span>
-                    <p className="text-xl font-black uppercase tracking-[0.1em] text-[#39ff14]">
+                    <p className="text-xl font-black uppercase tracking-[0.1em] text-[#79ceff]">
                       {cryptiBankPreview.headline}
                     </p>
                   </div>
                   <div className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                       decoded post
                     </span>
-                    <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
+                    <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#deeffd]">
                       {cryptiBankPreview.receipts}
                     </p>
                   </div>
                   {cryptiBankPreview.tickersMentioned.length ? (
                     <div className="grid gap-2">
-                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                         tickers mentioned
                       </span>
                       <div className="flex flex-wrap gap-2">
                         {cryptiBankPreview.tickersMentioned.map((ticker) => (
                           <span
                             key={ticker}
-                            className="border border-[#1d7f12] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]"
+                            className="border border-[#355a76] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]"
                           >
                             {ticker}
                           </span>
@@ -3027,7 +2926,7 @@ export default function CryptiTerminal() {
                     </div>
                   ) : null}
                   <div className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                       links
                     </span>
                     {cryptiBankPreview.sources.length ? (
@@ -3036,7 +2935,7 @@ export default function CryptiTerminal() {
                           <li key={`${source}-${index}`}>
                             <a
                               href={getSourceHref(source)}
-                              className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                              className="break-all text-[#deeffd] underline decoration-[#79ceff] underline-offset-4"
                             >
                               {source}
                             </a>
@@ -3044,7 +2943,7 @@ export default function CryptiTerminal() {
                         ))}
                       </ol>
                     ) : (
-                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                         no links detected
                       </p>
                     )}
@@ -3052,7 +2951,7 @@ export default function CryptiTerminal() {
                 </>
               )}
               {cryptiBankError ? (
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                   {cryptiBankError}
                 </p>
               ) : null}
@@ -3060,7 +2959,7 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={submitCryptiBankPreview}
-                  className="w-fit border border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit border border-[#79ceff] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   {cryptiBankPreview.kind === "ticker"
                     ? "submit ticker"
@@ -3069,7 +2968,7 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={() => setCryptiBankPreview(null)}
-                  className="w-fit border border-[#1d7f12] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit border border-[#355a76] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   edit draft
                 </button>
@@ -3078,7 +2977,7 @@ export default function CryptiTerminal() {
           ) : (
             <div className="grid gap-4">
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   Paste draft. Press ✅💰 or hit Enter; wait for preview 😎𝌗
                 </span>
                 <textarea
@@ -3088,7 +2987,7 @@ export default function CryptiTerminal() {
                     setCryptiBankError("");
                   }}
                   rows={9}
-                  className="min-h-56 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-56 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
                   placeholder="headline, category, receipts, links"
                 />
               </label>
@@ -3097,7 +2996,7 @@ export default function CryptiTerminal() {
                   <button
                     type="button"
                     onClick={submitCryptiBank}
-                    className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="w-fit border border-[#79ceff] px-5 py-3 text-xl font-black leading-none text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                     aria-label="Build +Crypti post from pasted draft"
                   >
                     ✅💰
@@ -3110,12 +3009,12 @@ export default function CryptiTerminal() {
                     wipe
                   </button>
                   {cryptiBankError ? (
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                       {cryptiBankError}
                     </p>
                   ) : null}
                 </div>
-                <label className="ml-auto w-fit cursor-pointer border border-dashed border-[#39ff14] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus-within:ring-2 focus-within:ring-[#d7ffd0]">
+                <label className="ml-auto w-fit cursor-pointer border border-dashed border-[#79ceff] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus-within:ring-2 focus-within:ring-[#deeffd]">
                   upload draft
                   <input
                     type="file"
@@ -3131,13 +3030,13 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "secrets" ? (
-        <section className="grid gap-5 border-2 border-dashed border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <section className="grid gap-5 border-2 border-dashed border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#deeffd]">
                 share your secrets
               </p>
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                 S Buzz / Secrets / classified whisper draft
               </p>
             </div>
@@ -3152,28 +3051,28 @@ export default function CryptiTerminal() {
           </div>
 
           {secretPreview ? (
-            <div className="grid gap-4 border border-[#39ff14] bg-[#001100] p-4">
+            <div className="grid gap-4 border border-[#79ceff] bg-[#0a1829] p-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#deeffd]">
                   review post
                 </p>
-                <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                   S Buzz / Secrets
                 </p>
               </div>
               <div className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                   headline
                 </span>
-                <p className="text-xl font-black uppercase tracking-[0.1em] text-[#39ff14]">
+                <p className="text-xl font-black uppercase tracking-[0.1em] text-[#79ceff]">
                   {secretHeadline}
                 </p>
               </div>
               <div className="grid gap-2">
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                   whisper secrets here
                 </span>
-                <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#d7ffd0]">
+                <p className="whitespace-pre-wrap text-sm font-bold leading-6 text-[#deeffd]">
                   {secretPreview}
                 </p>
               </div>
@@ -3181,7 +3080,7 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={submitSecretPost}
-                  className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit border border-[#79ceff] px-5 py-3 text-xl font-black leading-none text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   aria-label="Submit secret Crypti post"
                 >
                   🌀
@@ -3189,12 +3088,12 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={() => setSecretPreview("")}
-                  className="w-fit border border-[#1d7f12] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit border border-[#355a76] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   edit whisper
                 </button>
                 {secretMessage ? (
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                     {secretMessage}
                   </p>
                 ) : null}
@@ -3203,7 +3102,7 @@ export default function CryptiTerminal() {
           ) : (
             <form onSubmit={previewSecretPost} className="grid gap-4">
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   headline
                 </span>
                 <input
@@ -3211,12 +3110,12 @@ export default function CryptiTerminal() {
                   onChange={(event) =>
                     setSecretHeadline(event.target.value.slice(0, 75))
                   }
-                  className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#79ceff] outline-none placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
                   placeholder="classified headline"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   whisper secrets here
                 </span>
                 <textarea
@@ -3225,20 +3124,20 @@ export default function CryptiTerminal() {
                     setSecretWhisper(event.target.value.slice(0, 5000))
                   }
                   rows={8}
-                  className="min-h-48 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-48 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
                   placeholder="type the secret signal..."
                 />
               </label>
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="submit"
-                  className="w-fit border border-[#39ff14] px-5 py-3 text-xl font-black leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="w-fit border border-[#79ceff] px-5 py-3 text-xl font-black leading-none text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   aria-label="Preview secret Crypti post"
                 >
                   🌀
                 </button>
                 {secretMessage ? (
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                     {secretMessage}
                   </p>
                 ) : null}
@@ -3251,10 +3150,10 @@ export default function CryptiTerminal() {
       {activePanel === "post" ? (
         <form
           onSubmit={submitCryptiPost}
-          className="grid gap-6 border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_24px_rgba(57,255,20,0.18)]"
+          className="grid gap-6 border-2 border-[#79ceff] bg-black px-5 py-6 shadow-[0_0_24px_rgba(121,206,255,0.18)]"
         >
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm font-black uppercase tracking-[0.32em] text-[#d7ffd0]">
+            <p className="text-sm font-black uppercase tracking-[0.32em] text-[#deeffd]">
               post window
             </p>
             <div className="flex items-center gap-2">
@@ -3262,7 +3161,7 @@ export default function CryptiTerminal() {
                 type="button"
                 onClick={minimizeCryptiPost}
                 aria-label="Minimize new Crypti post"
-                className="grid size-8 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="grid size-8 place-items-center border border-[#355a76] text-sm font-black text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
               >
                 -
               </button>
@@ -3292,17 +3191,17 @@ export default function CryptiTerminal() {
                   }
                   setCryptiPostMessage("");
                 }}
-                className={`flex min-h-14 items-center gap-4 border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                className={`flex min-h-14 items-center gap-4 border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                   cryptiSourceMode === mode.value
-                    ? "border-[#39ff14] bg-[#001100] text-[#d7ffd0] shadow-[0_0_18px_rgba(57,255,20,0.38)]"
-                    : "border-[#1d7f12] bg-black text-[#d7ffd0] hover:border-[#39ff14]"
+                    ? "border-[#79ceff] bg-[#0a1829] text-[#deeffd] shadow-[0_0_18px_rgba(121,206,255,0.38)]"
+                    : "border-[#355a76] bg-black text-[#deeffd] hover:border-[#79ceff]"
                 }`}
               >
                 <span
                   className={`size-5 rounded-full border ${
                     cryptiSourceMode === mode.value
-                      ? "border-[#39ff14] bg-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.9)]"
-                      : "border-[#d7ffd0] bg-[#f5fff2]"
+                      ? "border-[#79ceff] bg-[#79ceff] shadow-[0_0_14px_rgba(121,206,255,0.9)]"
+                      : "border-[#deeffd] bg-[#f5fff2]"
                   }`}
                   aria-hidden="true"
                 />
@@ -3310,7 +3209,7 @@ export default function CryptiTerminal() {
                   <span className="text-sm font-black uppercase tracking-[0.24em]">
                     {mode.label}
                   </span>
-                  <span className="text-[0.68rem] font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                  <span className="text-[0.68rem] font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                     {mode.status}
                   </span>
                 </span>
@@ -3319,13 +3218,13 @@ export default function CryptiTerminal() {
           </div>
 
           <label className="grid gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
               category
             </span>
             <select
               value={cryptiPostCategory}
               onChange={(event) => setCryptiPostCategory(event.target.value)}
-              className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+              className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
             >
               {cryptiPostSourceModeCategories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -3335,9 +3234,9 @@ export default function CryptiTerminal() {
             </select>
           </label>
           <label className="grid gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
               headline{" "}
-              <span className="text-xs text-[#7f9f78]">
+              <span className="text-xs text-[#a0b9d1]">
                 ({75 - cryptiHeadline.length})
               </span>
             </span>
@@ -3346,14 +3245,14 @@ export default function CryptiTerminal() {
               onChange={(event) =>
                 setCryptiHeadline(event.target.value.slice(0, 75))
               }
-              className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+              className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
             />
           </label>
           {cryptiSourceMode === "S" ? (
             <label className="grid gap-2">
-              <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+              <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                 whispers{" "}
-                <span className="text-xs text-[#7f9f78]">
+                <span className="text-xs text-[#a0b9d1]">
                   ({50000 - cryptiWhispers.length})
                 </span>
               </span>
@@ -3363,13 +3262,13 @@ export default function CryptiTerminal() {
                   setCryptiWhispers(event.target.value.slice(0, 50000))
                 }
                 rows={8}
-                className="min-h-48 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                className="min-h-48 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
               />
             </label>
           ) : (
             <div className="grid gap-5">
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   support claim 1
                 </span>
                 <textarea
@@ -3378,11 +3277,11 @@ export default function CryptiTerminal() {
                     setCryptiSupportClaimOne(event.target.value.slice(0, 5000))
                   }
                   rows={3}
-                  className="min-h-24 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-24 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   source 1
                 </span>
                 <input
@@ -3392,11 +3291,11 @@ export default function CryptiTerminal() {
                       event.target.value.slice(0, 500),
                     )
                   }
-                  className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   support claim 2
                 </span>
                 <textarea
@@ -3405,11 +3304,11 @@ export default function CryptiTerminal() {
                     setCryptiSupportClaimTwo(event.target.value.slice(0, 5000))
                   }
                   rows={3}
-                  className="min-h-24 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-24 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   source 2
                 </span>
                 <input
@@ -3419,11 +3318,11 @@ export default function CryptiTerminal() {
                       event.target.value.slice(0, 500),
                     )
                   }
-                  className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   anti-thesis 3
                 </span>
                 <textarea
@@ -3432,11 +3331,11 @@ export default function CryptiTerminal() {
                     setCryptiAntiThesis(event.target.value.slice(0, 5000))
                   }
                   rows={3}
-                  className="min-h-24 w-full resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-24 w-full resize-y border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <label className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   source 3
                 </span>
                 <input
@@ -3444,11 +3343,11 @@ export default function CryptiTerminal() {
                   onChange={(event) =>
                     setCryptiAntiThesisSource(event.target.value.slice(0, 500))
                   }
-                  className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                  className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-bold leading-6 text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                 />
               </label>
               <div className="grid gap-2">
-                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
                   other sources
                 </span>
                 <div className="grid gap-2">
@@ -3457,7 +3356,7 @@ export default function CryptiTerminal() {
                       key={index}
                       className="grid grid-cols-[1.5rem_1fr] items-center gap-2"
                     >
-                      <span className="text-lg font-black text-[#7f9f78]">
+                      <span className="text-lg font-black text-[#a0b9d1]">
                         +
                       </span>
                       <input
@@ -3467,7 +3366,7 @@ export default function CryptiTerminal() {
                           updateCryptiSource(index, event.target.value)
                         }
                         placeholder="[source]"
-                        className="h-11 border border-transparent bg-black px-0 py-2 text-sm font-black text-[#39ff14] caret-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:border-[#39ff14] focus:bg-[#001100] focus:px-3 focus:shadow-[inset_0_-0.55rem_0_rgba(57,255,20,0.28)]"
+                        className="h-11 border border-transparent bg-black px-0 py-2 text-sm font-black text-[#79ceff] caret-[#79ceff] outline-none placeholder:text-[#a0b9d1] focus:border-[#79ceff] focus:bg-[#0a1829] focus:px-3 focus:shadow-[inset_0_-0.55rem_0_rgba(121,206,255,0.28)]"
                       />
                     </label>
                   ))}
@@ -3476,7 +3375,7 @@ export default function CryptiTerminal() {
             </div>
           )}
           <label className="grid gap-2 sm:grid-cols-[max-content_minmax(0,1fr)] sm:items-center">
-            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+            <span className="text-sm font-black uppercase tracking-[0.2em] text-[#deeffd]">
               TICKERS MENTIONED:
             </span>
             <input
@@ -3485,22 +3384,22 @@ export default function CryptiTerminal() {
                 setCryptiTickersMentioned(event.target.value.slice(0, 500))
               }
               placeholder="optional"
-              className="min-h-[3rem] w-full border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+              className="min-h-[3rem] w-full border border-[#355a76] bg-[#0a1829] px-3 py-3 text-sm font-black uppercase tracking-[0.12em] text-[#79ceff] outline-none placeholder:italic placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
             />
           </label>
-          <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-[#001100] px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
+          <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#355a76] bg-[#0a1829] px-4 py-3 text-sm font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:border-[#79ceff] focus-within:ring-2 focus-within:ring-[#deeffd]">
             <input
               type="checkbox"
               checked={cryptiPostAnonymous}
               onChange={(event) => setCryptiPostAnonymous(event.target.checked)}
-              className="size-4 accent-[#39ff14]"
+              className="size-4 accent-[#79ceff]"
             />
             anon
           </label>
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              className="w-fit border border-[#39ff14] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="w-fit border border-[#79ceff] px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
             >
               submit crypti post
             </button>
@@ -3512,7 +3411,7 @@ export default function CryptiTerminal() {
               wipe
             </button>
             {cryptiPostMessage ? (
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                 {cryptiPostMessage}
               </p>
             ) : null}
@@ -3531,7 +3430,7 @@ export default function CryptiTerminal() {
           {activeSourceMode === "R" && !selectedCryptiCategory
             ? renderRNewsDateNavigator("hidden lg:block")
             : null}
-          <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#1d7f12] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+          <div className="daily-food-categories-overlay relative overflow-hidden border-2 border-[#355a76] bg-black/95 px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="daily-food-categories-grid" aria-hidden="true" />
           <div
             className={`relative z-10 grid ${
@@ -3544,23 +3443,23 @@ export default function CryptiTerminal() {
               <div className="grid gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
+                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#deeffd]">
                       {activeSourceModeOption.label} / {selectedCryptiCategoryLabel}
                     </p>
-                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                       {activeSourceModeOption.status}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedCryptiCategory("")}
-                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="border border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   >
                     back
                   </button>
                 </div>
                 {isCryptiPostsLoading ? (
-                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     loading crypti posts
                   </p>
                 ) : selectedCategoryPosts.length ? (
@@ -3578,35 +3477,35 @@ export default function CryptiTerminal() {
                           onKeyDown={(event) =>
                             openCryptiPostDetailFromKeyboard(event, post.id)
                           }
-                          className="daily-food-card cursor-pointer border-2 border-[#1d7f12] bg-black px-4 py-4 shadow-[0_0_14px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:shadow-[0_0_20px_rgba(57,255,20,0.28)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                          className="daily-food-card cursor-pointer border-2 border-[#355a76] bg-black px-4 py-4 shadow-[0_0_14px_rgba(121,206,255,0.12)] transition hover:border-[#79ceff] hover:shadow-[0_0_20px_rgba(121,206,255,0.28)] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a0b9d1]">
                                 {selectedCryptiCategoryLabel}
                               </p>
-                              <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                              <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
                                 {formatPostTimestamp(post.createdAt)}
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                              <span className="text-xs font-black uppercase tracking-[0.12em] text-[#79ceff]">
                                 {formatPointTenths(getCryptiPostScore(post, favoritePostCounts))} pts
                               </span>
                             </div>
                           </div>
-                          <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+                          <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.12em] text-[#79ceff]">
                             {post.title}
                           </h2>
                           {showPostDetails && receiptLines.length ? (
-                            <div className="mt-4 grid gap-3 text-base leading-7 text-[#d7ffd0]">
+                            <div className="mt-4 grid gap-3 text-base leading-7 text-[#deeffd]">
                               {receiptLines.map((line, index) => (
                                 <div
                                   key={`${post.id}-${line}-${index}`}
                                   className="flex items-start gap-3"
                                 >
                                   <span
-                                    className="mt-2 h-2 w-2 shrink-0 bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,0.75)]"
+                                    className="mt-2 h-2 w-2 shrink-0 bg-[#79ceff] shadow-[0_0_8px_rgba(121,206,255,0.75)]"
                                     aria-hidden="true"
                                   />
                                   <p>{line}</p>
@@ -3614,13 +3513,13 @@ export default function CryptiTerminal() {
                               ))}
                             </div>
                           ) : showPostDetails ? (
-                            <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
+                            <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#deeffd]">
                               no receipts entered
                             </p>
                           ) : null}
                           {showPostDetails && getPostSources(post).length ? (
-                            <section className="mt-5 border-t border-[#1d7f12] pt-3">
-                              <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                            <section className="mt-5 border-t border-[#355a76] pt-3">
+                              <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
                                 SOURCES
                               </h3>
                               <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
@@ -3629,7 +3528,7 @@ export default function CryptiTerminal() {
                                     <a
                                       href={getSourceHref(source)}
                                       onClick={(event) => event.stopPropagation()}
-                                      className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                                      className="break-all text-[#deeffd] underline decoration-[#79ceff] underline-offset-4"
                                     >
                                       {source}
                                     </a>
@@ -3643,7 +3542,7 @@ export default function CryptiTerminal() {
                     })}
                   </div>
                 ) : (
-                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     no {activeSourceModeOption.label} posts yet
                   </p>
                 )}
@@ -3652,17 +3551,17 @@ export default function CryptiTerminal() {
               <>
                 <div className="flex flex-wrap items-start justify-between gap-5">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
+                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#deeffd]">
                       {activeSourceModeOption.label}
                     </p>
                     {activeSourceMode === "R" ? null : (
-                      <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                      <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                         {activeSourceModeOption.description} · {activeSourceModeOption.status}
                       </p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-start justify-end gap-5">
-                    <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
+                    <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#355a76] bg-black/80 px-3 py-2 text-[#79ceff] transition hover:border-[#79ceff] focus-within:ring-2 focus-within:ring-[#deeffd]">
                       <span aria-hidden="true">🔑</span>
                       <input
                         type="checkbox"
@@ -3678,7 +3577,7 @@ export default function CryptiTerminal() {
                         className="peer sr-only"
                         aria-label="Toggle Crypti category grid"
                       />
-                      <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
+                      <span className="relative h-5 w-10 rounded-full border border-[#355a76] bg-[#0a1829] transition peer-checked:border-[#79ceff] peer-checked:bg-[#79ceff] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#79ceff] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
                     </label>
                   </div>
                 </div>
@@ -3693,7 +3592,7 @@ export default function CryptiTerminal() {
                           key={category.id}
                           type="button"
                           onClick={() => setSelectedCryptiCategory(category.id)}
-                          className="daily-food-category-button relative min-h-32 border border-[#39ff14]/50 bg-black/75 px-3 pb-9 pt-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                          className="daily-food-category-button relative min-h-32 border border-[#79ceff]/50 bg-black/75 px-3 pb-9 pt-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#deeffd] shadow-[0_0_10px_rgba(121,206,255,0.12)] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black hover:shadow-[0_0_18px_rgba(121,206,255,0.5)] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                         >
                           <span className="block">{category.label}</span>
                           <span className="mt-2 block text-[0.68rem] font-bold normal-case leading-4 tracking-[0.02em] opacity-80">
@@ -3710,7 +3609,7 @@ export default function CryptiTerminal() {
                     })}
                   </div>
                 ) : isCryptiPostsLoading ? (
-                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     loading crypti posts
                   </p>
                 ) : activeSourceModePosts.length ? (
@@ -3725,7 +3624,7 @@ export default function CryptiTerminal() {
                     )}
                   </div>
                 ) : (
-                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     no {activeSourceModeOption.label} posts
                     {activeSourceMode === "R"
                       ? ` for ${formatTimelineDate(activeRNewsDate)}`
@@ -3743,18 +3642,18 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "smoke" ? (
-        <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <div className="grid gap-5 border-2 border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#deeffd]">
                 today&apos;s smoke
               </p>
-              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                 R News, Q Degen, and S Buzz ranked by points
               </p>
             </div>
             <label className="grid w-full max-w-xs gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#deeffd]">
                 search
               </span>
               <input
@@ -3762,7 +3661,7 @@ export default function CryptiTerminal() {
                 value={smokeSearch}
                 onChange={(event) => setSmokeSearch(event.target.value)}
                 placeholder="search keywords"
-                className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:italic placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                className="border border-[#355a76] bg-[#0a1829] px-3 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#79ceff] outline-none placeholder:italic placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
               />
             </label>
           </div>
@@ -3778,7 +3677,7 @@ export default function CryptiTerminal() {
               )}
             </div>
           ) : (
-            <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
               {normalizedSmokeSearchTerms.length
                 ? "no matching crypti posts"
                 : "no posts yet"}
@@ -3788,10 +3687,10 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "favorites" ? (
-        <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <div className="grid gap-5 border-2 border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <label className="grid w-fit gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+              <span className="text-xs font-black uppercase tracking-[0.22em] text-[#deeffd]">
                 sort
               </span>
               <select
@@ -3799,7 +3698,7 @@ export default function CryptiTerminal() {
                 onChange={(event) =>
                   setFavoriteSort(event.target.value as CryptiFavoriteSort)
                 }
-                className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                className="border border-[#355a76] bg-[#0a1829] px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
               >
                 <option value="favorite-posts">Favorite posts</option>
                 <option value="favorite-authors">Favorite authors</option>
@@ -3809,10 +3708,10 @@ export default function CryptiTerminal() {
             <div className="flex min-w-60 max-w-full items-center gap-2">
               <form
                 onSubmit={searchFavoritePosts}
-                className="flex min-w-0 flex-1 items-center border border-[#1d7f12] bg-[#001100] focus-within:ring-2 focus-within:ring-[#39ff14]"
+                className="flex min-w-0 flex-1 items-center border border-[#355a76] bg-[#0a1829] focus-within:ring-2 focus-within:ring-[#79ceff]"
               >
                 <span
-                  className="grid size-10 place-items-center text-lg text-[#39ff14]"
+                  className="grid size-10 place-items-center text-lg text-[#79ceff]"
                   aria-hidden="true"
                 >
                   🌀
@@ -3820,7 +3719,7 @@ export default function CryptiTerminal() {
                 <input
                   value={favoriteSearchInput}
                   onChange={(event) => setFavoriteSearchInput(event.target.value)}
-                  className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:text-[#7f9f78]"
+                  className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#79ceff] outline-none placeholder:text-[#a0b9d1]"
                   placeholder="search"
                   aria-label="Search favorite Crypti posts"
                 />
@@ -3828,14 +3727,14 @@ export default function CryptiTerminal() {
               <button
                 type="button"
                 onClick={openSignalRoom}
-                className="min-h-10 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="min-h-10 border border-dashed border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:scale-105 hover:border-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
               >
                 back
               </button>
             </div>
           </div>
           {favoriteSearch ? (
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
               search: {favoriteSearch}
             </p>
           ) : null}
@@ -3850,7 +3749,7 @@ export default function CryptiTerminal() {
               )}
             </div>
           ) : (
-            <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
               no favorites filed yet
             </p>
           )}
@@ -3858,10 +3757,10 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "my-posts" ? (
-        <div className="grid min-h-[32rem] content-start gap-5 border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+        <div className="grid min-h-[32rem] content-start gap-5 border-2 border-[#79ceff] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#deeffd]">
                 {myPostsOpenLane
                   ? getCryptiMyPostsLaneLabel(myPostsOpenLane)
                   : "my posts"}
@@ -3870,7 +3769,7 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={() => setMyPostsOpenLane("all-posts")}
-                  className="mt-3 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:border-[#39ff14] hover:text-[#d7ffd0] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="mt-3 border border-dashed border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#79ceff] transition hover:border-[#79ceff] hover:text-[#deeffd] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   Show all posts by date
                 </button>
@@ -3880,10 +3779,10 @@ export default function CryptiTerminal() {
               <div className="flex min-w-60 max-w-full items-center gap-2">
                 <form
                   onSubmit={searchMyPosts}
-                  className="flex min-w-0 flex-1 items-center border border-[#1d7f12] bg-[#001100] focus-within:ring-2 focus-within:ring-[#39ff14]"
+                  className="flex min-w-0 flex-1 items-center border border-[#355a76] bg-[#0a1829] focus-within:ring-2 focus-within:ring-[#79ceff]"
                 >
                   <span
-                    className="grid size-10 place-items-center text-lg text-[#39ff14]"
+                    className="grid size-10 place-items-center text-lg text-[#79ceff]"
                     aria-hidden="true"
                   >
                     🌀
@@ -3893,7 +3792,7 @@ export default function CryptiTerminal() {
                     onChange={(event) =>
                       setMyPostsSearchInput(event.target.value)
                     }
-                    className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:text-[#7f9f78]"
+                    className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#79ceff] outline-none placeholder:text-[#a0b9d1]"
                     placeholder="search"
                     aria-label="Search my Crypti posts"
                   />
@@ -3901,7 +3800,7 @@ export default function CryptiTerminal() {
                 <button
                   type="button"
                   onClick={openSignalRoom}
-                  className="min-h-10 border border-dashed border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="min-h-10 border border-dashed border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:scale-105 hover:border-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   back
                 </button>
@@ -3909,10 +3808,10 @@ export default function CryptiTerminal() {
             ) : (
               <form
                 onSubmit={searchMyPosts}
-                className="flex min-w-60 max-w-full items-center border border-[#1d7f12] bg-[#001100] focus-within:ring-2 focus-within:ring-[#39ff14]"
+                className="flex min-w-60 max-w-full items-center border border-[#355a76] bg-[#0a1829] focus-within:ring-2 focus-within:ring-[#79ceff]"
               >
                 <span
-                  className="grid size-10 place-items-center text-lg text-[#39ff14]"
+                  className="grid size-10 place-items-center text-lg text-[#79ceff]"
                   aria-hidden="true"
                 >
                   🌀
@@ -3920,7 +3819,7 @@ export default function CryptiTerminal() {
                 <input
                   value={myPostsSearchInput}
                   onChange={(event) => setMyPostsSearchInput(event.target.value)}
-                  className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] outline-none placeholder:text-[#7f9f78]"
+                  className="min-h-10 min-w-0 flex-1 bg-transparent px-2 py-2 text-sm font-black uppercase tracking-[0.14em] text-[#79ceff] outline-none placeholder:text-[#a0b9d1]"
                   placeholder="search"
                   aria-label="Search my Crypti posts"
                 />
@@ -3929,7 +3828,7 @@ export default function CryptiTerminal() {
           </div>
 
           {myPostsSearch ? (
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
               search: {myPostsSearch}
             </p>
           ) : null}
@@ -3944,7 +3843,7 @@ export default function CryptiTerminal() {
                     setMyPostsLane(lane.value);
                     setMyPostsOpenLane(lane.value);
                   }}
-                  className="flex items-center justify-between border border-dashed border-[#1d7f12] bg-black px-4 py-4 text-left text-sm font-black uppercase tracking-[0.22em] text-[#39ff14] transition hover:scale-[1.01] hover:border-[#39ff14] hover:text-[#d7ffd0] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="flex items-center justify-between border border-dashed border-[#355a76] bg-black px-4 py-4 text-left text-sm font-black uppercase tracking-[0.22em] text-[#79ceff] transition hover:scale-[1.01] hover:border-[#79ceff] hover:text-[#deeffd] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   <span>{lane.label}</span>
                 </button>
@@ -3958,17 +3857,17 @@ export default function CryptiTerminal() {
                     {myLaneTickers.map((ticker) => (
                       <article
                         key={ticker.id}
-                        className="border border-dashed border-[#1d7f12] bg-[#020402] px-4 py-4 transition hover:scale-[1.01] hover:border-[#39ff14]"
+                        className="border border-dashed border-[#355a76] bg-[#060e1a] px-4 py-4 transition hover:scale-[1.01] hover:border-[#79ceff]"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-4">
                           <div>
-                            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                            <p className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
                               {ticker.assetType || "ticker"}
                             </p>
-                            <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                            <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.18em] text-[#79ceff]">
                               {ticker.symbol}
                             </h2>
-                            <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                            <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
                               {formatPostTimestamp(ticker.createdAt)}
                             </p>
                           </div>
@@ -3985,12 +3884,12 @@ export default function CryptiTerminal() {
                     ))}
                   </div>
                 ) : (
-                  <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     no tickers found
                   </p>
                 )
               ) : isCryptiPostsLoading ? (
-                <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                   loading crypti posts
                 </p>
               ) : myLanePosts.length ? (
@@ -4004,18 +3903,18 @@ export default function CryptiTerminal() {
                       onKeyDown={(event) =>
                         openCryptiPostDetailFromKeyboard(event, post.id)
                       }
-                      className="cursor-pointer border border-dashed border-[#1d7f12] bg-black px-4 py-4 transition hover:scale-[1.01] hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      className="cursor-pointer border border-dashed border-[#355a76] bg-black px-4 py-4 transition hover:scale-[1.01] hover:border-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+                          <p className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
                             {getCryptiCategory(getCryptiPostCategory(post))
                               ?.label ?? "Crypti"}
                           </p>
-                          <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                          <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.18em] text-[#79ceff]">
                             {post.title}
                           </h2>
-                          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
+                          <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#a0b9d1]">
                             {formatPostTimestamp(post.createdAt)}
                           </p>
                         </div>
@@ -4032,10 +3931,10 @@ export default function CryptiTerminal() {
                                 : "Make post anonymous"
                             }
                             title={post.anonymous ? "anonymous" : "public"}
-                            className={`grid size-8 place-items-center border border-dashed transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                            className={`grid size-8 place-items-center border border-dashed transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                               post.anonymous
-                                ? "border-[#39ff14] text-[#39ff14]"
-                                : "border-[#1d7f12] text-[#7f9f78]"
+                                ? "border-[#79ceff] text-[#79ceff]"
+                                : "border-[#355a76] text-[#a0b9d1]"
                             }`}
                           >
                             <svg
@@ -4076,7 +3975,7 @@ export default function CryptiTerminal() {
                   ))}
                 </div>
               ) : (
-                <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                   no posts found
                 </p>
               )}
@@ -4088,45 +3987,45 @@ export default function CryptiTerminal() {
       {activePanel === "crypti-profile" ? (
         <div className="grid gap-8 bg-black px-1 py-2">
           <div>
-            <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
+            <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#deeffd]">
               C:\BAY-SPACE\+CRYPTI&gt; PROFILE
             </p>
-            <h2 className="text-4xl font-black uppercase tracking-[0.16em] text-[#39ff14] [text-shadow:0_0_16px_#39ff14] sm:text-6xl">
+            <h2 className="text-4xl font-black uppercase tracking-[0.16em] text-[#79ceff] [text-shadow:0_0_16px_#79ceff] sm:text-6xl">
               +Crypti - {cryptiProfileName}
             </h2>
           </div>
 
           <div className="grid items-start gap-4 lg:grid-cols-3">
-            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+            <details className="group border-2 border-[#79ceff] bg-black px-4 py-5 shadow-[0_0_16px_rgba(121,206,255,0.14)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#deeffd] [&::-webkit-details-marker]:hidden">
                 <span>ID</span>
                 <span
                   aria-hidden="true"
-                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+                  className="text-lg leading-none text-[#79ceff] transition group-open:rotate-180"
                 >
                   ▾
                 </span>
               </summary>
-              <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+              <div className="mt-5 grid gap-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
                 <p>EXPLORER NUMBER - #{activeCryptiProfileMemberNumber}</p>
                 <p>TITLE: {cryptiProfileTitle}</p>
                 <p>NAME: {cryptiProfileDisplayName} +</p>
                 <p>(REFERENCE NAME): {cryptiProfileRefName}</p>
               </div>
             </details>
-            <details className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+            <details className="group border-2 border-[#79ceff] bg-black px-4 py-5 shadow-[0_0_16px_rgba(121,206,255,0.14)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#deeffd] [&::-webkit-details-marker]:hidden">
                 <span>Stats</span>
                 <span
                   aria-hidden="true"
-                  className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+                  className="text-lg leading-none text-[#79ceff] transition group-open:rotate-180"
                 >
                   ▾
                 </span>
               </summary>
-              <div className="mt-5 overflow-hidden border border-[#1d7f12]">
-                <div className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] bg-[#001100] text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
-                  <span className="border-r border-[#1d7f12] px-3 py-2">
+              <div className="mt-5 overflow-hidden border border-[#355a76]">
+                <div className="grid grid-cols-[1fr_auto] border-b border-[#355a76] bg-[#0a1829] text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
+                  <span className="border-r border-[#355a76] px-3 py-2">
                     metric
                   </span>
                   <span className="px-3 py-2 text-right">count</span>
@@ -4148,12 +4047,12 @@ export default function CryptiTerminal() {
                 ].map(([metric, count]) => (
                   <div
                     key={metric}
-                    className="grid grid-cols-[1fr_auto] border-b border-[#1d7f12] text-sm font-black uppercase tracking-[0.12em] text-[#d7ffd0] last:border-b-0"
+                    className="grid grid-cols-[1fr_auto] border-b border-[#355a76] text-sm font-black uppercase tracking-[0.12em] text-[#deeffd] last:border-b-0"
                   >
-                    <span className="border-r border-[#1d7f12] px-3 py-3">
+                    <span className="border-r border-[#355a76] px-3 py-3">
                       {metric}
                     </span>
-                    <span className="min-w-20 px-3 py-3 text-right text-[#39ff14]">
+                    <span className="min-w-20 px-3 py-3 text-right text-[#79ceff]">
                       {count}
                     </span>
                   </div>
@@ -4167,26 +4066,26 @@ export default function CryptiTerminal() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-4">
-            <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+            <section className="min-h-56 border border-[#355a76] bg-black p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#79ceff]">
                 Tickers Following
               </h3>
               {renderCryptiProfileTickerList(profileFollowedTickers)}
             </section>
-            <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+            <section className="min-h-56 border border-[#355a76] bg-black p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#79ceff]">
                 R News
               </h3>
               {renderCryptiProfilePostList(profileRNewsPosts)}
             </section>
-            <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+            <section className="min-h-56 border border-[#355a76] bg-black p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#79ceff]">
                 Q Degen
               </h3>
               {renderCryptiProfilePostList(profileQDegenPosts)}
             </section>
-            <section className="min-h-56 border border-[#1d7f12] bg-black p-4">
-              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#39ff14]">
+            <section className="min-h-56 border border-[#355a76] bg-black p-4">
+              <h3 className="text-sm font-black uppercase tracking-[0.18em] text-[#79ceff]">
                 S Buzz
               </h3>
               {renderCryptiProfilePostList(profileSBuzzPosts)}
@@ -4196,14 +4095,14 @@ export default function CryptiTerminal() {
       ) : null}
 
       {activePanel === "tickers" ? (
-      <div className="grid gap-5 border-2 border-[#1d7f12] bg-black px-5 py-6 shadow-[0_0_20px_rgba(57,255,20,0.14)]">
+      <div className="grid gap-5 border-2 border-[#355a76] bg-black px-5 py-6 shadow-[0_0_20px_rgba(121,206,255,0.14)]">
         {!selectedTicker ? (
           <>
             <div className="flex flex-wrap items-end justify-between gap-4">
               <form onSubmit={searchTickers} className="grid min-w-64 flex-1 gap-2">
                 <label
                   htmlFor="crypti-search"
-                  className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]"
+                  className="text-xs font-black uppercase tracking-[0.22em] text-[#deeffd]"
                 >
                   ticker search
                 </label>
@@ -4217,12 +4116,12 @@ export default function CryptiTerminal() {
                       setMessage("");
                       void loadTickers(nextSearch);
                     }}
-                    className="min-h-11 flex-1 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-lg font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    className="min-h-11 flex-1 border border-[#355a76] bg-[#0a1829] px-3 py-2 text-lg font-black uppercase tracking-[0.16em] text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                     placeholder=""
                   />
                   <button
                     type="submit"
-                    className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="border border-[#79ceff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   >
                     search
                   </button>
@@ -4238,10 +4137,10 @@ export default function CryptiTerminal() {
                     key={range.id}
                     type="button"
                     onClick={() => setVoteRange(range.id as VoteRange)}
-                    className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                    className={`border px-3 py-2 text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                       voteRange === range.id
-                        ? "border-[#39ff14] bg-[#39ff14] text-black"
-                        : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14]"
+                        ? "border-[#79ceff] bg-[#79ceff] text-black"
+                        : "border-[#355a76] text-[#79ceff] hover:border-[#79ceff]"
                     }`}
                   >
                     {range.label}
@@ -4258,15 +4157,15 @@ export default function CryptiTerminal() {
                   setDraftSymbol(normalizedSearch);
                   setMessage("");
                 }}
-                className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                className={`border px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                   isAddTickerOpen
-                    ? "border-[#39ff14] bg-[#39ff14] text-black"
-                    : "border-[#1d7f12] text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                    ? "border-[#79ceff] bg-[#79ceff] text-black"
+                    : "border-[#355a76] text-[#79ceff] hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black"
                 }`}
               >
                 add ticker
               </button>
-              <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#7f9f78]">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#a0b9d1]">
                 no duplicate tickers - don&apos;t forget to vote
               </p>
             </div>
@@ -4274,10 +4173,10 @@ export default function CryptiTerminal() {
             {isAddTickerOpen ? (
               <form
                 onSubmit={submitTicker}
-                className="relative grid gap-3 border border-[#1d7f12] bg-[#001100] p-4"
+                className="relative grid gap-3 border border-[#355a76] bg-[#0a1829] p-4"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[#deeffd]">
                     add ticker
                   </p>
                   <button
@@ -4291,7 +4190,7 @@ export default function CryptiTerminal() {
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                       ticker
                     </span>
                     <input
@@ -4300,11 +4199,11 @@ export default function CryptiTerminal() {
                         setDraftSymbol(normalizeCryptiSymbol(event.target.value));
                         setMessage("");
                       }}
-                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      className="border border-[#355a76] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.16em] text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                       company
                     </span>
                     <input
@@ -4312,11 +4211,11 @@ export default function CryptiTerminal() {
                       onChange={(event) =>
                         setDraftCompany(event.target.value.slice(0, 120))
                       }
-                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      className="border border-[#355a76] bg-black px-3 py-2 text-sm font-bold text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                       chain / market
                     </span>
                     <input
@@ -4324,17 +4223,17 @@ export default function CryptiTerminal() {
                       onChange={(event) =>
                         setDraftChainMarket(event.target.value.slice(0, 80))
                       }
-                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      className="border border-[#355a76] bg-black px-3 py-2 text-sm font-bold text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    <span className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                       type
                     </span>
                     <select
                       value={draftAssetType}
                       onChange={(event) => setDraftAssetType(event.target.value)}
-                      className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                      className="border border-[#355a76] bg-black px-3 py-2 text-sm font-black uppercase tracking-[0.12em] text-[#79ceff] outline-none focus:ring-2 focus:ring-[#79ceff]"
                     >
                       {tickerTypes.map((tickerType) => (
                         <option key={tickerType} value={tickerType}>
@@ -4347,11 +4246,11 @@ export default function CryptiTerminal() {
                 <input
                   value={draftNote}
                   onChange={(event) => setDraftNote(event.target.value.slice(0, 240))}
-                  className="border border-[#1d7f12] bg-black px-3 py-2 text-sm font-bold text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
+                  className="border border-[#355a76] bg-black px-3 py-2 text-sm font-bold text-[#79ceff] outline-none placeholder:text-[#a0b9d1] focus:ring-2 focus:ring-[#79ceff]"
                   placeholder="description"
                 />
                 {normalizedDraftSymbol && draftTickerExists ? (
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                     {normalizedDraftSymbol} already exists
                   </p>
                 ) : null}
@@ -4359,7 +4258,7 @@ export default function CryptiTerminal() {
                   <button
                     type="submit"
                     disabled={!normalizedDraftSymbol || draftTickerExists}
-                    className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+                    className="w-fit border border-[#79ceff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd] disabled:cursor-not-allowed disabled:border-[#355a76] disabled:text-[#a0b9d1] disabled:hover:bg-transparent disabled:hover:text-[#a0b9d1]"
                   >
                     submit ticker
                   </button>
@@ -4375,7 +4274,7 @@ export default function CryptiTerminal() {
             ) : null}
 
             {message ? (
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#79ceff]">
                 {message}
               </p>
             ) : null}
@@ -4383,11 +4282,11 @@ export default function CryptiTerminal() {
         ) : null}
 
         {isLoading ? (
-          <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
             loading crypti tickers
           </p>
         ) : selectedTicker ? (
-          <div className="grid gap-5 border-2 border-dashed border-[#39ff14] bg-[#020402] px-5 py-6 shadow-[0_0_24px_rgba(57,255,20,0.16)]">
+          <div className="grid gap-5 border-2 border-dashed border-[#79ceff] bg-[#060e1a] px-5 py-6 shadow-[0_0_24px_rgba(121,206,255,0.16)]">
             {(() => {
               const counts = getCounts(selectedTicker, voteRange);
               const isSelectedTickerFollowed = followedTickerSymbols.includes(
@@ -4398,10 +4297,10 @@ export default function CryptiTerminal() {
                 <>
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <h2 className="text-5xl font-black uppercase tracking-[0.18em] text-[#39ff14] [text-shadow:0_0_14px_#39ff14]">
+                      <h2 className="text-5xl font-black uppercase tracking-[0.18em] text-[#79ceff] [text-shadow:0_0_14px_#79ceff]">
                         {selectedTicker.symbol}
                       </h2>
-                      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                      <p className="mt-3 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                         {[selectedTicker.company, selectedTicker.chainMarket, selectedTicker.assetType]
                           .filter(Boolean)
                           .join(" · ") || "unfiled"}
@@ -4413,32 +4312,32 @@ export default function CryptiTerminal() {
                         setSelectedTickerId("");
                         setTickerDetailNotice("");
                       }}
-                      className="border border-dashed border-[#1d7f12] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:scale-105 hover:border-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                      className="border border-dashed border-[#355a76] px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#79ceff] transition hover:scale-105 hover:border-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                     >
                       back
                     </button>
                   </div>
 
                   {selectedTicker.note ? (
-                    <section className="border border-dashed border-[#1d7f12] bg-black px-4 py-4">
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+                    <section className="border border-dashed border-[#355a76] bg-black px-4 py-4">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a0b9d1]">
                         description
                       </p>
-                      <p className="mt-3 text-sm font-bold leading-6 text-[#d7ffd0]">
+                      <p className="mt-3 text-sm font-bold leading-6 text-[#deeffd]">
                         {selectedTicker.note}
                       </p>
                     </section>
                   ) : null}
 
                   <div className="grid gap-3 md:grid-cols-2">
-                    <div className="border border-dashed border-[#1d7f12] bg-black px-4 py-4">
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
+                    <div className="border border-dashed border-[#355a76] bg-black px-4 py-4">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-[#deeffd]">
                         {voteRange === "today" ? "today" : "all time"} signal
                       </p>
-                      <p className="mt-2 text-3xl font-black text-[#39ff14]">
+                      <p className="mt-2 text-3xl font-black text-[#79ceff]">
                         {formatScore(counts.score)}
                       </p>
-                      <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
+                      <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[#a0b9d1]">
                         {getSignalLabel(counts.score)} · {counts.total} votes
                       </p>
                     </div>
@@ -4446,21 +4345,21 @@ export default function CryptiTerminal() {
                   </div>
 
                   <div className="grid gap-3">
-                    <div className="flex flex-wrap items-center gap-3 border border-dashed border-[#1d7f12] bg-black px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                    <div className="flex flex-wrap items-center gap-3 border border-dashed border-[#355a76] bg-black px-4 py-3 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
                       <span>🚨 Rug City Warning</span>
                       <button
                         type="button"
                         onClick={() => toggleRugWarningVote(selectedTicker)}
                         aria-pressed={Boolean(selectedTicker.userRugWarningVote)}
-                        className={`inline-flex items-center gap-2 border px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.14em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        className={`inline-flex items-center gap-2 border px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.14em] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                           selectedTicker.userRugWarningVote
-                            ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_12px_rgba(57,255,20,0.45)]"
-                            : "border-[#1d7f12] bg-black text-[#39ff14] hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black"
+                            ? "border-[#79ceff] bg-[#79ceff] text-black shadow-[0_0_12px_rgba(121,206,255,0.45)]"
+                            : "border-[#355a76] bg-black text-[#79ceff] hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black"
                         }`}
                       >
                         vote
                       </button>
-                      <span className="inline-flex min-h-9 min-w-12 items-center justify-center border border-[#1d7f12] bg-black px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.14em] text-[#39ff14]">
+                      <span className="inline-flex min-h-9 min-w-12 items-center justify-center border border-[#355a76] bg-black px-3 py-2 text-[0.65rem] font-black uppercase tracking-[0.14em] text-[#79ceff]">
                         {selectedTicker.rugWarningVotes}
                       </span>
                     </div>
@@ -4468,10 +4367,10 @@ export default function CryptiTerminal() {
                       type="button"
                       onClick={() => followTicker(selectedTicker)}
                       aria-pressed={isSelectedTickerFollowed}
-                      className={`border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                      className={`border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.16em] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                         isSelectedTickerFollowed
-                          ? "border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_14px_rgba(57,255,20,0.4)]"
-                          : "border-dashed border-[#1d7f12] bg-black text-[#39ff14] hover:scale-[1.01] hover:border-[#39ff14]"
+                          ? "border-[#79ceff] bg-[#79ceff] text-black shadow-[0_0_14px_rgba(121,206,255,0.4)]"
+                          : "border-dashed border-[#355a76] bg-black text-[#79ceff] hover:scale-[1.01] hover:border-[#79ceff]"
                       }`}
                     >
                       📡 {isSelectedTickerFollowed ? "following" : "follow"}
@@ -4479,7 +4378,7 @@ export default function CryptiTerminal() {
                   </div>
 
                   {tickerDetailNotice ? (
-                    <p className="border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                    <p className="border-l-2 border-[#79ceff] pl-4 text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                       {tickerDetailNotice}
                     </p>
                   ) : null}
@@ -4500,30 +4399,30 @@ export default function CryptiTerminal() {
                     setSelectedTickerId(ticker.id);
                     setTickerDetailNotice("");
                   }}
-                  className="cursor-pointer border border-[#39ff14]/45 bg-[#020402] p-4 shadow-[0_0_12px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14]"
+                  className="cursor-pointer border border-[#79ceff]/45 bg-[#060e1a] p-4 shadow-[0_0_12px_rgba(121,206,255,0.12)] transition hover:border-[#79ceff]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-3xl font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                      <h2 className="text-3xl font-black uppercase tracking-[0.18em] text-[#79ceff]">
                         {ticker.symbol}
                       </h2>
-                      <p className="mt-2 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-[#7f9f78]">
+                      <p className="mt-2 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-[#a0b9d1]">
                         {[ticker.company, ticker.chainMarket, ticker.assetType]
                           .filter(Boolean)
                           .join(" · ") || "unfiled"}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                         {voteRange === "today" ? "today" : "all time"}
                       </p>
-                      <p className="mt-1 text-2xl font-black text-[#39ff14]">
+                      <p className="mt-1 text-2xl font-black text-[#79ceff]">
                         {formatScore(counts.score)}
                       </p>
                     </div>
                   </div>
 
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
                     {getSignalLabel(counts.score)} signal · {counts.total} votes
                   </p>
 
@@ -4535,7 +4434,7 @@ export default function CryptiTerminal() {
             })}
           </div>
         ) : (
-          <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <p className="border-l-2 border-[#79ceff] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#deeffd]">
             no crypti tickers found
           </p>
         )}

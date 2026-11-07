@@ -61,6 +61,12 @@ export type BayoStampId =
   | "seasons"
   | "holidays"
   | "birthday"
+  | "islam"
+  | "hebrew"
+  | "christian"
+  | "buddhist"
+  | "jainism"
+  | "hindu"
   | "rainbow"
   | "support-law-enforcement"
   | "support-israel"
@@ -106,6 +112,8 @@ type BayoCardConfig = {
 
 type BayoStampConfig = {
   coinCost: number;
+  tokenCost?: number;
+  pointReward?: number;
   description: string;
   id: BayoStampId;
   label: string;
@@ -131,6 +139,7 @@ export const defaultMemberRole = "reader";
 export const defaultMemberTitle = "Reader";
 export const bayoCoinExchangeRate = 100;
 export const bayoTokenExchangeRate = 5;
+export const defaultStampPointReward = 1_000;
 export const graduationTokenCost = 100;
 export const oracleBadgeTokenCost = 1000;
 export const impossibleBadgePointCost = 1_000_000_000_000;
@@ -454,9 +463,55 @@ export const bayoStamps: BayoStampConfig[] = [
   },
   {
     coinCost: 0,
-    description: "Birthday stamp.",
+    description: "Available on your birthday when saved in Settings.",
     id: "birthday",
     label: "Birthday",
+  },
+  {
+    coinCost: 0,
+    tokenCost: 1,
+    pointReward: 10_000,
+    description: "Islam stamp.",
+    id: "islam",
+    label: "Islam",
+  },
+  {
+    coinCost: 0,
+    tokenCost: 1,
+    pointReward: 25_000,
+    description: "Hebrew stamp.",
+    id: "hebrew",
+    label: "Hebrew",
+  },
+  {
+    coinCost: 0,
+    tokenCost: 1,
+    pointReward: 1_000,
+    description: "Christian stamp.",
+    id: "christian",
+    label: "Christian",
+  },
+  {
+    coinCost: 0,
+    pointReward: 0,
+    description: "Buddhist stamp.",
+    id: "buddhist",
+    label: "Buddhist",
+  },
+  {
+    coinCost: 0,
+    pointReward: 1_000,
+    description: "Jainism stamp.",
+    id: "jainism",
+    label: "Jainism",
+  },
+  {
+    coinCost: 0,
+    tokenCost: 1,
+    pointReward: 2_500,
+    description: "Hindu stamp.",
+    id: "hindu",
+    label: "Hindu",
   },
   {
     coinCost: 2,

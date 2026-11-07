@@ -237,7 +237,7 @@
   pointer-events: none;
 }
 
-.exchangeCard:hover {
+button.exchangeCard:hover {
   border-color: rgba(144, 213, 135, 0.78) !important;
   background:
     radial-gradient(circle at 86% 28%, rgba(114, 193, 106, 0.28), transparent 7rem),
@@ -281,7 +281,6 @@
 }
 
 .gate button.blackLightCard {
-  margin-bottom: 1.5rem;
   border-color: rgba(157, 133, 198, 0.38) !important;
   background:
     radial-gradient(ellipse at 86% 28%, rgba(125, 100, 168, 0.2), transparent 72%),
@@ -307,11 +306,52 @@
   color: #ceb6ef;
 }
 
+.feedShortcuts {
+  container-type: inline-size;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 1fr;
+  align-items: stretch;
+  padding: 0;
+}
+
+.gate .feedShortcuts a {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+  padding: 0.75rem 0.35rem;
+  border-radius: 0;
+  text-align: center;
+}
+
+.feedShortcuts a + a {
+  border-inline-start: 1px solid rgba(114, 193, 106, 0.34);
+}
+
+.feedShortcuts a:focus-visible {
+  outline: 2px solid var(--briefing-signal);
+  outline-offset: -4px;
+}
+
+.feedShortcuts .exchangeTitle {
+  font-size: clamp(0.9rem, 6cqi, 2.25rem);
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.postingLock {
+  max-width: 28rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(114, 193, 106, 0.34);
+  border-radius: 0.8rem;
+  background: rgba(114, 193, 106, 0.08);
+  color: var(--briefing-soft);
+  font-size: 0.8rem;
+}
+
 .balanceBar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.7rem;
   padding: 0.7rem;
   border: 1px solid rgba(114, 193, 106, 0.3);
   border-radius: 0.95rem;
@@ -334,6 +374,17 @@
   white-space: nowrap;
 }
 
+.rankBar {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.rankBar :is(small, strong) {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .balanceBar small {
   color: var(--briefing-muted);
   font-size: 0.58rem;
@@ -347,6 +398,30 @@
   color: var(--briefing-signal);
   font-size: clamp(0.78rem, 2.5vw, 1.05rem);
   letter-spacing: 0.05em;
+}
+
+.exchangeBalances {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.25rem, 1vw, 0.45rem);
+  padding: clamp(0.4rem, 1.5vw, 0.7rem);
+}
+
+.exchangeBalances span {
+  padding-inline: clamp(0.2rem, 1.2vw, 0.65rem);
+}
+
+.exchangeBalances small {
+  min-height: 2.4em;
+  font-size: clamp(0.52rem, 2.1vw, 0.58rem);
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+}
+
+.exchangeBalances strong {
+  font-size: clamp(0.65rem, 2.6vw, 1.05rem);
+  letter-spacing: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .dailySpinIcon {
@@ -554,8 +629,8 @@
 .conversionBalances dt { color: #a4bfa0; font-size: 0.8rem; }
 .conversionBalances dd { color: #dce9d9; font-weight: 800; font-variant-numeric: tabular-nums; }
 .tokenText { color: #f5cc45; }
-.availableCoinsText { color: #55df7e; }
-.conversionBalances > :is(.tokenText, .availableCoinsText) > :is(dt, dd) { color: inherit; }
+.coinText { color: #55df7e; }
+.conversionBalances > :is(.tokenText, .coinText) > :is(dt, dd) { color: inherit; }
 .conversionNotice { color: #e6a29b; font-size: 0.8rem; margin-top: 0.75rem; }
 .exchangeFeedback { color: #90d587; font-size: 0.85rem; }
 

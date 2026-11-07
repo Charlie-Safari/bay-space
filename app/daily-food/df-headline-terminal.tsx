@@ -679,6 +679,7 @@ export default function DfHeadlineTerminal({
 
   function openBrowseMode(mode: Exclude<BrowseMode, "" | "all">) {
     setBrowseMode(mode);
+    if (mode === "week") setSortMode("date");
     setExpandedPostId("");
     setHashPostId("");
     setSelectedTopicTag("");
@@ -721,7 +722,7 @@ export default function DfHeadlineTerminal({
     (browseMode === "category" && Boolean(selectedDailyFoodCategory));
 
   return (
-    <div className={`${styles.board} ${styles.currentEventsBoard} grid w-full max-w-5xl gap-8`}>
+    <div className={`${styles.board} ${styles.currentEventsBoard} grid w-full min-w-0 max-w-5xl grid-cols-1 gap-8`}>
       <header className={`${styles.screenHeader} relative flex flex-wrap items-start justify-between gap-5`}>
         <div className={`w-full ${!isMainScreen ? "sm:pr-72" : ""}`}>
           <p className={`${styles.breadcrumb} mb-4 text-sm uppercase text-[#bfd0bc]`}>
@@ -850,7 +851,7 @@ export default function DfHeadlineTerminal({
           >
             <option value="attention">Attention</option>
             <option value="top-story">Top Story</option>
-            <option value="date">Date</option>
+            <option value="date">Most Recent</option>
             <option value="category">Category</option>
           </select>
         </label>
@@ -991,7 +992,7 @@ export default function DfHeadlineTerminal({
             title="current events"
           />
         ) : displayedPost ? (
-          <article className={`${styles.currentEventExpandedArticle} relative border px-5 py-5`}>
+          <article className={`${styles.currentEventExpandedArticle} relative min-w-0 border px-5 py-5`}>
             <div className="absolute right-4 top-3 flex items-center gap-3">
               <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#8fc788]">
                 {displayedPostScore} pts

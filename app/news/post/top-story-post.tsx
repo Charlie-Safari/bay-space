@@ -143,7 +143,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   }
 
   return (
-    <article className="mt-10 max-w-3xl border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+    <article className="mt-10 w-full min-w-0 max-w-3xl border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
       <div className="flex items-start justify-between gap-4">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
           {new Date(post.createdAt).toLocaleDateString("en-US", {

@@ -135,13 +135,13 @@ export default function CryptiProfileCirclesCard({
           setJoinMessage("");
         }
       }}
-      className="group border-2 border-[#39ff14] bg-black px-4 py-5 shadow-[0_0_16px_rgba(57,255,20,0.14)]"
+      className="group border-2 border-[#79ceff] bg-black px-4 py-5 shadow-[0_0_16px_rgba(121,206,255,0.14)]"
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0] [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-black uppercase tracking-[0.24em] text-[#deeffd] [&::-webkit-details-marker]:hidden">
         <span>Circles</span>
         <span
           aria-hidden="true"
-          className="text-lg leading-none text-[#39ff14] transition group-open:rotate-180"
+          className="text-lg leading-none text-[#79ceff] transition group-open:rotate-180"
         >
           ▾
         </span>
@@ -155,32 +155,32 @@ export default function CryptiProfileCirclesCard({
               setSelectedCircleId("");
               setJoinMessage("");
             }}
-            className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="border border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
           >
             back
           </button>
-          <div className="mt-5 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.22)]">
-            <p className="text-sm font-black uppercase tracking-[0.16em] text-[#39ff14]">
+          <div className="mt-5 border-2 border-[#79ceff] bg-black p-4 shadow-[0_0_18px_rgba(121,206,255,0.22)]">
+            <p className="text-sm font-black uppercase tracking-[0.16em] text-[#79ceff]">
               {selectedCircle.circleLogo || "◎"}{" "}
               {selectedCircle.name}
               {selectedCircle.ownerMember === profileMember.member
                 ? " (FOUNDER)"
                 : ""}
             </p>
-            <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+            <div className="mt-4 grid gap-3 text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
               <p>Circle owner: {profileMember.name}</p>
               <p>
                 Group Description:{" "}
                 {selectedCircle.groupDescription || "empty"}
               </p>
               <div>
-                <p className="text-[#7f9f78]">Affiliated tickers</p>
+                <p className="text-[#a0b9d1]">Affiliated tickers</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedCircle.affiliatedTickers.length ? (
                     selectedCircle.affiliatedTickers.map((symbol) => (
                       <span
                         key={symbol}
-                        className="border border-[#1d7f12] px-2 py-1 text-[#39ff14]"
+                        className="border border-[#355a76] px-2 py-1 text-[#79ceff]"
                       >
                         {symbol}
                       </span>
@@ -193,7 +193,7 @@ export default function CryptiProfileCirclesCard({
               <button
                 type="button"
                 onClick={() => joinCircle(selectedCircle)}
-                className="w-fit border border-[#39ff14] px-3 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                className="w-fit border border-[#79ceff] px-3 py-2 text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
               >
                 Join +circle
               </button>
@@ -206,14 +206,14 @@ export default function CryptiProfileCirclesCard({
             type="button"
             onClick={followProfile}
             disabled={!activeMember || activeMember.member === profileMember.member}
-            className="w-full border border-[#39ff14] px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#1d7f12] disabled:hover:bg-black"
+            className="w-full border border-[#79ceff] px-3 py-3 text-left text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd] disabled:border-[#355a76] disabled:text-[#355a76] disabled:hover:bg-black"
           >
             {isProfileFollowed
               ? "+crypti profile followed"
               : "Follow +Crypti Profile"}
           </button>
 
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.2em] text-[#a0b9d1]">
             +Crypti Circles
           </p>
           <div className="mt-3 grid gap-3">
@@ -221,7 +221,7 @@ export default function CryptiProfileCirclesCard({
               circles.map((circle) => (
                 <div
                   key={circle.id}
-                  className="border border-[#1d7f12] bg-[#001100] px-3 py-3"
+                  className="border border-[#355a76] bg-[#0a1829] px-3 py-3"
                 >
                   <button
                     type="button"
@@ -229,7 +229,7 @@ export default function CryptiProfileCirclesCard({
                       setSelectedCircleId(circle.id);
                       setJoinMessage("");
                     }}
-                    className="block w-full text-left text-sm font-black uppercase tracking-[0.14em] text-[#d7ffd0] transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="block w-full text-left text-sm font-black uppercase tracking-[0.14em] text-[#deeffd] transition hover:text-[#79ceff] focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   >
                     {circle.circleLogo || "◎"}{" "}
                     {circle.name}
@@ -240,14 +240,14 @@ export default function CryptiProfileCirclesCard({
                   <button
                     type="button"
                     onClick={() => joinCircle(circle)}
-                    className="mt-3 border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                    className="mt-3 border border-[#355a76] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                   >
                     Join +circle
                   </button>
                 </div>
               ))
             ) : (
-              <p className="border-l-2 border-[#39ff14] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#d7ffd0]">
+              <p className="border-l-2 border-[#79ceff] pl-3 text-sm font-bold uppercase tracking-[0.14em] text-[#deeffd]">
                 empty
               </p>
             )}
@@ -256,7 +256,7 @@ export default function CryptiProfileCirclesCard({
       )}
 
       {joinMessage ? (
-        <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+        <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
           {joinMessage}
         </p>
       ) : null}

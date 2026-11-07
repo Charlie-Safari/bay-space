@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { canAccessCrypti } from "../../lib/bay-space-roles";
 import {
   moneyPrinterICardId,
@@ -29,6 +30,13 @@ function getMountainStandardTime() {
 }
 
 export default function MountainTimeFooter() {
+  const pathname = usePathname();
+  const isCrypti = pathname === "/crypti" || pathname.startsWith("/crypti/");
+  const palette = {
+    "--footer-accent": isCrypti ? "#79ceff" : "#39ff14",
+    "--footer-text": isCrypti ? "#deeffd" : "#d7ffd0",
+    "--footer-accent-rgb": isCrypti ? "121 206 255" : "57 255 20",
+  } as CSSProperties;
   const [time, setTime] = useState(getMountainStandardTime);
   const [showVersion, setShowVersion] = useState(false);
   const [activeMemberRecord, setActiveMemberRecord] =
@@ -181,12 +189,15 @@ export default function MountainTimeFooter() {
   }, [activeMemberRecord, hasMoneyPrinterIActive]);
 
   return (
-    <footer className="mt-auto w-full shrink-0 border-y border-[#39ff14] bg-black px-4 py-3 font-[Courier_New,Courier,monospace] text-xs font-bold uppercase tracking-[0.18em] text-[#d7ffd0] shadow-[0_0_18px_rgba(57,255,20,0.22)]">
+    <footer
+      style={palette}
+      className="mt-auto w-full shrink-0 border-y border-(--footer-accent) bg-black px-4 py-3 font-[Courier_New,Courier,monospace] text-xs font-bold uppercase tracking-[0.18em] text-(color:--footer-text) shadow-[0_0_18px_rgb(var(--footer-accent-rgb)/0.22)]"
+    >
       <div className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div className="flex flex-wrap items-center gap-4">
           <Link
             href="/join-the-circle"
-            className="text-left text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="text-left text-(color:--footer-accent) transition hover:bg-(--footer-accent) hover:text-black focus:outline-none focus:ring-2 focus:ring-(--footer-text)"
           >
             join the circle
           </Link>
@@ -194,18 +205,18 @@ export default function MountainTimeFooter() {
             <button
               type="button"
               onClick={() => setShowVersion((current) => !current)}
-              className="border border-[#39ff14] px-2 py-1 text-left text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="border border-(--footer-accent) px-2 py-1 text-left text-(color:--footer-accent) transition hover:bg-(--footer-accent) hover:text-black focus:outline-none focus:ring-2 focus:ring-(--footer-text)"
               aria-expanded={showVersion}
             >
               version
             </button>
             {showVersion ? (
-              <span className="text-[#d7ffd0]" aria-live="polite">
+              <span aria-live="polite">
                 1.35
               </span>
             ) : null}
             {hasMoneyPrinterIActive ? (
-              <span className="text-[#39ff14]" aria-live="polite">
+              <span className="text-(color:--footer-accent)" aria-live="polite">
                 💸+{moneyPrinterIEarned.toLocaleString("en-US")}
               </span>
             ) : null}
@@ -215,7 +226,7 @@ export default function MountainTimeFooter() {
             onClick={() => {
               window.dispatchEvent(new Event(baySpaceHowToOpenEvent));
             }}
-            className="footer-how-to-link text-left text-[#39ff14] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+            className="footer-how-to-link text-left text-(color:--footer-accent) transition focus:outline-none focus:ring-2 focus:ring-(--footer-text)"
           >
             ▶ how to ◀
           </Link>
@@ -223,7 +234,7 @@ export default function MountainTimeFooter() {
             <Link
               href="/library"
               aria-label="library"
-              className="grid h-8 w-9 place-items-center border border-[#39ff14] text-base leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="grid h-8 w-9 place-items-center border border-(--footer-accent) text-base leading-none text-(color:--footer-accent) transition hover:bg-(--footer-accent) hover:text-black focus:outline-none focus:ring-2 focus:ring-(--footer-text)"
             >
               📚
             </Link>
@@ -231,7 +242,7 @@ export default function MountainTimeFooter() {
           {hasCryptiAccess ? (
             <Link
               href="/crypti?howto=true"
-              className="border border-[#72d7ff] px-2 py-1 text-left text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              className="border border-[#72d7ff] px-2 py-1 text-left text-[#72d7ff] transition hover:bg-[#72d7ff] hover:text-black focus:outline-none focus:ring-2 focus:ring-(--footer-text)"
             >
               +how to
             </Link>

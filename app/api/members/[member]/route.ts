@@ -43,6 +43,7 @@ import {
   setSessionCookie,
 } from "../../../../lib/bay-space-session";
 import { defaultMemberRole } from "../../../../lib/bay-space-roles";
+import { isValidBirthday } from "../../../../lib/pacific-date";
 import {
   gateKeys,
   isBayoCardId,
@@ -128,6 +129,7 @@ function privateMember(member: ApiMember) {
     title: member.title,
     createdAt: member.createdAt,
     email: member.email ?? "",
+    birthdayDay: member.birthdayDay ?? "",
     birthdayMonth: member.birthdayMonth ?? "",
     birthdayYear: member.birthdayYear ?? "",
     links: member.links,
@@ -279,6 +281,7 @@ export async function PATCH(request: Request, context: MemberContext) {
       stamp?: string;
       settings?: {
         email?: string;
+        birthdayDay?: string;
         birthdayMonth?: string;
         birthdayYear?: string;
         cryptiAgreementAccepted?: boolean;
@@ -292,7 +295,16 @@ export async function PATCH(request: Request, context: MemberContext) {
     };
 
     if (body.action === "settings") {
-      const member = await updateMemberSettings(memberId, body.settings ?? {});
+      const settings = body.settings ?? {};
+      const day = settings.birthdayDay ?? actor?.birthdayDay;
+      if (day && !isValidBirthday(
+        settings.birthdayMonth ?? actor?.birthdayMonth,
+        day,
+        settings.birthdayYear ?? actor?.birthdayYear,
+      )) {
+        return Response.json({ message: "Enter a valid birthday month and day." }, { status: 400 });
+      }
+      const member = await updateMemberSettings(memberId, settings);
 
       if (!member) {
         return Response.json({ message: "Member not found" }, { status: 404 });
@@ -500,16 +512,26 @@ export async function PATCH(request: Request, context: MemberContext) {
         return Response.json({ message: "Invalid stamp" }, { status: 400 });
       }
 
-      const member = await purchaseMemberBayoStamp(memberId, body.stamp);
-
-      if (!member) {
-        return Response.json(
-          { message: "not enough coins for stamp" },
-          { status: 400 },
-        );
+      const result = await purchaseMemberBayoStamp(memberId, body.stamp);
+      switch (result.status) {
+        case "owned":
+        case "purchased":
+          return Response.json({
+            member: privateMember(result.member),
+            alreadyOwned: result.status === "owned",
+            points: result.points,
+          });
+        case "birthday":
+          return Response.json({ message: "The Birthday stamp is available only on your saved birthday." }, { status: 403 });
+        case "coins":
+          return Response.json({ message: "Not enough coins for this stamp." }, { status: 400 });
+        case "tokens":
+          return Response.json({ message: "Not enough tokens for this stamp." }, { status: 400 });
+        case "retry":
+          return Response.json({ message: "Your balance changed. Try again." }, { status: 409 });
+        case "not-found":
+          return Response.json({ message: "Member or stamp not found." }, { status: 404 });
       }
-
-      return Response.json({ member });
     }
 
     if (body.action === "claim-money-printer-i") {

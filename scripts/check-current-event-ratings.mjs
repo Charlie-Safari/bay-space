@@ -13,6 +13,7 @@ if (!process.argv[2]) throw new Error("Pass the path to a temporary PGlite insta
 const { PGlite } = await import(pathToFileURL(process.argv[2]).href);
 const db = new PGlite();
 const migration = fs.readFileSync("supabase/migrations/202611070001_current_event_rating_scales.sql", "utf8");
+const lockMigration = fs.readFileSync("supabase/migrations/202611070002_lock_current_event_ratings.sql", "utf8");
 
 await db.exec(`
   create role anon;
@@ -45,6 +46,7 @@ await db.exec(`
     select p.id, m.id, 11, 2 from posts p cross join members m where m.member_number = 91001;
 `);
 await db.exec(migration);
+await db.exec(lockMigration);
 let rows = (await db.query("select category,meta from posts where coalesce(meta->>'cryptiPost','false') <> 'true' order by category")).rows;
 assert.equal(rows.find(row => row.category === "daily-food").meta.truthPointTenths, "0");
 assert.equal(rows.find(row => row.category === "top-story").meta.truthVoteCount, "0");
@@ -66,17 +68,19 @@ async function supabaseRequest(table, options = {}) {
   const filters = [];
   const values = [];
   for (const [column, value] of Object.entries(query)) {
-    if (["order", "select"].includes(column)) continue;
+    if (value === undefined || ["order", "select", "limit"].includes(column)) continue;
     assert.match(column, /^[a-z_]+$/);
     if (value === "is.null") filters.push(column + " is null");
     else {
-      assert.ok(String(value).startsWith("eq."));
+      assert.match(String(value), /^(eq|gt)\./);
       values.push(String(value).slice(3));
-      filters.push(column + " = $" + values.length);
+      filters.push(column + (String(value).startsWith("gt.") ? " > $" : " = $") + values.length);
     }
   }
   assert.ok(["members", "posts", "post_truth_votes"].includes(table));
-  const result = await db.query("select to_jsonb(t) as row from " + table + " t where " + filters.join(" and "), values);
+  const order = query.order === "member_id.asc" ? " order by member_id" : "";
+  const limit = query.limit ? " limit " + Number(query.limit) : "";
+  const result = await db.query("select to_jsonb(t) as row from " + table + " t where " + filters.join(" and ") + order + limit, values);
   return result.rows.map(row => row.row);
 }
 const moduleCache = new Map();
@@ -111,6 +115,7 @@ for (const score of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]) {
   assert.equal(summary.userScore, score);
   assert.equal(summary.scoreTotal, score);
   assert.equal(summary.pointValue, score);
+  if (score < 11) await storage.setCurrentEventRating(postId, "91002", "truth", 0);
 }
 assert.equal((await db.query("select available_points::int as points from members where member_number=91002")).rows[0].points, 125);
 await Promise.all([
@@ -123,12 +128,19 @@ assert.equal(summary.voteCount, 2);
 assert.equal(summary.scoreTotal, 14);
 assert.equal(summary.relevance.scoreTotal, 7);
 assert.equal(summary.pointValue, 21);
+assert.equal(summary.otherVoteCounts[2], 1);
+assert.equal(summary.otherVoteCounts[10], 0);
+assert.equal((await storage.getPostTruthVoteSummary(postId)).otherVoteCounts, undefined);
+const changedVote = await storage.setCurrentEventRating(postId, "91002", "truth", 9);
+assert.equal(changedVote.alreadyVoted, true);
+assert.equal(changedVote.summary.userScore, 11);
 assert.equal((await db.query("select meta->>'truthPointTenths' as points from posts where id=$1", [postId])).rows[0].points, "210");
 
 await storage.setCurrentEventRating(postId, "91002", "truth", 0);
 await storage.setCurrentEventRating(postId, "91002", "truth", 0);
 summary = await storage.getPostTruthVoteSummary(postId, "91002");
 assert.equal(summary.userScore, null);
+assert.equal(summary.otherVoteCounts, undefined);
 assert.equal(summary.voteCount, 1);
 assert.equal(summary.relevance.userScore, 7);
 assert.equal(summary.pointValue, 10);
@@ -137,6 +149,7 @@ await storage.setCurrentEventRating(postId, "91002", "relevance", 0);
 assert.equal((await storage.getPostTruthVoteSummary(postId)).relevance.voteCount, 0);
 
 await db.exec(migration);
+await db.exec(lockMigration);
 assert.equal((await storage.getPostTruthVoteSummary(postId)).pointValue, 3);
 const theoryId = (await db.query("select id from posts where category='theory'")).rows[0].id;
 summary = await storage.getPostTruthVoteSummary(theoryId, "91001");
@@ -168,6 +181,7 @@ for (const score of [null, "", "8", 0, 12, 2.5]) assert.equal((await vote({ scor
 assert.equal((await vote({ score: 8, dimension: "unknown" })).status, 400);
 assert.equal((await vote({ score: 8, dimension: "relevance" })).status, 200);
 assert.equal((await vote({ score: 8, dimension: "relevance" })).status, 200);
+assert.equal((await vote({ score: 9, dimension: "relevance" })).status, 409);
 assert.equal((await storage.getPostTruthVoteSummary(postId, "91002")).relevance.userScore, 8);
 assert.equal((await vote({ dimension: "relevance", remove: true })).status, 200);
 assert.equal((await storage.getPostTruthVoteSummary(postId, "91002")).relevance.userScore, null);

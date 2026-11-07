@@ -15,6 +15,7 @@ import {
 } from "../../../lib/bay-space-scoring";
 import { countFavoritePosts } from "../../components/favorite-store";
 import { claimPostVisit } from "../../components/post-visit-client";
+import styles from "../crypti.module.css";
 
 type SavedMember = {
   member: string;
@@ -303,7 +304,7 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
 
   if (!post) {
     return (
-      <div className="mt-10 max-w-3xl border-2 border-[#1d7f12] bg-black px-4 py-5 text-sm font-bold uppercase tracking-[0.16em] text-[#d7ffd0]">
+      <div className="mt-10 max-w-3xl border-2 border-[#355a76] bg-black px-4 py-5 text-sm font-bold uppercase tracking-[0.16em] text-[#deeffd]">
         crypti post not found
       </div>
     );
@@ -311,44 +312,12 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
 
   return (
     <>
-      <p className="mb-4 text-sm uppercase tracking-[0.32em] text-[#d7ffd0]">
-        <span>C:\</span>
-        <Link
-          href="/briefing-room"
-          className="transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          BAY-SPACE
-        </Link>
-        <span>\</span>
-        <Link
-          href="/crypti"
-          className="transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          +CRYPTI
-        </Link>
-        <span>\</span>
-        <Link
-          href={sourceHref}
-          className="transition hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          {sourceLabel}
-        </Link>
-        <span>&gt; POST</span>
-      </p>
-      <div className="flex flex-wrap items-end gap-5">
-        <h1 className="text-5xl font-black uppercase tracking-[0.18em] text-[#d7ffd0] [text-shadow:0_0_16px_#39ff14] sm:text-7xl">
-          +CRYPTI
-        </h1>
-        <Link
-          href={sourceHref}
-          className="mb-2 w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-        >
-          BACK
-        </Link>
-      </div>
-      <article className="mt-10 max-w-3xl border-2 border-[#39ff14] bg-black px-5 py-6 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
+      <Link href={sourceHref} className={`${styles.action} w-fit`}>
+        <span aria-hidden="true">←</span> Back to {sourceLabel}
+      </Link>
+      <article className="max-w-3xl min-w-0 rounded-2xl border border-[#355a76] bg-[#0a1829] px-5 py-6 wrap-anywhere shadow-[0_0_18px_rgba(121,206,255,0.18)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d7ffd0]">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#deeffd]">
           {new Date(post.createdAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
@@ -374,30 +343,30 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
             votePath={`/api/posts/${post.id}/crypti-ticket`}
             {...cryptiTicketVoteButtonDefaults}
           />
-          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#79ceff]">
             {postPoints} pts
           </p>
         </div>
       </div>
       {post.author !== "unknown" && (authorDisplayName || post.author) ? (
-        <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#7f9f78]">
+        <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-[#a0b9d1]">
           <Link
             href={`/crypti?profile=${encodeURIComponent(post.author)}`}
-            className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
+            className="underline decoration-[#79ceff] underline-offset-4 transition hover:text-[#79ceff]"
           >
             {authorDisplayName || post.author}
           </Link>
         </p>
       ) : null}
-      <h2 className="mt-4 text-2xl font-black uppercase tracking-[0.12em] text-[#39ff14]">
+      <h1 className="mt-4 text-2xl font-black uppercase tracking-[0.12em] text-[#79ceff]">
         {post.title}
-      </h2>
+      </h1>
       {receiptLines.length ? (
-        <div className="mt-6 grid gap-3 text-base leading-7 text-[#d7ffd0]">
+        <div className="mt-6 grid gap-3 text-base leading-7 text-[#deeffd]">
           {receiptLines.map((line, index) => (
             <div key={`${post.id}-${line}-${index}`} className="flex items-start gap-3">
               <span
-                className="mt-2 h-2 w-2 shrink-0 bg-[#39ff14] shadow-[0_0_8px_rgba(57,255,20,0.75)]"
+                className="mt-2 h-2 w-2 shrink-0 bg-[#79ceff] shadow-[0_0_8px_rgba(121,206,255,0.75)]"
                 aria-hidden="true"
               />
               <p>{line}</p>
@@ -405,13 +374,13 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
           ))}
         </div>
       ) : (
-        <p className="mt-6 whitespace-pre-wrap text-base leading-7 text-[#d7ffd0]">
+        <p className="mt-6 whitespace-pre-wrap text-base leading-7 text-[#deeffd]">
           no receipts entered
         </p>
       )}
       {tickersMentioned.length ? (
-        <section className="mt-5 border-t border-[#1d7f12] pt-3">
-          <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+        <section className="mt-5 border-t border-[#355a76] pt-3">
+          <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
             TICKERS MENTIONED
           </h3>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -420,7 +389,7 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
                 <Link
                   key={ticker}
                   href={`/crypti?ticker=${encodeURIComponent(ticker)}`}
-                  className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                  className="border border-[#355a76] bg-[#0a1829] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd]"
                 >
                   ◈ {ticker}
                 </Link>
@@ -429,7 +398,7 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
                   key={ticker}
                   type="button"
                   onClick={() => shakeMissingTicker(ticker)}
-                  className={`border border-[#1d7f12] bg-[#001100] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                  className={`border border-[#355a76] bg-[#0a1829] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
                     shakingTicker === ticker
                       ? "animate-[option-shake_180ms_linear]"
                       : ""
@@ -443,8 +412,8 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
         </section>
       ) : null}
       {sources.length ? (
-        <section className="mt-5 border-t border-[#1d7f12] pt-3">
-          <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#7f9f78]">
+        <section className="mt-5 border-t border-[#355a76] pt-3">
+          <h3 className="text-xs font-black uppercase tracking-[0.24em] text-[#a0b9d1]">
             SOURCES
           </h3>
           <ol className="mt-2 list-decimal space-y-2 pl-5 text-xs leading-5">
@@ -454,7 +423,7 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
                   href={getSourceHref(source)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="break-all text-[#d7ffd0] underline decoration-[#39ff14] underline-offset-4"
+                  className="break-all text-[#deeffd] underline decoration-[#79ceff] underline-offset-4"
                 >
                   {source}
                 </a>
@@ -474,14 +443,14 @@ export default function CryptiPostDetail({ postId = "" }: CryptiPostDetailProps)
         <button
           type="button"
           onClick={showInvestigateMode}
-          className={`border border-dashed border-[#1d7f12] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+          className={`border border-dashed border-[#355a76] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#79ceff] transition hover:border-[#79ceff] hover:bg-[#79ceff] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#deeffd] ${
             isInvestigateShaking ? "animate-[option-shake_180ms_linear]" : ""
           }`}
         >
           investigate mode
         </button>
         {investigateMessage ? (
-          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+          <p className="text-right text-xs font-black uppercase tracking-[0.16em] text-[#deeffd]">
             {investigateMessage}
           </p>
         ) : null}

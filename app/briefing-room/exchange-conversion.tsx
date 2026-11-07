@@ -58,13 +58,17 @@ export default function ExchangeConversion({
           {insufficient ? <p className={styles.conversionNotice} role="status">Not enough available {source}.</p> : null}
         </form>
         <dl className={styles.conversionBalances}>
-          <div className={isTokenExchange ? styles.availableCoinsText : undefined}>
+          <div className={isTokenExchange ? styles.coinText : undefined}>
             <dt>Available {source}</dt>
             <dd>{available.toLocaleString("en-US")}</dd>
           </div>
-          <div className={isTokenExchange ? styles.tokenText : undefined}>
+          <div className={isTokenExchange ? styles.tokenText : styles.coinText}>
             <dt>{isTokenExchange ? "Tokens balance" : "Bayo coin balance"}</dt>
             <dd>{balance.toLocaleString("en-US")}</dd>
+          </div>
+          <div>
+            <dt>Exchange rate</dt>
+            <dd>{rate}:1</dd>
           </div>
         </dl>
       </div>

@@ -13,6 +13,11 @@ type BriefingRoomProps = {
 export default async function BriefingRoom({ searchParams }: BriefingRoomProps) {
   const { inboxMember = "", member = "", panel = "" } = await searchParams;
   const shouldOpenInbox = panel === "inbox" || Boolean(inboxMember.trim());
+  const initialPanel = shouldOpenInbox
+    ? "inbox"
+    : panel === "quiz" || panel === "exchange" || panel === "settings"
+      ? panel
+      : "id-card";
 
   return (
     <main className={`${styles.page} min-h-screen text-[#72c16a] font-mono`}>
@@ -24,7 +29,7 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
         </p>
         <BriefingRoomGate
           initialInboxMember={inboxMember}
-          initialPanel={shouldOpenInbox ? "inbox" : panel === "quiz" ? "quiz" : panel === "exchange" ? "exchange" : "id-card"}
+          initialPanel={initialPanel}
           member={member}
         />
       </section>

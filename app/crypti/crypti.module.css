@@ -1,0 +1,276 @@
+.page {
+  min-height: 100svh;
+  color: #79ceff;
+  font-family: var(--font-mono, monospace);
+  background:
+    radial-gradient(ellipse at 74% 0%, #102844 0%, transparent 38rem),
+    linear-gradient(155deg, #060e1a, #040810 72%);
+  color-scheme: dark;
+}
+
+.shell {
+  display: grid;
+  width: min(100%, 72rem);
+  min-width: 0;
+  gap: clamp(1rem, 3vw, 1.65rem);
+  margin-inline: auto;
+  padding: 0 clamp(1rem, 3vw, 2rem) 3rem;
+}
+
+.header {
+  display: grid;
+  min-width: 0;
+  gap: 0.55rem;
+  padding-top: 0.65rem;
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.wordmark,
+.returnLink {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.45rem;
+}
+
+.wordmark {
+  color: #b7e4ff;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+}
+
+.wordmark svg {
+  width: 1.7rem;
+  height: 1.7rem;
+  color: #79ceff;
+}
+
+.returnLink {
+  padding-inline: 0.6rem;
+  color: #a1bfdb;
+  font-size: 0.75rem;
+}
+
+.wordmark:hover,
+.returnLink:hover {
+  color: #e8f6ff;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  padding: 0.32rem;
+  border: 1px solid #254660;
+  border-radius: 0.85rem;
+  background: #071321;
+}
+
+.tab {
+  display: grid;
+  min-width: 0;
+  min-height: 2.75rem;
+  place-items: center;
+  padding: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.58rem;
+  color: #a6c3da;
+  font-size: 0.73rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.tab:hover {
+  background: #102339;
+  color: #eef8ff;
+}
+
+.tab[aria-current="page"] {
+  border-color: #539cca;
+  background: linear-gradient(155deg, #203e5a, #11233a);
+  color: #eef8ff;
+  box-shadow: inset 0 1px #78cfff26;
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: clamp(15rem, 34vw, 23rem);
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(1.25rem, 5vw, 3.5rem);
+  border: 1px solid #355d7e;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(ellipse at 72% 20%, #1d4164, transparent 62%),
+    linear-gradient(165deg, #10243a, #081323 70%);
+  box-shadow: inset 0 1px #bce8ff20, 0 1.1rem 2.8rem #02060d75;
+}
+
+.hero::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(#94c9f015 1px, transparent 1px),
+    linear-gradient(90deg, #94c9f015 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  mask-image: linear-gradient(125deg, transparent, black 75%);
+  content: "";
+  pointer-events: none;
+}
+
+.ridgeline {
+  position: absolute;
+  z-index: -1;
+  right: -1%;
+  bottom: -5%;
+  width: min(68%, 45rem);
+  height: auto;
+  pointer-events: none;
+}
+
+.heroCopy {
+  position: relative;
+  color: #e3f3ff;
+}
+
+.eyebrow {
+  color: #a1d4f8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin-block: 0.5rem 0.75rem;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(3rem, 8vw, 6.5rem);
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 0.98;
+  text-shadow: 0 0.18rem 1.5rem #050d1acc;
+}
+
+.tagline {
+  color: #bbd4ec;
+  font-size: clamp(0.84rem, 2vw, 1rem);
+}
+
+.breadcrumb {
+  color: #a7c9e3;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.campTools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.toolPanel,
+.access {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.75rem;
+  padding: clamp(0.9rem, 2.5vw, 1.3rem);
+  border: 1px solid #294b65;
+  border-radius: 1rem;
+  background: linear-gradient(155deg, #101f31, #080f1d);
+}
+
+.access form {
+  border-color: #355a76;
+  background: #0a1829;
+}
+
+.access form input { color: #deeffd; }
+.access form input::placeholder { color: #a1bfdb; }
+.access form input:focus { box-shadow: inset 0 0 0 1px #79ceff; }
+.access form button {
+  border-color: #355a76;
+  background: #102238;
+  color: #b7e4ff;
+}
+.access form button:is(:hover, :focus-visible) {
+  background: #193650;
+  color: #eef8ff;
+}
+
+.toolPanel h2,
+.access h2 {
+  color: #deeffd;
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.access {
+  max-width: 33rem;
+  color: #b4cbe1;
+  font-size: 0.84rem;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.action {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #355a76;
+  border-radius: 0.65rem;
+  background: #102238;
+  color: #c5e7ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.action span { color: #86cfff; }
+
+.action:hover {
+  border-color: #6fb5e1;
+  background: #193650;
+  color: #eef8ff;
+}
+
+.page :is(.action, .tab, .returnLink, .wordmark):focus-visible {
+  outline: 2px solid #90d7ff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 55rem) {
+  .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 39rem) {
+  .campTools { grid-template-columns: minmax(0, 1fr); }
+  .hero { align-items: start; }
+  .ridgeline { right: -5%; bottom: -5%; width: 104%; opacity: 0.72; }
+}
+
+@media (max-width: 29rem) {
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tab:first-child { grid-column: 1 / -1; }
+}

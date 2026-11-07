@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomInt } from "crypto";
-import { getPacificDateKey } from "./pacific-date";
+import { getPacificDateKey, isBirthdayOn } from "./pacific-date";
 import {
   SupabaseServerError,
   supabaseRequest,
@@ -25,6 +25,7 @@ import {
   bayoStamps,
   defaultMemberRole,
   defaultMemberTitle,
+  defaultStampPointReward,
   doublayCardId,
   gateKeys,
   getBayoCardActiveSlotCount,
@@ -108,6 +109,7 @@ type NewPostInput = Omit<BayPost, "id" | "createdAt" | "dateKey">;
 
 type MemberSettingsInput = {
   email?: string;
+  birthdayDay?: string;
   birthdayMonth?: string;
   birthdayYear?: string;
   cryptiAgreementAccepted?: boolean;
@@ -157,6 +159,7 @@ type MemberTicketVote = {
 };
 
 type MemberLinks = Partial<NonNullable<BayMember["links"]>> & {
+  _birthdayDay?: string;
   _activeBayoCards?: string[];
   _bayoCards?: string[];
   _bayoStamps?: string[];
@@ -425,6 +428,7 @@ function publicMember(member: MemberRow, roles: string[] = []): BayMember {
     title: member.title,
     createdAt: member.created_at,
     email: member.email,
+    birthdayDay: member.links?._birthdayDay,
     birthdayMonth: member.birthday_month,
     birthdayYear: member.birthday_year,
     links: {
@@ -555,14 +559,27 @@ function summarizeCurrentEventRatings(
   );
   const userVote = relevanceVotes.find((vote) => vote.member_id === userMemberId);
 
+  function otherVoteCounts(dimension: "score" | "relevance_score") {
+    const counts = Array<number>(11).fill(0);
+    for (const vote of currentVotes) {
+      const score = vote[dimension] ?? 0;
+      if (vote.member_id !== userMemberId && score >= 1 && score <= 11) {
+        counts[score - 1] += 1;
+      }
+    }
+    return counts;
+  }
+
   return {
     ...summary,
     pointValue: summary.scoreTotal + relevanceTotal,
+    otherVoteCounts: summary.userScore !== null ? otherVoteCounts("score") : undefined,
     relevance: {
       averageScore: relevanceVotes.length ? relevanceTotal / relevanceVotes.length : 0,
       scoreTotal: relevanceTotal,
       userScore: userVote?.relevance_score ?? null,
       voteCount: relevanceVotes.length,
+      otherVoteCounts: userVote ? otherVoteCounts("relevance_score") : undefined,
     },
   };
 }
@@ -987,6 +1004,12 @@ async function syncMemberPassiveMoneyPrinter(member: MemberRow) {
     points += result.points;
   }
 
+  if (!points &&
+      nextMoneyPrinter.passiveIIAt === moneyPrinter.passiveIIAt &&
+      nextMoneyPrinter.passiveIIIAt === moneyPrinter.passiveIIIAt) {
+    return member;
+  }
+
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
       ...(points > 0 ? getMemberPointAwardBody(member, points) : {}),
@@ -1001,10 +1024,11 @@ async function syncMemberPassiveMoneyPrinter(member: MemberRow) {
     query: {
       id: `eq.${member.id}`,
       select: "*",
+      updated_at: `eq.${member.updated_at}`,
     },
   });
 
-  return rows[0] ?? member;
+  return rows[0] ?? await getMemberRowByNumber(String(member.member_number)) ?? member;
 }
 
 function getTruthVoteCardMultiplier(member: MemberRow, post: PostRow) {
@@ -1517,8 +1541,8 @@ export async function updateMemberSettings(
 
   const rows = await supabaseRequest<MemberRow[]>("members", {
     body: {
-      birthday_month: input.birthdayMonth?.trim().slice(0, 2) ?? "",
-      birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? "",
+      birthday_month: input.birthdayMonth?.trim().slice(0, 2) ?? member.birthday_month,
+      birthday_year: input.birthdayYear?.trim().slice(0, 4) ?? member.birthday_year,
       ...(shouldAcceptCryptiAgreement
         ? {
             crypti_agreement_accepted_at: new Date().toISOString(),
@@ -1528,6 +1552,7 @@ export async function updateMemberSettings(
       email: input.email?.trim().slice(0, 120) ?? "",
       links: {
         ...(member.links ?? {}),
+        ...(input.birthdayDay !== undefined ? { _birthdayDay: input.birthdayDay } : {}),
         _stats: member.links?._stats ?? {},
         _cryptiOwnedTickers: normalizeCryptiOwnedTickerSymbols(
           member.links?._cryptiOwnedTickers,
@@ -2194,44 +2219,56 @@ export async function purchaseMemberBayoStamp(
   memberId: string,
   stampId: BayoStampId,
 ) {
-  const member = await getMemberRowByNumber(memberId);
   const stamp = bayoStamps.find((candidate) => candidate.id === stampId);
+  if (!stamp) return { status: "not-found" } as const;
 
-  if (!member || !stamp) {
-    return null;
-  }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const member = await getMemberRowByNumber(memberId);
+    if (!member) return { status: "not-found" } as const;
+    const ownedStamps = getMemberBayoStamps(member);
+    if (ownedStamps.includes(stamp.id)) {
+      return { status: "owned", member: await getPublicMemberFromRow(member), points: 0 } as const;
+    }
 
-  const syncedMember = await syncMemberPassiveMoneyPrinter(member);
-  const ownedStamps = getMemberBayoStamps(syncedMember);
+    if (stamp.id === "birthday" &&
+        !isBirthdayOn(member.birthday_month, member.links?._birthdayDay)) {
+      return { status: "birthday" } as const;
+    }
 
-  if (ownedStamps.includes(stamp.id)) {
-    return getPublicMemberFromRow(syncedMember);
-  }
+    const coins = normalizePointBalance(member.bayo_coins);
+    const tokens = getMemberBayoTokens(member);
+    const tokenCost = stamp.tokenCost ?? 0;
+    if (coins < stamp.coinCost) return { status: "coins" } as const;
+    if (tokens < tokenCost) return { status: "tokens" } as const;
 
-  const bayoCoins = normalizePointBalance(syncedMember.bayo_coins);
-
-  if (bayoCoins < stamp.coinCost) {
-    return null;
-  }
-
-  const rows = await supabaseRequest<MemberRow[]>("members", {
-    body: {
-      bayo_coins: bayoCoins - stamp.coinCost,
-      links: {
-        ...(syncedMember.links ?? {}),
-        _bayoStamps: [...ownedStamps, stamp.id],
+    const points = stamp.pointReward ?? defaultStampPointReward;
+    const rows = await supabaseRequest<MemberRow[]>("members", {
+      body: {
+        ...(points ? getMemberPointAwardBody(member, points) : {}),
+        ...(stamp.coinCost ? { bayo_coins: coins - stamp.coinCost } : {}),
+        links: {
+          ...(member.links ?? {}),
+          ...(tokenCost ? { _bayoTokens: tokens - tokenCost } : {}),
+          _bayoStamps: [...ownedStamps, stamp.id],
+        },
+        updated_at: new Date(Math.max(Date.now(), Date.parse(member.updated_at) + 1)).toISOString(),
       },
-      updated_at: new Date().toISOString(),
-    },
-    method: "PATCH",
-    prefer: "return=representation",
-    query: {
-      member_number: `eq.${syncedMember.member_number}`,
-      select: "*",
-    },
-  });
+      method: "PATCH",
+      prefer: "return=representation",
+      query: {
+        member_number: `eq.${member.member_number}`,
+        deleted_at: "is.null",
+        select: "*",
+        updated_at: `eq.${member.updated_at}`,
+      },
+    });
 
-  return rows[0] ? getPublicMemberFromRow(rows[0]) : null;
+    if (rows[0]) {
+      return { status: "purchased", member: await getPublicMemberFromRow(rows[0]), points } as const;
+    }
+  }
+
+  return { status: "retry" } as const;
 }
 
 export async function claimMemberMoneyPrinterI(memberId: string) {
@@ -2779,13 +2816,24 @@ async function getCommentablePostRow(postId: string) {
 }
 
 async function getActiveTruthVotes(postId: string) {
-  return supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
-    query: {
-      order: "updated_at.desc",
-      post_id: `eq.${postId}`,
-      select: "*",
-    },
-  });
+  const pageSize = 500;
+  const votes: PostTruthVoteRow[] = [];
+  let afterMemberId: string | undefined;
+
+  while (true) {
+    const page = await supabaseRequest<PostTruthVoteRow[]>("post_truth_votes", {
+      query: {
+        limit: pageSize,
+        member_id: afterMemberId ? `gt.${afterMemberId}` : undefined,
+        order: "member_id.asc",
+        post_id: `eq.${postId}`,
+        select: "*",
+      },
+    });
+    votes.push(...page);
+    if (page.length < pageSize) return votes;
+    afterMemberId = page[page.length - 1].member_id;
+  }
 }
 
 async function syncPostTruthVoteMeta(post: PostRow, userMemberId?: string) {
@@ -3074,7 +3122,7 @@ export async function setCurrentEventRating(
             : rewardKeys.filter((key) => key !== rewardKey),
         }
       : null;
-    const result = await supabaseRequest<{ retry?: boolean; notFound?: boolean }>(
+    const result = await supabaseRequest<{ retry?: boolean; notFound?: boolean; alreadyVoted?: boolean }>(
       "rpc/set_current_event_rating", {
         method: "POST",
         body: {
@@ -3090,7 +3138,10 @@ export async function setCurrentEventRating(
     if (result.notFound) return null;
     if (result.retry) continue;
     const votes = await getActiveTruthVotes(post.id);
-    return { summary: summarizeCurrentEventRatings(votes, member.id) };
+    return {
+      summary: summarizeCurrentEventRatings(votes, member.id),
+      alreadyVoted: result.alreadyVoted,
+    };
   }
   throw new Error("Your balance changed. Please vote again.");
 }
