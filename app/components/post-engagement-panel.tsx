@@ -8,6 +8,7 @@ import type {
   BayPostTruthVoteSummary,
 } from "../../lib/bay-space-types";
 import type { BayoCardId } from "../../lib/bay-space-ranks";
+import CurrentEventRatingScale from "./current-event-rating-scale";
 
 type PostEngagementPanelProps = {
   isLoggedIn: boolean;
@@ -68,9 +69,13 @@ export default function PostEngagementPanel({
   const [isCommentSaving, setIsCommentSaving] = useState(false);
   const [deletingCommentIds, setDeletingCommentIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVoting, setIsVoting] = useState(false);
+  const [votingDimension, setVotingDimension] = useState<"truth" | "relevance" | null>(null);
+  const isVoting = votingDimension !== null;
   const [now, setNow] = useState(Date.now);
-  const [truthScore, setTruthScore] = useState(defaultTruthScore);
+  const isCurrentEvents =
+    postCategory === "daily-food" || postCategory === "top-story";
+  const [truthScore, setTruthScore] = useState(isCurrentEvents ? 0 : defaultTruthScore);
+  const [relevanceScore, setRelevanceScore] = useState(0);
   const [truthSummary, setTruthSummary] = useState<BayPostTruthVoteSummary>({
     averageScore: 0,
     pointValue: 0,
@@ -78,8 +83,6 @@ export default function PostEngagementPanel({
     userScore: null,
     voteCount: 0,
   });
-  const isCurrentEvents =
-    postCategory === "daily-food" || postCategory === "top-story";
 
   useEffect(() => {
     let isMounted = true;
@@ -122,7 +125,8 @@ export default function PostEngagementPanel({
 
       if (truthVoteData.summary) {
         setTruthSummary(truthVoteData.summary);
-        setTruthScore(truthVoteData.summary.userScore ?? defaultTruthScore);
+        setTruthScore(truthVoteData.summary.userScore ?? (isCurrentEvents ? 0 : defaultTruthScore));
+        setRelevanceScore(truthVoteData.summary.relevance?.userScore ?? 0);
       }
 
       setIsLoading(false);
@@ -198,12 +202,17 @@ export default function PostEngagementPanel({
     }
   }
 
-  async function saveTruthVote() {
-    if (!isLoggedIn || isVoting) {
+  async function saveTruthVote(dimension: "truth" | "relevance" = "truth") {
+    if (!isLoggedIn || isVoting || isLoading) {
       return;
     }
 
-    setIsVoting(true);
+    const score = dimension === "truth" ? truthScore : relevanceScore;
+    const savedScore = dimension === "truth"
+      ? truthSummary.userScore : truthSummary.relevance?.userScore;
+    if (isCurrentEvents && score === 0) return;
+
+    setVotingDimension(dimension);
     setErrorMessage("");
 
     try {
@@ -212,7 +221,9 @@ export default function PostEngagementPanel({
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ score: truthScore }),
+          body: JSON.stringify(isCurrentEvents
+            ? { score, dimension, remove: savedScore === score }
+            : { score }),
         },
       );
       const data = (await response.json()) as TruthVoteResponse;
@@ -223,12 +234,17 @@ export default function PostEngagementPanel({
       }
 
       setTruthSummary(data.summary);
-      setTruthScore(data.summary.userScore ?? truthScore);
+      if (dimension === "truth") {
+        setTruthScore(data.summary.userScore ?? (isCurrentEvents ? 0 : truthScore));
+      } else {
+        setRelevanceScore(data.summary.relevance?.userScore ?? 0);
+      }
       onTruthSummaryChange?.(data.summary);
+      if (isCurrentEvents) window.dispatchEvent(new Event("bay-space-auth"));
     } catch {
       setErrorMessage("truth vote not saved");
     } finally {
-      setIsVoting(false);
+      setVotingDimension(null);
     }
   }
 
@@ -281,41 +297,68 @@ export default function PostEngagementPanel({
 
   return (
     <section className="mt-6 grid gap-5 border-t border-[#1d7f12] pt-5">
-      <div className="grid gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
-              truth vote
-            </h3>
-            <p className="bay-terminal-copy mt-2 text-sm text-[#d7ffd0]">
-              {truthSummary.voteCount} votes / avg{" "}
-              {truthSummary.averageScore.toFixed(1)} /{" "}
-              {getTruthPointLabel(truthSummary.pointValue)}
+      {isCurrentEvents ? (
+        <div className="grid gap-6">
+          <CurrentEventRatingScale
+            title="truth vote"
+            labels={["Fallacious", "Biased", "Factual"]}
+            value={truthScore}
+            savedValue={truthSummary.userScore}
+            voteCount={truthSummary.voteCount}
+            disabled={!isLoggedIn || isLoading || isVoting}
+            saving={votingDimension === "truth"}
+            onChange={setTruthScore}
+            onVote={() => saveTruthVote("truth")}
+          />
+          <CurrentEventRatingScale
+            title="relevance / importance"
+            labels={["Unnecessary", "Good to know", "Crucial knowledge"]}
+            value={relevanceScore}
+            savedValue={truthSummary.relevance?.userScore ?? null}
+            voteCount={truthSummary.relevance?.voteCount ?? 0}
+            disabled={!isLoggedIn || isLoading || isVoting}
+            saving={votingDimension === "relevance"}
+            onChange={setRelevanceScore}
+            onVote={() => saveTruthVote("relevance")}
+          />
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">
+                truth vote
+              </h3>
+              <p className="bay-terminal-copy mt-2 text-sm text-[#d7ffd0]">
+                {truthSummary.voteCount} votes / avg{" "}
+                {truthSummary.averageScore.toFixed(1)} /{" "}
+                {getTruthPointLabel(truthSummary.pointValue)}
+              </p>
+            </div>
+            <p className="text-4xl font-black leading-none text-[#39ff14] [text-shadow:0_0_14px_#39ff14]">
+              {truthScore}
             </p>
           </div>
-          <p className="text-4xl font-black leading-none text-[#39ff14] [text-shadow:0_0_14px_#39ff14]">
-            {truthScore}
-          </p>
+          <input
+            type="range"
+            min="0"
+            max="11"
+            step="1"
+            value={truthScore}
+            onChange={(event) => setTruthScore(Number(event.target.value))}
+            className="w-full accent-[#39ff14]"
+            aria-label="Truth scale"
+          />
+          <button
+            type="button"
+            disabled={!isLoggedIn || isVoting}
+            onClick={() => saveTruthVote()}
+            className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
+          >
+            {isVoting ? "saving" : voteButtonLabel}
+          </button>
         </div>
-        <input
-          type="range"
-          min="0"
-          max="11"
-          step="1"
-          value={truthScore}
-          onChange={(event) => setTruthScore(Number(event.target.value))}
-          className="w-full accent-[#39ff14]"
-          aria-label="Truth scale"
-        />
-        <button
-          type="button"
-          disabled={!isLoggedIn || isVoting}
-          onClick={saveTruthVote}
-          className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
-        >
-          {isVoting ? "saving" : voteButtonLabel}
-        </button>
-      </div>
+      )}
 
       <div className="grid gap-3">
         <h3 className="bay-terminal-copy text-xs text-[#7f9f78]">

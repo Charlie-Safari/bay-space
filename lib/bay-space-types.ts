@@ -43,6 +43,12 @@ export type BayPostTruthVoteSummary = {
   scoreTotal: number;
   userScore: number | null;
   voteCount: number;
+  relevance?: {
+    averageScore: number;
+    scoreTotal: number;
+    userScore: number | null;
+    voteCount: number;
+  };
 };
 
 export type BayDirectMessageMember = {
@@ -118,6 +124,7 @@ export type BayMember = {
   cryptiAgreementAcceptedAt?: string;
   cryptiAgreementVersion?: string;
   cryptiRank: CryptiRank;
+  dailySpinClaimedOn?: string;
   gateKeys: GateKey[];
   lifetimePoints: number;
   lifetimeTokens: number;

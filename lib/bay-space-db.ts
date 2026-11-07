@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomInt } from "crypto";
+import { getPacificDateKey } from "./pacific-date";
 import {
   SupabaseServerError,
   supabaseRequest,
@@ -273,6 +274,8 @@ type PostTruthVoteRow = {
   point_value: number;
   post_id: string;
   score: number;
+  relevance_score?: number;
+  rating_version?: number;
   updated_at: string;
 };
 
@@ -359,18 +362,6 @@ function normalizeMember(value: string) {
     .padStart(memberIdWidth, "0");
 }
 
-function getPacificDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 function getMemberNumber(value: string) {
   const memberNumber = Number(normalizeMember(value));
 
@@ -416,6 +407,7 @@ function publicMember(member: MemberRow, roles: string[] = []): BayMember {
       member.crypti_agreement_accepted_at ?? undefined,
     cryptiAgreementVersion: member.crypti_agreement_version ?? undefined,
     cryptiRank: normalizeCryptiRank(member.crypti_rank),
+    dailySpinClaimedOn: member.links?._dailySpinDate,
     gateKeys: getMemberGateKeysWithLegacyImpossible(member),
     impossibleBadgeReady:
       normalizePointBalance(member.links?._impossibleBadgeReserve) >=
@@ -548,6 +540,35 @@ function summarizeTruthVotes(
     userScore: userVote?.score ?? null,
     voteCount,
   };
+}
+
+function summarizeCurrentEventRatings(
+  votes: PostTruthVoteRow[],
+  userMemberId?: string,
+): BayPostTruthVoteSummary {
+  const currentVotes = votes.filter((vote) => vote.rating_version === 2);
+  const truthVotes = currentVotes.filter((vote) => vote.score > 0);
+  const relevanceVotes = currentVotes.filter((vote) => (vote.relevance_score ?? 0) > 0);
+  const summary = summarizeTruthVotes(truthVotes, userMemberId);
+  const relevanceTotal = relevanceVotes.reduce(
+    (total, vote) => total + (vote.relevance_score ?? 0), 0,
+  );
+  const userVote = relevanceVotes.find((vote) => vote.member_id === userMemberId);
+
+  return {
+    ...summary,
+    pointValue: summary.scoreTotal + relevanceTotal,
+    relevance: {
+      averageScore: relevanceVotes.length ? relevanceTotal / relevanceVotes.length : 0,
+      scoreTotal: relevanceTotal,
+      userScore: userVote?.relevance_score ?? null,
+      voteCount: relevanceVotes.length,
+    },
+  };
+}
+
+function isCurrentEventPost(post: PostRow) {
+  return post.category === "daily-food" || post.category === "top-story";
 }
 
 function getPostTicketVoteCount(post: PostRow) {
@@ -3006,7 +3027,72 @@ export async function getPostTruthVoteSummary(
     getActiveTruthVotes(post.id),
   ]);
 
-  return summarizeTruthVotes(votes, member?.id);
+  return isCurrentEventPost(post)
+    ? summarizeCurrentEventRatings(votes, member?.id)
+    : summarizeTruthVotes(votes, member?.id);
+}
+
+export async function setCurrentEventRating(
+  postId: string,
+  memberId: string,
+  dimension: "truth" | "relevance",
+  score: number,
+) {
+  const post = await getCommentablePostRow(postId);
+  if (!post || !isCurrentEventPost(post)) return null;
+  if (!Number.isInteger(score) || score < 0 || score > 11) {
+    throw new Error("Invalid Current Events rating");
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const member = await getMemberRowByNumber(memberId);
+    if (!member) return null;
+    const rewardKey = `truth-vote:${post.id}`;
+    const rewardKeys = getMemberParticipationRewardKeys(member);
+    const hasReward = rewardKeys.includes(rewardKey);
+    const enabled = score > 0;
+    const needsRewardUpdate =
+      dimension === "truth" &&
+      post.author_member_id !== member.id &&
+      enabled !== hasReward;
+    const reward = needsRewardUpdate
+      ? {
+          ...(enabled
+            ? getMemberPointAwardBody(member, currentEventTruthVotePointValue)
+            : {
+                available_points: Math.max(
+                  0,
+                  normalizePointBalance(member.available_points) - currentEventTruthVotePointValue,
+                ),
+                lifetime_points: Math.max(
+                  0,
+                  normalizePointBalance(member.lifetime_points) - currentEventTruthVotePointValue,
+                ),
+              }),
+          reward_keys: enabled
+            ? [...rewardKeys, rewardKey]
+            : rewardKeys.filter((key) => key !== rewardKey),
+        }
+      : null;
+    const result = await supabaseRequest<{ retry?: boolean; notFound?: boolean }>(
+      "rpc/set_current_event_rating", {
+        method: "POST",
+        body: {
+          p_post_id: post.id,
+          p_member_number: Number(memberId),
+          p_dimension: dimension,
+          p_score: score,
+          p_expected_updated_at: member.updated_at,
+          p_reward: reward,
+        },
+      },
+    );
+    if (result.notFound) return null;
+    if (result.retry) continue;
+    const votes = await getActiveTruthVotes(post.id);
+    return { summary: summarizeCurrentEventRatings(votes, member.id) };
+  }
+  throw new Error("Your balance changed. Please vote again.");
 }
 
 export async function togglePostTruthVote(
@@ -3022,6 +3108,10 @@ export async function togglePostTruthVote(
 
   if (!post || !member) {
     return null;
+  }
+
+  if (isCurrentEventPost(post)) {
+    return setCurrentEventRating(postId, memberId, "truth", normalizedScore);
   }
 
   const existingVotes = await supabaseRequest<PostTruthVoteRow[]>(

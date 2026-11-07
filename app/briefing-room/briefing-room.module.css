@@ -97,7 +97,8 @@
 }
 
 .optionsRail button,
-.optionsRail a {
+.optionsRail a,
+.optionsRail summary {
   border-color: rgba(114, 193, 106, 0.23) !important;
   border-radius: 0.72rem;
   background: rgba(7, 18, 8, 0.64) !important;
@@ -110,7 +111,8 @@
 }
 
 .optionsRail button:hover,
-.optionsRail a:hover {
+.optionsRail a:hover,
+.optionsRail summary:hover {
   border-color: rgba(144, 213, 135, 0.7) !important;
   background: rgba(114, 193, 106, 0.13) !important;
   color: #e4f0e1 !important;
@@ -278,6 +280,33 @@
   font-size: 1.35rem;
 }
 
+.gate button.blackLightCard {
+  margin-bottom: 1.5rem;
+  border-color: rgba(157, 133, 198, 0.38) !important;
+  background:
+    radial-gradient(ellipse at 86% 28%, rgba(125, 100, 168, 0.2), transparent 72%),
+    linear-gradient(135deg, rgba(23, 19, 30, 0.86), rgba(5, 4, 9, 0.94)) !important;
+}
+
+.gate button.blackLightCard:hover {
+  border-color: rgba(185, 157, 231, 0.66) !important;
+  background:
+    radial-gradient(ellipse at 86% 28%, rgba(125, 100, 168, 0.32), transparent 72%),
+    linear-gradient(135deg, rgba(27, 21, 36, 0.86), rgba(5, 4, 9, 0.94)) !important;
+}
+
+.blackLightCard::after {
+  border-color: rgba(157, 133, 198, 0.18);
+  box-shadow: 0 0 0 1.4rem rgba(157, 133, 198, 0.05);
+}
+
+.blackLightCard .exchangeEyebrow { color: #b6a4d1; }
+.blackLightCard .exchangeTitle { color: #eee7f8; }
+.blackLightCard .exchangeArrow {
+  border-color: rgba(185, 157, 231, 0.5);
+  color: #ceb6ef;
+}
+
 .balanceBar {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -321,15 +350,17 @@
 }
 
 .dailySpinIcon {
+  position: relative;
   display: grid;
-  width: 2.55rem;
-  height: 2.55rem;
+  inline-size: 2.625rem;
+  block-size: 2.625rem;
+  flex: none;
   place-items: center;
   border: 1px solid rgba(114, 193, 106, 0.36) !important;
   border-radius: 0.78rem !important;
   background: rgba(7, 18, 8, 0.7) !important;
   box-shadow: inset 0 1px rgba(223, 243, 218, 0.05) !important;
-  font-size: 1.2rem;
+  font-size: 1.45rem;
   line-height: 1;
   transition:
     transform 160ms ease,
@@ -337,10 +368,21 @@
     background 160ms ease !important;
 }
 
+.dailySpinIcon[data-spin-available="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px dotted;
+  border-color: #ffe47b #ff8bb2 #7fffe1 #ffb46a;
+  border-radius: inherit;
+  filter: drop-shadow(0 0 3px #ffd86d);
+  pointer-events: none;
+}
+
 .dailySpinIcon:hover {
   border-color: rgba(144, 213, 135, 0.75) !important;
   background: rgba(114, 193, 106, 0.14) !important;
-  transform: rotate(-3deg) scale(1.04);
+  transform: translateY(-1px);
 }
 
 .dailySpinWindow {
@@ -452,7 +494,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .optionsRail button,
-  .optionsRail a {
+  .optionsRail a,
+  .optionsRail summary {
     transition: none !important;
   }
 }
@@ -480,14 +523,18 @@
 .conversionLabel { display: block; }
 .gate input.conversionInput {
   width: 100%;
-  border: 0;
-  border-bottom: 1px solid rgba(114, 193, 106, 0.65);
-  border-radius: 0;
-  padding: 0.5rem 0;
+  border: 1px solid rgba(57, 255, 20, 0.3);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.75rem;
   background: transparent !important;
   box-shadow: none;
   font-size: 1.8rem;
   font-variant-numeric: tabular-nums;
+}
+.gate input.conversionInput::placeholder {
+  color: #7b9b78;
+  font-style: italic;
+  opacity: 1;
 }
 .conversionButton {
   width: 100%;
@@ -506,5 +553,73 @@
 .conversionBalances > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; }
 .conversionBalances dt { color: #a4bfa0; font-size: 0.8rem; }
 .conversionBalances dd { color: #dce9d9; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tokenText { color: #f5cc45; }
+.availableCoinsText { color: #55df7e; }
+.conversionBalances > :is(.tokenText, .availableCoinsText) > :is(dt, dd) { color: inherit; }
 .conversionNotice { color: #e6a29b; font-size: 0.8rem; margin-top: 0.75rem; }
 .exchangeFeedback { color: #90d587; font-size: 0.85rem; }
+
+.thiagoModeBar {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  margin-top: 0.8rem;
+  overflow: hidden;
+  border: 1px solid rgba(114, 193, 106, 0.35);
+  border-radius: 0.55rem;
+  background: #0b160d;
+}
+
+.thiagoModeBar button {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0;
+  color: #9abc96;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.thiagoModeBar button + button {
+  border-inline-start: 1px solid rgba(114, 193, 106, 0.25);
+}
+
+.thiagoModeBar button[aria-pressed="false"] {
+  opacity: 0.55;
+}
+
+.thiagoModeBar button[aria-pressed="false"]:enabled:is(:hover, :focus-visible) {
+  opacity: 0.85;
+}
+
+.thiagoModeBar button[aria-pressed="true"] {
+  color: #efffeb;
+  background: #294b29;
+  box-shadow: inset 0 -2px #a5f399;
+}
+
+.thiagoModeBar button:focus-visible {
+  outline: 2px solid #d7ffd0;
+  outline-offset: -2px;
+}
+
+.thiagoModeBar button:disabled {
+  opacity: 0.45;
+}
+
+.thiagoCursor {
+  display: inline-block;
+  width: 0.68em;
+  height: 1em;
+  margin-inline-start: 0.15em;
+  vertical-align: text-bottom;
+  background-color: var(--briefing-signal);
+  animation: thiagoCursorBlink 1s step-end infinite;
+}
+
+@keyframes thiagoCursorBlink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thiagoCursor { animation: none; }
+}

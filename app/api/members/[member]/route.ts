@@ -114,6 +114,7 @@ function privateMember(member: ApiMember) {
     cryptiAgreementAcceptedAt: member.cryptiAgreementAcceptedAt,
     cryptiAgreementVersion: member.cryptiAgreementVersion,
     cryptiRank: member.cryptiRank,
+    dailySpinClaimedOn: member.dailySpinClaimedOn,
     gateKeys: member.gateKeys,
     lifetimePoints: member.lifetimePoints,
     lifetimeTokens: member.lifetimeTokens,

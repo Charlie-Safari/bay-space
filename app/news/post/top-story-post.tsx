@@ -217,6 +217,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
         <div className="mt-3"><BlackLightLink articlePath={`/news/post?id=${post.id}`} /></div>
       </div>
       <PostEngagementPanel
+        key={post.id}
         isLoggedIn={isLoggedIn}
         onTruthSummaryChange={syncPostTruthSummary}
         postCategory={post.category}

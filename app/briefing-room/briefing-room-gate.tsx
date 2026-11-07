@@ -1,12 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import CirclesPanel from "./circles-panel";
 import InboxPanel from "./inbox-panel";
 import StatsPanel from "./stats-panel";
-import { blackLightUrl } from "../components/black-light-link";
 import QuizPanel from "./quiz-panel";
+import { ThiagoArticleTools, ThiagoFormatter } from "./thiago-tools";
 import ExchangeConversion, { roundExchangeAmount } from "./exchange-conversion";
 import styles from "./briefing-room.module.css";
 import {
@@ -73,6 +72,7 @@ import {
   cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
 import { getPostTopicTags } from "../../lib/bay-space-tags";
+import { getPacificDateKey } from "../../lib/pacific-date";
 import TicketVoteCounter from "../components/ticket-vote-counter";
 import { openExternalBrowser } from "../components/open-external-browser";
 
@@ -92,6 +92,7 @@ type SavedMember = {
   cryptiAgreementAcceptedAt?: string;
   cryptiAgreementVersion?: string;
   cryptiRank?: CryptiRank;
+  dailySpinClaimedOn?: string;
   gateKeys?: GateKey[];
   lifetimePoints?: number;
   impossibleBadgeReady?: boolean;
@@ -140,7 +141,13 @@ type PostCategory =
   | "theory"
   | "library-submission";
 type BankPostCategory = Extract<PostCategory, "daily-food" | "theory">;
-type LazyAssistantMode = "chat" | "bank" | "preview";
+const thiagoModes = [
+  { id: "chat", label: "🦉", name: "Owl chat" },
+  { id: "investigate", label: "🔍", name: "Investigate" },
+  { id: "bank", label: "🌀 Paste & Go 🎢", name: "Paste & Go" },
+  { id: "format", label: "📝 Format", name: "Auto-format" },
+] as const;
+type LazyAssistantMode = (typeof thiagoModes)[number]["id"] | "preview";
 type PostPreviewDraft = Omit<BayPost, "id" | "createdAt" | "dateKey">;
 
 type SourceDraft = {
@@ -804,8 +811,7 @@ export default function BriefingRoomGate({
   const [postPreview, setPostPreview] = useState<PostPreviewDraft | null>(null);
   const [postSubmitError, setPostSubmitError] = useState("");
   const [lazyMode, setLazyMode] = useState<LazyAssistantMode>("chat");
-  const [lazyPrompt, setLazyPrompt] = useState("");
-  const [lazyResponse, setLazyResponse] = useState("LA Bay-Space: coming soon");
+  const [lazyResponse, setLazyResponse] = useState("");
   const [lazyBankInput, setLazyBankInput] = useState("");
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyPostPreview, setLazyPostPreview] =
@@ -815,7 +821,7 @@ export default function BriefingRoomGate({
   const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
     useState(false);
   const [lazyShakeTarget, setLazyShakeTarget] = useState<
-    "" | "send" | "bank" | "bank-submit"
+    "" | "bank-submit"
   >("");
   const [previewWarning, setPreviewWarning] = useState(false);
   const [deletePostId, setDeletePostId] = useState("");
@@ -843,6 +849,13 @@ export default function BriefingRoomGate({
   const [isDailySpinOpen, setIsDailySpinOpen] = useState(false);
   const [isDailySpinLoading, setIsDailySpinLoading] = useState(false);
   const [dailySpinMessage, setDailySpinMessage] = useState("");
+  const [pacificDate, setPacificDate] = useState(getPacificDateKey);
+  const hasClaimedDailySpin = savedMember?.dailySpinClaimedOn === pacificDate;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setPacificDate(getPacificDateKey()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [stampCounts, setStampCounts] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
   const [birthdayMonth, setBirthdayMonth] = useState("");
@@ -1864,41 +1877,30 @@ export default function BriefingRoomGate({
     resetPostDraft();
   }
 
-  function shakeLazyButton(target: "send" | "bank" | "bank-submit") {
+  function shakeLazyButton() {
     setLazyShakeTarget("");
-    window.requestAnimationFrame(() => setLazyShakeTarget(target));
-  }
-
-  function sendLazyPrompt() {
-    if (!lazyPrompt.trim()) {
-      shakeLazyButton("send");
-      return;
-    }
-
-    setLazyResponse("LA Bay-Space: assistant offline");
-    setLazyPrompt("");
+    window.requestAnimationFrame(() => setLazyShakeTarget("bank-submit"));
   }
 
   function openLazyBank() {
     setLazyPostPreview(null);
+    setLazyStructuredPreview(null);
     setLazyBankError("");
     setIsLazyAssistantMinimized(false);
     setActivePanel("lazy-assistant");
-
-    if (!canUseThiago) {
-      setLazyResponse("LA Bay-Space: Thiago engine unavailable");
-      shakeLazyButton("bank");
-      return;
-    }
-
     setLazyMode("bank");
-    setLazyPrompt("");
     setLazyResponse("");
   }
 
   function restoreLazyAssistant() {
     setIsLazyAssistantMinimized(false);
     setActivePanel("lazy-assistant");
+  }
+
+  function openBlackLight() {
+    restoreLazyAssistant();
+    setLazyMode("chat");
+    setLazyBankError("");
   }
 
   function minimizeLazyAssistant() {
@@ -1908,7 +1910,6 @@ export default function BriefingRoomGate({
 
   function wipeLazyAssistant() {
     setLazyMode("chat");
-    setLazyPrompt("");
     setLazyResponse("");
     setLazyBankInput("");
     setLazyBankError("");
@@ -1964,9 +1965,11 @@ export default function BriefingRoomGate({
   }
 
   async function submitLazyBank() {
+    if (isThiagoPublishing) return;
+
     if (!canUseThiago) {
       setLazyBankError("Thiago engine unavailable");
-      shakeLazyButton("bank-submit");
+      shakeLazyButton();
       return;
     }
 
@@ -2016,7 +2019,7 @@ export default function BriefingRoomGate({
 
     if (parsedPost.error || !parsedPost.post) {
       setLazyBankError(parsedPost.error ?? "bank parse failed");
-      shakeLazyButton("bank-submit");
+      shakeLazyButton();
       return;
     }
 
@@ -2024,7 +2027,7 @@ export default function BriefingRoomGate({
 
     if (!nextPreview) {
       setLazyBankError("Thiago engine unavailable");
-      shakeLazyButton("bank-submit");
+      shakeLazyButton();
       return;
     }
 
@@ -2051,7 +2054,7 @@ export default function BriefingRoomGate({
       setLazyPostPreview(null);
       setLazyBankInput("");
       setLazyBankError("");
-      setLazyResponse("LA Bay-Space: bank posted");
+      setLazyResponse("Thiago: post published");
       setLazyMode("chat");
     }
   }
@@ -2814,76 +2817,74 @@ export default function BriefingRoomGate({
 
   const header = isOptionsRoom ? null : (
     <div className={`${styles.gateHeader} w-full max-w-4xl`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <h1 className={`${styles.gateTitle} font-mono text-4xl font-black uppercase sm:text-6xl`}>
           briefing room
         </h1>
-        {isUnlocked && canCreatePosts ? (
-          <div
-            className={`grid w-full gap-3 sm:w-fit sm:items-center ${
-              hasImpossibleBadge
-                ? "sm:grid-cols-[repeat(4,max-content)]"
-                : "sm:grid-cols-[repeat(3,max-content)]"
-            }`}
-          >
-            <a
-              href={blackLightUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[52px] w-full items-center justify-center gap-3 border-2 border-dashed border-[#39ff14] bg-black px-4 py-2 text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:justify-start"
-              aria-label="Open Black Light"
-              title="Black Light"
-            >
-              <Image
-                src="/brand/bay-space-logo.png"
-                alt=""
-                width={32}
-                height={32}
-                className="h-8 w-8 object-contain"
-              />
-              <span className="text-left text-[0.65rem] font-black uppercase leading-3 tracking-[0.18em]">
-                Black Light
-              </span>
-            </a>
-            {canUseThiago ? (
+        {isUnlocked && (savedMember || canCreatePosts) ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {savedMember ? (
+              <button
+                type="button"
+                aria-label={hasClaimedDailySpin ? "Daily spin used today" : "Open daily spin"}
+                aria-expanded={isDailySpinOpen}
+                onClick={() => {
+                  setIsDailySpinOpen((isOpen) => !isOpen);
+                  setDailySpinMessage("");
+                }}
+                className={styles.dailySpinIcon}
+                data-spin-available={!hasClaimedDailySpin}
+              >
+                🎰
+              </button>
+            ) : null}
+            {canCreatePosts ? (
+              <button
+                type="button"
+                onClick={openPostWindow}
+                className="border border-[#39ff14] bg-[#031403] px-2.5 py-1.5 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+              >
+                📝 Create a post
+              </button>
+            ) : null}
+            {canCreatePosts && canUseThiago ? (
               <button
                 type="button"
                 onClick={openLazyBank}
-                className="min-h-[52px] w-full border-2 border-dashed border-[#39ff14] bg-black px-4 py-3 text-xs font-black leading-none tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:px-5"
+                className="border border-dashed border-[#39ff14] bg-black px-2.5 py-1.5 text-xs font-black tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.22)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                 aria-label="Open 🌀 PASTE & GO 🎢"
                 title="🌀 PASTE & GO 🎢"
               >
                 🌀 PASTE &amp; GO 🎢
               </button>
             ) : null}
-            {hasImpossibleBadge ? (
-              <>
-                <Link
-                  href="/polls?create=1"
-                  className="inline-flex min-h-[52px] w-full items-center justify-center border-2 border-[#90d587] bg-[#102011] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#dce9d9] shadow-[0_0_14px_rgba(114,193,106,0.28)] transition hover:bg-[#72c16a]/25 focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
-                >
-                  🗳 START FROM SCRATCH
-                </Link>
-                <button
-                  type="button"
-                  onClick={openPostWindow}
-                  className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-4 py-3 font-mono text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit"
-                >
-                  📝 article
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={openPostWindow}
-                className="min-h-[52px] w-full border-2 border-[#39ff14] bg-[#031403] px-5 py-3 font-mono text-sm font-black uppercase tracking-[0.14em] text-[#39ff14] shadow-[0_0_14px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] sm:w-fit sm:tracking-[0.2em]"
-              >
-                📝 START FROM SCRATCH
-              </button>
-            )}
           </div>
         ) : null}
       </div>
+      {isUnlocked && savedMember && isDailySpinOpen ? (
+        <div className={styles.dailySpinWindow}>
+          <div>
+            <p className={styles.dailySpinEyebrow}>once every day</p>
+            <p className={styles.dailySpinTitle}>Daily Spin</p>
+            <p className={styles.dailySpinRange}>
+              Win 50–500 points
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={claimDailySpin}
+            disabled={isDailySpinLoading}
+            className={styles.dailySpinButton}
+          >
+            {isDailySpinLoading ? "spinning..." : "spin"}
+          </button>
+          {dailySpinMessage ? (
+            <p className={styles.dailySpinResult} role="status">
+              {dailySpinMessage}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {isUnlocked && (canCreatePosts || isLazyAssistantMinimized) ? (
         <div className="mt-6 flex flex-wrap items-end gap-2">
           {canCreatePosts
@@ -2908,7 +2909,7 @@ export default function BriefingRoomGate({
               onClick={restoreLazyAssistant}
               className="border-2 border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-[#39ff14]"
             >
-              LA Bay-Space - [open]
+              Black Light - [open]
             </button>
           ) : null}
         </div>
@@ -2934,59 +2935,20 @@ export default function BriefingRoomGate({
           </p>
           <div className="mt-4 grid gap-3 text-sm font-black uppercase tracking-[0.12em] text-[#39ff14]">
             <button
-              onClick={() => setActivePanel("id-card")}
-              className={`border px-3 py-2 text-left ${
-                activePanel === "id-card"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              ID CARD
-            </button>
-            <button
-              onClick={() => setActivePanel("circles")}
+              onClick={() => setActivePanel("inbox")}
               className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "circles"
+                activePanel === "inbox"
                   ? "border-[#39ff14] bg-[#39ff14] text-black"
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              Circles
-            </button>
-            <Link
-              href={`/profile/${resolvedMember}`}
-              className="border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
-            >
-              Profile
-            </Link>
-            <button
-              onClick={() => setActivePanel("stats")}
-              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "stats"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              stats
+              inbox
             </button>
             <button
               onClick={() => setActivePanel("quiz")}
               className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] ${activePanel === "quiz" ? "border-[#39ff14] bg-[#39ff14] text-black" : "border-[#1d7f12] text-[#39ff14]"}`}
             >
               QUIZ
-            </button>
-            <button
-              onClick={() => {
-                setActivePanel("my-posts");
-                setDeletePostId("");
-              }}
-              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "my-posts"
-                  ? "border-[#39ff14] bg-[#39ff14] text-black"
-                  : "border-[#1d7f12] text-[#39ff14]"
-              }`}
-            >
-              my posts
             </button>
             <button
               onClick={() => {
@@ -3002,40 +2964,135 @@ export default function BriefingRoomGate({
               favorites
             </button>
             <button
-              onClick={() => setActivePanel("inbox")}
+              onClick={() => setActivePanel("stats")}
               className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
-                activePanel === "inbox"
+                activePanel === "stats"
                   ? "border-[#39ff14] bg-[#39ff14] text-black"
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              inbox
+              stats
             </button>
             <button
               onClick={() => {
-                setActivePanel("lazy-assistant");
-                setIsLazyAssistantMinimized(false);
-                setLazyResponse(
-                  (response) => response || "LA Bay-Space: coming soon",
-                );
-                setLazyBankError("");
+                setActivePanel("my-posts");
+                setDeletePostId("");
               }}
+              className={`border px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
+                activePanel === "my-posts"
+                  ? "border-[#39ff14] bg-[#39ff14] text-black"
+                  : "border-[#1d7f12] text-[#39ff14]"
+              }`}
+            >
+              my posts
+            </button>
+            {savedMember ? (
+              <details className="min-w-0">
+                <summary className="cursor-pointer border px-3 py-2">ID Card</summary>
+                <div className="mt-3 min-w-0 break-words px-1">
+                  <p className="font-mono text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    EXPLORER NUMBER - #{savedMember.member}
+                  </p>
+                  <div className="mt-4 grid max-w-md gap-2">
+                    <label className="grid gap-2 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      <span>CODE NAME</span>
+                      <input
+                        value={memberReferenceNameInput}
+                        disabled={!isMemberReferenceNameEditing}
+                        onChange={(event) => {
+                          setMemberReferenceNameInput(
+                            event.target.value.slice(0, 24),
+                          );
+                          setMemberReferenceNameMessage("");
+                        }}
+                        placeholder={savedMember.name}
+                        className="w-full min-w-0 border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14] disabled:text-[#7f9f78]"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isMemberReferenceNameEditing) {
+                            setIsMemberReferenceNameEditing(true);
+                            setMemberReferenceNameMessage("");
+                            return;
+                          }
+
+                          void saveMemberReferenceName();
+                        }}
+                        disabled={isMemberReferenceNameSaving}
+                        className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
+                      >
+                        {isMemberReferenceNameSaving
+                          ? "saving"
+                          : isMemberReferenceNameEditing
+                            ? "save"
+                            : "edit"}
+                      </button>
+                      {memberReferenceNameMessage ? (
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
+                          {memberReferenceNameMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    RANK: LEVEL {isOracleMember ? 9 : getBayRankLevel(savedMember.rank)} -{" "}
+                    {isOracleMember ? "Oracle" : getBayRankLabel(savedMember.rank)}
+                  </p>
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#72d7ff]">
+                    {isOracleMember
+                      ? "+CRYPTI PATH: POSTER V COMPLETE"
+                      : `+CRYPTI RANK: ${getCryptiRankLabel(savedMember.cryptiRank) || "-"}`}
+                  </p>
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    LIFETIME POINTS: {formatPointCount(savedMember.lifetimePoints)}
+                  </p>
+                  {isOracleEligible ? (
+                    <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#b6d88f]">
+                      FINAL PROMOTION: ORACLE BADGE REQUIRED
+                    </p>
+                  ) : promotionProgress ? (
+                    <p
+                      className={`mt-4 text-sm font-black uppercase tracking-[0.2em] ${
+                        promotionProgress.track === "crypti"
+                          ? "text-[#72d7ff]"
+                          : "text-[#d7ffd0]"
+                      }`}
+                    >
+                      POINTS UNTIL {promotionProgress.label}:{" "}
+                      <span className="text-[#39ff14]">{formatPointCount(promotionProgress.pointsUntil)}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      POINTS UNTIL NEXT PROMOTION: <span className="text-[#39ff14]">0</span>
+                    </p>
+                  )}
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    NAME: {savedMember.name}
+                    {isOracleMember ? " 🔮" : isBayoClubMember ? " 🦉" : ""}
+                  </p>
+                  <TicketVoteCounter />
+                </div>
+              </details>
+            ) : null}
+            <Link
+              href={`/profile/${resolvedMember}`}
+              className="border border-[#1d7f12] px-3 py-2 text-left transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
+            >
+              Profile
+            </Link>
+            <button
+              onClick={openBlackLight}
               className={`border px-3 py-2 text-left normal-case transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)] ${
                 activePanel === "lazy-assistant"
                   ? "border-[#39ff14] bg-[#39ff14] text-black"
                   : "border-[#1d7f12] text-[#39ff14]"
               }`}
             >
-              LA Bay-Space
+              Black Light
             </button>
-            {isAdminMember ? (
-              <Link
-                href="/admin/analytics"
-                className="border border-[#72d7ff] px-3 py-2 text-left transition hover:border-[#72d7ff] hover:bg-[#72d7ff] hover:text-black hover:shadow-[0_0_12px_rgba(114,215,255,0.35)]"
-              >
-                analytics
-              </Link>
-            ) : null}
             <button
               onClick={() => {
                 setActivePanel("settings");
@@ -4039,15 +4096,16 @@ export default function BriefingRoomGate({
           ) : activePanel === "lazy-assistant" ? (
             <div>
               <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                  LA Bay-Space
-                </p>
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-[0.24em] text-[#d7ffd0]">Black Light</h2>
+                  <p className="mt-1 text-xs font-bold text-[#9abc96]">Thiago</p>
+                </div>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={minimizeLazyAssistant}
                     className="grid h-7 w-7 place-items-center border border-[#1d7f12] text-sm font-black text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Minimize LA Bay-Space"
+                    aria-label="Minimize Black Light"
                     title="Minimize"
                   >
                     -
@@ -4056,13 +4114,32 @@ export default function BriefingRoomGate({
                     type="button"
                     onClick={wipeLazyAssistant}
                     className="grid h-7 w-7 place-items-center border border-[#ff3b3b] text-sm font-black text-[#ff6b6b] transition hover:bg-[#ff3b3b] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#ff9b9b]"
-                    aria-label="Wipe LA Bay-Space"
+                    aria-label="Wipe Black Light"
                     title="Wipe"
                   >
                     x
                   </button>
                 </div>
               </div>
+              <div className={styles.thiagoModeBar} role="group" aria-label="Thiago modes">
+                {thiagoModes.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-label={mode.name}
+                    title={mode.name}
+                    aria-pressed={mode.id === (lazyMode === "preview" ? "bank" : lazyMode)}
+                    disabled={isThiagoPublishing || ((mode.id === "bank" || mode.id === "format") && !canUseThiago)}
+                    onClick={() => {
+                      if (mode.id === "bank" && lazyMode === "preview") return;
+                      setLazyMode(mode.id);
+                    }}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+              {lazyResponse ? <p className="mt-3 text-sm text-[#d7ffd0]" role="status">{lazyResponse}</p> : null}
               {lazyMode === "preview" && lazyStructuredPreview ? (
                 <div className="mt-5 rounded-2xl border border-[#72c16a]/35 bg-[#07130a] p-5 text-[#dce9d9]">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9abc96]">Thiago review · {lazyStructuredPreview.kind}</p>
@@ -4211,14 +4288,6 @@ export default function BriefingRoomGate({
               ) : lazyMode === "bank" ? (
                 <div className="mt-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                      ✅💰 Bay-Space engine:{" "}
-                      <span className="text-[#39ff14]">
-                        {canUseThiago
-                          ? `${baySpaceLazyEngineLabel} / auto route`
-                          : "unavailable"}
-                      </span>
-                    </p>
                     <button
                       type="button"
                       onClick={() => {
@@ -4229,13 +4298,31 @@ export default function BriefingRoomGate({
                     >
                       back
                     </button>
+                    <p className="order-first w-full text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78] sm:order-none sm:w-auto sm:flex-1 sm:text-center">
+                      Thiago intake:{" "}
+                      <span className="text-[#39ff14]">
+                        {canUseThiago
+                          ? `${baySpaceLazyEngineLabel} / auto route`
+                          : "unavailable"}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={submitLazyBank}
+                      disabled={isThiagoPublishing}
+                      onAnimationEnd={() => setLazyShakeTarget("")}
+                      className={`ml-auto border border-dashed border-[#39ff14] px-4 py-2 text-sm font-black text-[#39ff14] shadow-[0_0_16px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
+                        lazyShakeTarget === "bank-submit"
+                          ? "animate-[option-shake_180ms_linear]"
+                          : ""
+                      }`}
+                      aria-label="Paste & Go"
+                    >
+                      🌀 Paste &amp; Go 🎢
+                    </button>
                   </div>
-                  <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
-                    Paste a Conspiracy, Current Events, Poll, or complete Weekly Quiz draft.
-                    Press ✅💰 or Command/Control + Enter to review before publishing.
-                  </p>
                   <textarea
-                    aria-label="BaySpace Thiago money-bag intake"
+                    aria-label="Paste & Go draft"
                     value={lazyBankInput}
                     onChange={(event) => {
                       setLazyBankInput(event.target.value);
@@ -4258,86 +4345,41 @@ export default function BriefingRoomGate({
                       {lazyBankError}
                     </p>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={submitLazyBank}
-                    onAnimationEnd={() => setLazyShakeTarget("")}
-                    className={`mt-5 border-2 border-dashed border-[#39ff14] px-8 py-4 text-3xl font-black text-[#39ff14] shadow-[0_0_16px_rgba(57,255,20,0.28)] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                      lazyShakeTarget === "bank-submit"
-                        ? "animate-[option-shake_180ms_linear]"
-                        : ""
-                    }`}
-                    aria-label="Review Bay Space Thiago intake"
-                  >
-                    ✅💰
-                  </button>
+                  <p className="mt-4 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-xs font-black uppercase leading-5 tracking-[0.16em] text-[#d7ffd0]">
+                    Paste a Conspiracy, Current Events, Poll, or complete Weekly Quiz draft.
+                    Press 🌀 Paste &amp; Go 🎢 or Command/Control + Enter to review before publishing.
+                  </p>
                 </div>
-              ) : (
-                <div className="mt-5 border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
-                  <div
-                    className="min-h-[14rem] border border-[#1d7f12] bg-[#001100] px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14]"
-                    aria-live="polite"
-                  >
-                    {lazyResponse || "\u00a0"}
-                  </div>
-                  <textarea
-                    aria-label="LA Bay-Space message"
-                    value={lazyPrompt}
-                    onChange={(event) => setLazyPrompt(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        sendLazyPrompt();
-                      }
-                    }}
-                    rows={6}
-                    className="mt-4 min-h-[10rem] w-full resize-y border border-[#1d7f12] bg-[#001100] px-4 py-4 font-mono text-base font-bold leading-7 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
-                  />
-                  <div className="mt-6 flex flex-wrap items-center gap-6">
-                    <button
-                      type="button"
-                      onClick={sendLazyPrompt}
-                      onAnimationEnd={() => setLazyShakeTarget("")}
-                      className={`inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                        lazyShakeTarget === "send"
-                          ? "animate-[option-shake_180ms_linear]"
-                          : ""
-                      }`}
-                      aria-label="Send to LA Bay-Space"
-                    >
-                      🌀
-                    </button>
-                    <a
-                      href={blackLightUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-16 min-w-24 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                      aria-label="Open LA Bay-Space GPT"
-                    >
-                      <Image
-                        src="/brand/bay-space-logo.png"
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="h-10 w-10 object-contain"
-                      />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={openLazyBank}
-                      onAnimationEnd={() => setLazyShakeTarget("")}
-                      className={`inline-flex h-16 min-w-32 items-center justify-center whitespace-nowrap border border-[#39ff14] px-5 text-3xl leading-none text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] ${
-                        lazyShakeTarget === "bank"
-                          ? "animate-[option-shake_180ms_linear]"
-                          : ""
-                      }`}
-                      aria-label="Open BaySpace Thiago money-bag lane"
-                    >
-                      ✅💰
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : lazyMode === "format" ? (
+                <ThiagoFormatter
+                  routes={availableBankCategories}
+                  input={lazyBankInput}
+                  onInput={setLazyBankInput}
+                  onUse={(formatted) => {
+                    setLazyBankInput(formatted);
+                    openLazyBank();
+                  }}
+                />
+              ) : lazyMode === "chat" || lazyMode === "investigate" ? (
+                <ThiagoArticleTools
+                  mode={lazyMode}
+                  memberNumber={savedMember?.member ?? resolvedMember}
+                  memberStats={savedMember ? {
+                    availablePoints: savedMember.availablePoints,
+                    lifetimePoints: savedMember.lifetimePoints,
+                    bayoCoins: savedMember.bayoCoins,
+                    bayoTokens: savedMember.bayoTokens,
+                    rank: isOracleMember ? "Oracle" : getBayRankLabel(savedMember.rank),
+                    cryptiRank: getCryptiRankLabel(savedMember.cryptiRank),
+                    promotion: promotionProgress,
+                  } : null}
+                  posts={allPosts.filter((post) => post.meta?.cryptiPost !== "true")}
+                  getSources={(post) => [
+                    ...getPostSources(post),
+                    ...(Array.isArray(post.meta?.tagSources) ? post.meta.tagSources : []),
+                  ].filter(Boolean)}
+                />
+              ) : null}
             </div>
           ) : activePanel === "quiz" && savedMember ? (
             <QuizPanel />
@@ -4358,48 +4400,9 @@ export default function BriefingRoomGate({
             />
           ) : activePanel === "exchange" && savedMember ? (
             <div>
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
-                  exchange
-                </p>
-                <button
-                  type="button"
-                  aria-label="Open daily spin"
-                  aria-expanded={isDailySpinOpen}
-                  onClick={() => {
-                    setIsDailySpinOpen((isOpen) => !isOpen);
-                    setDailySpinMessage("");
-                  }}
-                  className={styles.dailySpinIcon}
-                >
-                  🎰
-                </button>
-              </div>
-
-              {isDailySpinOpen ? (
-                <div className={styles.dailySpinWindow}>
-                  <div>
-                    <p className={styles.dailySpinEyebrow}>once every day</p>
-                    <p className={styles.dailySpinTitle}>Daily Spin</p>
-                    <p className={styles.dailySpinRange}>
-                      Win 50–500 points
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={claimDailySpin}
-                    disabled={isDailySpinLoading}
-                    className={styles.dailySpinButton}
-                  >
-                    {isDailySpinLoading ? "spinning..." : "spin"}
-                  </button>
-                  {dailySpinMessage ? (
-                    <p className={styles.dailySpinResult} role="status">
-                      {dailySpinMessage}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
+                exchange
+              </p>
               <div className={styles.exchangeSections}>
                 <ExchangeConversion
                   kind="coins"
@@ -5012,19 +5015,90 @@ export default function BriefingRoomGate({
                   </p>
                 ) : null}
 
+                {isAdminMember ? (
+                  <Link
+                    href="/admin/analytics"
+                    className="w-fit border border-[#72d7ff] px-3 py-2 text-left transition hover:border-[#72d7ff] hover:bg-[#72d7ff] hover:text-black hover:shadow-[0_0_12px_rgba(114,215,255,0.35)]"
+                  >
+                    analytics
+                  </Link>
+                ) : null}
                 <div className="border-t border-[#1d7f12] pt-5">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-[#d7ffd0]">
                     support
                   </p>
                   <a
-                    href={`mailto:${supportEmail}?subject=Name%20Change`}
+                    href={`mailto:${supportEmail}`}
                     className="mt-3 inline-flex max-w-full border border-[#39ff14] px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
                   >
                     {supportEmail}
                   </a>
-                  <p className="mt-3 text-xs font-bold uppercase leading-5 tracking-[0.14em] text-[#7f9f78]">
-                    subject line example: Name Change
+                  <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                    PASSWORD: CLASSIFIED
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsChangingPassword((isChanging) => !isChanging);
+                      setPasswordChangeMessage("");
+                    }}
+                    className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
+                  >
+                    change password
+                  </button>
+                  {isChangingPassword ? (
+                    <div className="mt-4 grid max-w-md gap-3">
+                      <label className="grid gap-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                          new password
+                        </span>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(event) => {
+                            setNewPassword(event.target.value.slice(0, 24));
+                            setPasswordChangeMessage("");
+                          }}
+                          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                        />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                          confirm password
+                        </span>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(event) => {
+                            setConfirmPassword(event.target.value.slice(0, 24));
+                            setPasswordChangeMessage("");
+                          }}
+                          className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                        />
+                      </label>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={changePassword}
+                          className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          save password
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelPasswordChange}
+                          className="border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                        >
+                          cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                  {passwordChangeMessage ? (
+                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
+                      {passwordChangeMessage}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="border-t border-[#1d7f12] pt-5">
@@ -5115,160 +5189,28 @@ export default function BriefingRoomGate({
                   <strong>{formatPointCount(savedMember.bayoTokens)}</strong>
                 </span>
               </div>
-              <p className="font-mono text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                EXPLORER NUMBER - #{savedMember.member}
-              </p>
-              <div className="mt-4 grid max-w-md gap-2">
-                <label className="grid gap-2 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                  <span>CODE NAME</span>
-                  <input
-                    value={memberReferenceNameInput}
-                    disabled={!isMemberReferenceNameEditing}
-                    onChange={(event) => {
-                      setMemberReferenceNameInput(
-                        event.target.value.slice(0, 24),
-                      );
-                      setMemberReferenceNameMessage("");
-                    }}
-                    placeholder={savedMember.name}
-                    className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14] disabled:text-[#7f9f78]"
-                  />
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isMemberReferenceNameEditing) {
-                        setIsMemberReferenceNameEditing(true);
-                        setMemberReferenceNameMessage("");
-                        return;
-                      }
-
-                      void saveMemberReferenceName();
-                    }}
-                    disabled={isMemberReferenceNameSaving}
-                    className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
-                  >
-                    {isMemberReferenceNameSaving
-                      ? "saving"
-                      : isMemberReferenceNameEditing
-                        ? "save"
-                        : "edit"}
-                  </button>
-                  {memberReferenceNameMessage ? (
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#39ff14]">
-                      {memberReferenceNameMessage}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                RANK: LEVEL {isOracleMember ? 9 : getBayRankLevel(savedMember.rank)} -{" "}
-                {isOracleMember ? "Oracle" : getBayRankLabel(savedMember.rank)}
-              </p>
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#72d7ff]">
-                {isOracleMember
-                  ? "+CRYPTI PATH: POSTER V COMPLETE"
-                  : `+CRYPTI RANK: ${getCryptiRankLabel(savedMember.cryptiRank) || "-"}`}
-              </p>
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                POINTS: {formatPointCount(savedMember.availablePoints)} available
-                / {formatPointCount(savedMember.lifetimePoints)} lifetime
-              </p>
-              {isOracleEligible ? (
-                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#b6d88f]">
-                  FINAL PROMOTION: ORACLE BADGE REQUIRED
-                </p>
-              ) : promotionProgress ? (
-                <p
-                  className={`mt-4 text-sm font-black uppercase tracking-[0.2em] ${
-                    promotionProgress.track === "crypti"
-                      ? "text-[#72d7ff]"
-                      : "text-[#d7ffd0]"
-                  }`}
-                >
-                  POINTS UNTIL {promotionProgress.label}:{" "}
-                  {formatPointCount(promotionProgress.pointsUntil)}
-                </p>
-              ) : (
-                <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                  POINTS UNTIL NEXT PROMOTION: 0
-                </p>
-              )}
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                BAYO COINS: {formatPointCount(savedMember.bayoCoins)}
-              </p>
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                NAME: {savedMember.name}
-                {isOracleMember ? " 🔮" : isBayoClubMember ? " 🦉" : ""}
-              </p>
-              <TicketVoteCounter />
-              <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
-                PASSWORD: CLASSIFIED
-              </p>
               <button
                 type="button"
-                onClick={() => {
-                  setIsChangingPassword((isChanging) => !isChanging);
-                  setPasswordChangeMessage("");
-                }}
-                className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
+                onClick={openBlackLight}
+                className={`${styles.exchangeCard} ${styles.blackLightCard}`}
               >
-                change password
+                <span className={styles.exchangeEyebrow}>Ask Thiago</span>
+                <span className={styles.exchangeTitle}>Black Light</span>
+                <span className={styles.exchangeArrow} aria-hidden="true">
+                  →
+                </span>
               </button>
-              {isChangingPassword ? (
-                <div className="mt-4 grid max-w-md gap-3">
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                      new password
-                    </span>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(event) => {
-                        setNewPassword(event.target.value.slice(0, 24));
-                        setPasswordChangeMessage("");
-                      }}
-                      className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                    />
-                  </label>
-                  <label className="grid gap-2">
-                    <span className="text-xs font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                      confirm password
-                    </span>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(event) => {
-                        setConfirmPassword(event.target.value.slice(0, 24));
-                        setPasswordChangeMessage("");
-                      }}
-                      className="border border-[#1d7f12] bg-[#001100] px-3 py-2 text-sm font-black tracking-[0.12em] text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={changePassword}
-                      className="border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    >
-                      save password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelPasswordChange}
-                      className="border border-[#1d7f12] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    >
-                      cancel
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {passwordChangeMessage ? (
-                <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-[#39ff14]">
-                  {passwordChangeMessage}
-                </p>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setActivePanel("circles")}
+                className={styles.exchangeCard}
+              >
+                <span className={styles.exchangeEyebrow}>Bay Space</span>
+                <span className={styles.exchangeTitle}>Circles</span>
+                <span className={styles.exchangeArrow} aria-hidden="true">
+                  →
+                </span>
+              </button>
             </div>
           ) : (
             <>

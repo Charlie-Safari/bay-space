@@ -18,6 +18,14 @@ const { parseThiagoV3: parse } = load('../lib/thiago-v3-intake.ts', {
   './theory-categories': theory, './daily-food-categories': daily, './bay-space-quiz-format': format,
 });
 const sameUrl = 'https://example.org/report';
+const { formatThiagoDraft } = load('../lib/thiago-format.ts', {
+  './thiago-v3-intake': { parseThiagoV3: parse },
+});
+const rawNotes = ['# Headline', 'Claim one', sameUrl, 'Claim two', sameUrl, 'Claim three', sameUrl].join('\r\n');
+assert.deepEqual([...parse(formatThiagoDraft(rawNotes, 'daily-food')).tagSources], [sameUrl, sameUrl, sameUrl]);
+assert.equal(parse(formatThiagoDraft('Title: Report\nFirst paragraph\n\nSecond paragraph', 'theory')).body, 'First paragraph\n\nSecond paragraph');
+assert.equal(parse(formatThiagoDraft('Route: Conspiracy\nTitle: Report\nBody: Original notes', 'theory')).body, 'Original notes');
+assert.throws(() => formatThiagoDraft('Headline\nUnsourced claim', 'daily-food'), /source URL/);
 const events = `Route: Current Events\nCategory: AI Emergence\nHeadline: A theory about facts moves forward\nTag 1: First fact\nSource link: ${sameUrl}\nTag 2: Second fact\nSource link: ${sameUrl}\nTag 3: Third fact\nSource link: ${sameUrl}`;
 const event = parse(events);
 assert.equal(event.category,'daily-food');

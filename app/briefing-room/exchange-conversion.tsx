@@ -23,6 +23,7 @@ export default function ExchangeConversion({
   const total = amount / rate;
   const source = kind === "coins" ? "points" : "coins";
   const insufficient = amount > available;
+  const isTokenExchange = kind === "tokens";
 
   return (
     <details className={styles.exchangeSection}>
@@ -35,6 +36,7 @@ export default function ExchangeConversion({
               className={styles.conversionInput}
               inputMode="numeric"
               autoComplete="off"
+              placeholder={`enter ${source}`}
               value={value}
               onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 15))}
               onBlur={() => { if (value !== "") onChange(String(amount)); }}
@@ -46,13 +48,24 @@ export default function ExchangeConversion({
             className={styles.conversionButton}
             disabled={loading || total === 0 || insufficient}
           >
-            {loading ? "Trading…" : `Trade for ${total.toLocaleString("en-US")} ${kind}`}
+            {loading ? "Trading…" : (
+              <>
+                Trade for {total.toLocaleString("en-US")}{" "}
+                <span className={isTokenExchange ? styles.tokenText : undefined}>{kind}</span>
+              </>
+            )}
           </button>
           {insufficient ? <p className={styles.conversionNotice} role="status">Not enough available {source}.</p> : null}
         </form>
         <dl className={styles.conversionBalances}>
-          <div><dt>{kind === "coins" ? "Bayo coin balance" : "Tokens balance"}</dt><dd>{balance.toLocaleString("en-US")}</dd></div>
-          <div><dt>Available {source}</dt><dd>{available.toLocaleString("en-US")}</dd></div>
+          <div className={isTokenExchange ? styles.availableCoinsText : undefined}>
+            <dt>Available {source}</dt>
+            <dd>{available.toLocaleString("en-US")}</dd>
+          </div>
+          <div className={isTokenExchange ? styles.tokenText : undefined}>
+            <dt>{isTokenExchange ? "Tokens balance" : "Bayo coin balance"}</dt>
+            <dd>{balance.toLocaleString("en-US")}</dd>
+          </div>
         </dl>
       </div>
     </details>

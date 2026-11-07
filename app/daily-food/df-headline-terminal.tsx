@@ -1168,6 +1168,7 @@ export default function DfHeadlineTerminal({
               ) : null}
             </div>
             <PostEngagementPanel
+              key={displayedPost.id}
               isLoggedIn={isLoggedIn}
               onTruthSummaryChange={(summary) =>
                 syncPostTruthSummary(displayedPost.id, summary)
