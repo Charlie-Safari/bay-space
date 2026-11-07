@@ -5,7 +5,7 @@
 .quiz p { color: #a4bfa0; line-height: 1.65; margin: 0.75rem 0; font-size: 0.9rem; }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.7rem !important; }
 .card { border: 1px solid #72c16a40; border-radius: 1.5rem; background: linear-gradient(145deg, #72c16a0d, #030b06b3); padding: clamp(1rem, 3vw, 1.6rem); box-shadow: 0 1rem 2rem #0003; min-width: 0; }
-.quiz button { border: 1px solid #72c16a65; padding: 0.7rem 1rem; background: #72c16a15; color: #90d587; font-weight: 800; margin-top: 0.8rem; }
+.quiz button, .buttonLink { border: 1px solid #72c16a65; border-radius: 0.9rem; padding: 0.7rem 1rem; background: #72c16a15; color: #90d587; font-weight: 800; margin-top: 0.8rem; display: inline-flex; align-items: center; justify-content: center; }
 .quiz button:disabled { opacity: 0.4; cursor: not-allowed; }
 .quiz :is(button, summary):focus-visible { outline: 2px solid #90d587; outline-offset: 3px; }
 .quiz summary { cursor: pointer; padding: 0.5rem 0; color: #cde0ca; font-weight: 800; }
@@ -23,3 +23,16 @@
 .review, .editor { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #72c16a30; overflow-wrap: anywhere; }
 .quiz a { color: #90d587; text-decoration: underline; text-underline-offset: 0.2em; }
 .notice { padding: 1rem; border: 1px solid #d78c7b80; border-radius: 1rem; color: #edb0a3; }
+.slots { display: grid; gap: 0.8rem; }
+.slots .card { padding: 0.8rem 1rem; }
+.slotHead { display: flex; align-items: center; gap: 0.7rem; }
+.quiz .slotButton { flex: 1; min-width: 0; margin: 0; border: 0; padding: 0.4rem; background: transparent; text-align: left; justify-content: start; gap: 1rem; }
+.slotButton span:first-child { flex: none; }
+.slotButton span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #dce9d9; font-weight: 500; }
+.quiz .deleteButton { margin: 0; border-color: #b95656; color: #f29494; font-size: 1.3rem; line-height: 1; }
+.answerGroup { margin: 1rem 0; }
+.optionEditor { display: flex; align-items: center; gap: 0.6rem; }
+.quiz .optionEditor label:not(.answer) { flex: 1; display: flex; align-items: center; }
+.correctCircle { flex: none; }
+.correctCircle input { accent-color: #72c16a; }
+.bonus { margin: 1.5rem 0; padding: 1rem; border: 1px solid #72c16a40; border-radius: 1rem; }

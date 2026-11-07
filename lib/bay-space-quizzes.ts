@@ -1,8 +1,8 @@
 import { supabaseRequest } from "./supabase/server";
 import type { BayMember } from "./bay-space-types";
-import { getQuizWeek, quizDateStart, validateQuizDraft, type QuizQuestion } from "./bay-space-quiz-format";
+import { getQuizWeek, quizDateStart, validateQuizQuestion, type QuizQuestion, type PublishedQuizQuestion } from "./bay-space-quiz-format";
 
-export type QuizRow = { id: string; title: string; week_start: string; questions: QuizQuestion[] };
+export type QuizRow = { id: string; title: string; week_start: string; questions: PublishedQuizQuestion[] };
 export type QuizAttempt = { correct_count: number; question_count: number; points_awarded: number; promotion_bonus: number; answers: number[] };
 export type QuizStats = { completed: number; correctPercent: number; incorrectPercent: number; confidence: number; points: number };
 
@@ -11,6 +11,7 @@ export function canAuthorQuizzes(member: BayMember | null) {
 }
 
 export async function getWeeklyQuiz() {
+  await supabaseRequest<string>("rpc/publish_due_weekly_quiz", { method: "POST", body: {} });
   const rows = await supabaseRequest<QuizRow[]>("weekly_quizzes", { query: { week_start: `eq.${getQuizWeek().weekStart}`, select: "id,title,week_start,questions", limit: 1 } });
   return rows[0] ?? null;
 }
@@ -21,18 +22,24 @@ export async function getQuizAttempt(quizId: string, member: string) {
 }
 
 export async function getQuizSources() {
-  const { sourceStart, weekStart } = getQuizWeek();
-  return supabaseRequest<{ id: string; title: string; created_at: string }[]>("posts", { query: { select: "id,title,created_at", category: "eq.daily-food", incognito: "eq.false", moderation_status: "eq.active", deleted_at: "is.null", and: `(created_at.gte.${quizDateStart(sourceStart)},created_at.lt.${quizDateStart(weekStart)})`, order: "created_at.desc" } });
+  const { weekStart, draftWeekStart } = getQuizWeek();
+  return supabaseRequest<{ id: string; title: string; created_at: string }[]>("posts", { query: { select: "id,title,created_at", category: "eq.daily-food", incognito: "eq.false", moderation_status: "eq.active", deleted_at: "is.null", and: `(created_at.gte.${quizDateStart(weekStart)},created_at.lt.${quizDateStart(draftWeekStart)})`, order: "created_at.desc" } });
 }
 
-export async function publishQuiz(member: BayMember, body: unknown) {
-  const draft = validateQuizDraft(body);
-  return supabaseRequest<string>("rpc/create_weekly_quiz", { method: "POST", body: { p_member_number: Number(member.member), p_title: draft.title, p_week_start: draft.weekStart, p_questions: draft.questions } });
+export async function getQuizDraft() {
+  const weekStart = getQuizWeek().draftWeekStart;
+  const rows = await supabaseRequest<{ questions: QuizQuestion[] }[]>("weekly_quiz_drafts", { query: { week_start: `eq.${weekStart}`, select: "questions", limit: 1 } });
+  return { weekStart, questions: rows[0]?.questions ?? [] };
 }
 
-export function gradeQuiz(questions: QuizQuestion[], answers: unknown): number {
-  if (!Array.isArray(answers) || answers.length !== questions.length || answers.some((answer, index) => !Number.isInteger(answer) || answer < 0 || answer >= questions[index].options.length)) throw new Error("Answer every question before submitting.");
-  return answers.reduce((total, answer, index) => total + Number(answer === questions[index].correctIndex), 0);
+export async function editQuizDraft(member: BayMember, action: "append" | "save" | "delete", position: number | null, question?: unknown, expectedWeek?: string) {
+  const validated = action === "delete" ? null : validateQuizQuestion(question);
+  return supabaseRequest<{ weekStart: string; questions: QuizQuestion[]; position: number }>("rpc/edit_weekly_quiz_draft", { method: "POST", body: { p_member_number: Number(member.member), p_action: action, p_position: position, p_question: validated, p_expected_week: expectedWeek ?? null } });
+}
+
+export function gradeQuiz(questions: PublishedQuizQuestion[], answers: unknown): number {
+  if (!Array.isArray(answers) || answers.length !== questions.length || answers.some((answer, index) => questions[index] === null ? answer !== -1 : !Number.isInteger(answer) || answer < 0 || answer >= questions[index].options.length)) throw new Error("Answer every filled question before submitting.");
+  return answers.reduce<number>((total, answer, index) => total + Number(questions[index] === null || answer === questions[index].correctIndex), 0);
 }
 
 export async function getQuizStats(member: string): Promise<QuizStats | null> {

@@ -39,5 +39,7 @@ assert.throws(() => parse(JSON.stringify({type:'poll',version:3,question:'Is thi
 const question = {question:'What happened?',options:['A','B'],correctIndex:1,explanation:'B was reported.',postId:'00000000-0000-0000-0000-000000000001'};
 const quiz = {title:'Weekly current events',weekStart:'2026-11-02',questions:Array.from({length:36},(_,i)=>({...question,question:`What happened ${i}?`}))};
 assert.equal(parse(JSON.stringify(quiz)).draft.questions.length,36);
+assert.equal(parse(JSON.stringify({...question,type:'quiz-question'})).kind,'quiz-question');
+assert.equal(parse(JSON.stringify(question)).question.correctIndex,1);
 assert.throws(() => parse(JSON.stringify({...quiz,questions:quiz.questions.slice(1)})),/36/);
 console.log('PASS: explicit article routes, source pairing, long body preservation, legacy fallback, Poll and Quiz validation.');

@@ -7,6 +7,7 @@ export type QuizQuestion = {
   explanation: string;
   postId: string;
 };
+export type PublishedQuizQuestion = QuizQuestion | null;
 
 export type QuizDraft = {
   title: string;
@@ -28,13 +29,14 @@ export function quizDateStart(date: string) {
 
 export function getQuizWeek(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: quizTimeZone, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: quizTimeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).formatToParts(now);
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
   const today = `${values.year}-${values.month}-${values.day}`;
   const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
-  const weekStart = shiftQuizDate(today, -((weekday + 6) % 7));
-  return { weekStart, sourceStart: shiftQuizDate(weekStart, -7), sourceEnd: shiftQuizDate(weekStart, -1), weekEnd: shiftQuizDate(weekStart, 6) };
+  const currentMonday = shiftQuizDate(today, -((weekday + 6) % 7));
+  const weekStart = weekday === 0 && values.hour === "23" && values.minute === "59" ? shiftQuizDate(currentMonday, 7) : currentMonday;
+  return { weekStart, draftWeekStart: shiftQuizDate(weekStart, 7), sourceStart: shiftQuizDate(weekStart, -7), sourceEnd: shiftQuizDate(weekStart, -1), weekEnd: shiftQuizDate(weekStart, 6) };
 }
 
 export function validateQuizDraft(value: unknown): QuizDraft {
@@ -57,4 +59,13 @@ export function validateQuizDraft(value: unknown): QuizDraft {
     return { question: item.question.trim(), options, correctIndex: item.correctIndex, explanation: item.explanation.trim(), postId: item.postId };
   });
   return { title: draft.title.trim(), weekStart: draft.weekStart, questions };
+}
+
+export function validateQuizQuestion(value: unknown): QuizQuestion {
+  const question = validateQuizDraft({
+    title: "Question draft",
+    weekStart: getQuizWeek().weekStart,
+    questions: Array(36).fill(value),
+  }).questions[0];
+  return question;
 }

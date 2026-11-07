@@ -17,7 +17,8 @@ function loadTs(path, mocks = {}) {
   return exports;
 }
 const format = loadTs('../lib/bay-space-quiz-format.ts');
-assert.equal(format.getQuizWeek(new Date('2026-11-02T07:59:59Z')).weekStart, '2026-10-26');
+assert.equal(format.getQuizWeek(new Date('2026-11-02T07:58:59Z')).weekStart, '2026-10-26');
+assert.equal(format.getQuizWeek(new Date('2026-11-02T07:59:00Z')).weekStart, '2026-11-02');
 assert.equal(format.getQuizWeek(new Date('2026-11-02T08:00:00Z')).weekStart, '2026-11-02');
 assert.equal(format.getQuizWeek(new Date('2027-01-01T18:00:00Z')).sourceStart, '2026-12-21');
 assert.equal((Date.parse(format.quizDateStart('2026-11-02'))-Date.parse(format.quizDateStart('2026-10-26')))/3600000,169);
@@ -72,13 +73,13 @@ await db.query("update weekly_quizzes set week_start=week_start - 7 where id=$1"
 await assert.rejects(submit(91003,answers),/closed/);
 await db.exec(fs.readFileSync(new URL('../supabase/migrations/202611060001_weekly_quiz.sql', import.meta.url),'utf8'));
 console.log('PASS: migration and rerun, authorship, validation, reward + promotion, duplicate/concurrent retries, stale-balance retry, zero score, anonymous restrictions, weekly close.');
-await db.close();
 const quizHelpers = loadTs('../lib/bay-space-quizzes.ts', {'./supabase/server': {}, './bay-space-quiz-format': format});
 assert.equal(quizHelpers.gradeQuiz(questions, Array(36).fill(1)), 36);
 assert.equal(quizHelpers.gradeQuiz(questions, Array(36).fill(0)), 0);
 assert.equal(quizHelpers.gradeQuiz(questions, [...Array(12).fill(1),...Array(24).fill(0)]) * 50, 600);
-assert.throws(() => quizHelpers.gradeQuiz(questions, Array(35).fill(1)), /every question/);
-assert.throws(() => quizHelpers.gradeQuiz(questions, Array(36).fill(4)), /every question/);
+assert.throws(() => quizHelpers.gradeQuiz(questions, Array(35).fill(1)), /every filled question/);
+assert.throws(() => quizHelpers.gradeQuiz(questions, Array(36).fill(4)), /every filled question/);
+assert.equal(quizHelpers.gradeQuiz([questions[0], ...Array(35).fill(null)], [1, ...Array(35).fill(-1)]), 36);
 let viewer = null;
 let attempt = null;
 const route = loadTs('../app/api/quiz/route.ts', {
@@ -91,12 +92,36 @@ const route = loadTs('../app/api/quiz/route.ts', {
   },
 });
 assert.equal((await route.GET()).status,401);
-assert.equal((await route.POST({})).status,401);
 viewer = {member:'91002',gateKeys:[]};
-assert.equal((await route.POST({})).status,403);
 const publicQuiz = await (await route.GET()).json();
 assert.equal(publicQuiz.quiz.questions[0].correctIndex,undefined);
 assert.equal(publicQuiz.quiz.questions[0].explanation,undefined);
 attempt = {correct_count:36};
 assert.equal((await (await route.GET()).json()).quiz.questions[0].correctIndex,1);
 console.log('PASS: scoring, incomplete/invalid answers, sign-in and author gates, answer-key secrecy until completion.');
+
+const sharedSql=fs.readFileSync(new URL('../supabase/migrations/202611060002_shared_weekly_quiz_draft.sql', import.meta.url),'utf8')
+  .replace(/^create extension if not exists pg_cron;\s*$/gm,'')
+  .replace(/^select cron\.schedule\([^\n]+;\s*$/gm,''); // PGlite does not bundle Supabase Cron.
+await db.exec(sharedSql);
+const {rows:[{id:currentPost}]}=await db.query("insert into posts(category,created_at) values ('daily-food', now()) returning id");
+const currentQuestion={...questions[0],postId:currentPost};
+const add=(action,position,question)=>db.query('select edit_weekly_quiz_draft($1,$2,$3,$4) as draft',[91001,action,position,question ? JSON.stringify(question) : null]).then(result=>result.rows[0].draft);
+assert.equal((await add('append',null,currentQuestion)).position,1);
+assert.equal((await add('append',null,{...currentQuestion,question:'Second question'})).position,2);
+assert.equal((await add('delete',1,null)).questions.length,1);
+assert.equal((await add('save',1,{...currentQuestion,question:'Edited second question'})).questions[0].question,'Edited second question');
+await assert.rejects(db.query('select edit_weekly_quiz_draft($1,$2,$3,$4)',[91002,'append',null,JSON.stringify(currentQuestion)]),/locked/);
+// Simulate the Sunday cutoff by moving the draft into the newly active week.
+await db.query('update weekly_quiz_drafts set week_start=quiz_active_week() where week_start=quiz_active_week()+7');
+const {rows:[{id:published}]}=await db.query('select publish_due_weekly_quiz() as id');
+const {rows:[{questions:publishedQuestions}]}=await db.query('select questions from weekly_quizzes where id=$1',[published]);
+assert.equal(publishedQuestions.length,36); assert.equal(publishedQuestions[0].question,'Edited second question'); assert.equal(publishedQuestions[1],null);
+assert.equal((await db.query('select count(*)::int as n from weekly_quiz_drafts where week_start=quiz_active_week()')).rows[0].n,0);
+assert.equal(quizHelpers.gradeQuiz(publishedQuestions,[1,...Array(35).fill(-1)]),36);
+const bonusAnswer=[1,...Array(35).fill(-1)];
+const bonusClaim=await db.query('select submit_weekly_quiz($1,$2,$3,$4,$5) as result',[91004,published,JSON.stringify(bonusAnswer),JSON.stringify(expected),JSON.stringify({available_points:1800,lifetime_points:1800,rank:'reader',crypti_rank:''})]);
+assert.equal(bonusClaim.rows[0].result.points,1800);
+assert.equal((await db.query('select correct_count from weekly_quiz_attempts where quiz_id=$1 and member_number=91004',[published])).rows[0].correct_count,36);
+console.log('PASS: shared author draft, direct append, edits, compacting deletion, auto publication and blank-slot bonus.');
+await db.close();

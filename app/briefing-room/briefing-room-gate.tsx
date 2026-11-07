@@ -810,7 +810,7 @@ export default function BriefingRoomGate({
   const [lazyBankError, setLazyBankError] = useState("");
   const [lazyPostPreview, setLazyPostPreview] =
     useState<PostPreviewDraft | null>(null);
-  const [lazyStructuredPreview, setLazyStructuredPreview] = useState<Extract<ThiagoIntake, { kind: "poll" | "quiz" }> | null>(null);
+  const [lazyStructuredPreview, setLazyStructuredPreview] = useState<Extract<ThiagoIntake, { kind: "poll" | "quiz" | "quiz-question" }> | null>(null);
   const [isThiagoPublishing, setIsThiagoPublishing] = useState(false);
   const [isLazyAssistantMinimized, setIsLazyAssistantMinimized] =
     useState(false);
@@ -1963,7 +1963,7 @@ export default function BriefingRoomGate({
     };
   }
 
-  function submitLazyBank() {
+  async function submitLazyBank() {
     if (!canUseThiago) {
       setLazyBankError("Thiago engine unavailable");
       shakeLazyButton("bank-submit");
@@ -1976,8 +1976,21 @@ export default function BriefingRoomGate({
       setLazyBankError(error instanceof Error ? error.message : "Unable to read draft.");
       return;
     }
-    if (structured?.kind === "poll" || structured?.kind === "quiz") {
+    if (structured?.kind === "poll" || structured?.kind === "quiz" || structured?.kind === "quiz-question") {
       if (!hasImpossibleBadge) { setLazyBankError("Poll and Quiz authorship is unavailable for this account."); return; }
+      if (structured.kind === "quiz-question") {
+        setIsThiagoPublishing(true);
+        try {
+          const response = await fetch("/api/quiz/draft", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "append", question: structured.question }) });
+          const body = await response.json() as { message?: string; position?: number };
+          if (!response.ok) throw new Error(body.message ?? "Unable to add quiz question.");
+          setLazyBankInput(""); setLazyBankError("");
+          setLazyResponse(`Thiago: question ${body.position} added to the shared quiz draft.`);
+          setLazyMode("chat"); setActivePanel("quiz");
+        } catch (cause) { setLazyBankError(cause instanceof Error ? cause.message : "Unable to add quiz question."); }
+        finally { setIsThiagoPublishing(false); }
+        return;
+      }
       setLazyStructuredPreview(structured);
       setLazyPostPreview(null);
       setLazyBankError("");
@@ -2053,18 +2066,19 @@ export default function BriefingRoomGate({
   async function confirmStructuredIntake() {
     if (!lazyStructuredPreview || !hasImpossibleBadge || isThiagoPublishing) return;
     const preview = lazyStructuredPreview;
+    if (preview.kind === "quiz-question") return;
     setIsThiagoPublishing(true);
     setLazyBankError("");
     try {
-      const response = await fetch(preview.kind === "poll" ? "/api/polls" : "/api/quiz", {
+      const response = await fetch(preview.kind === "poll" ? "/api/polls" : "/api/quiz/draft", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(preview.kind === "poll" ? { question: preview.question, options: preview.options } : preview.draft),
+        body: JSON.stringify(preview.kind === "poll" ? { question: preview.question, options: preview.options } : { action: "import", draft: preview.draft }),
       });
       const data = await response.json() as { message?: string };
       if (!response.ok) throw new Error(data.message ?? "Unable to publish draft.");
       setLazyStructuredPreview(null);
       setLazyBankInput("");
-      setLazyResponse(preview.kind === "poll" ? "Thiago: poll staged. Voting opens in two minutes." : "Thiago: weekly quiz published.");
+      setLazyResponse(preview.kind === "poll" ? "Thiago: poll staged. Voting opens in two minutes." : "Thiago: questions added to the shared quiz draft.");
       setLazyMode("chat");
     } catch (error) {
       setLazyBankError(error instanceof Error ? error.message : "Unable to publish draft.");
@@ -4058,7 +4072,7 @@ export default function BriefingRoomGate({
                       <ol className="mt-3 list-inside list-decimal space-y-2">{lazyStructuredPreview.options.map(option => <li key={option}>{option}</li>)}</ol>
                       <p className="mt-3 text-xs text-[#9abc96]">Voting opens two minutes after publication and closes seven days later.</p>
                     </div>
-                  ) : (
+                  ) : lazyStructuredPreview.kind === "quiz" ? (
                     <div className="mt-4">
                       <h2 className="text-xl font-bold">{lazyStructuredPreview.draft.title}</h2>
                       <p className="mt-2 text-sm">Week of {lazyStructuredPreview.draft.weekStart} · 36 questions</p>
@@ -4070,10 +4084,17 @@ export default function BriefingRoomGate({
                         </li>)}</ol>
                       </details>
                     </div>
+                  ) : (
+                    <div className="mt-4">
+                      <h2 className="text-xl font-bold">{lazyStructuredPreview.question.question}</h2>
+                      <ol className="mt-3 list-inside list-decimal space-y-2">{lazyStructuredPreview.question.options.map((option, index) => <li key={index}>{option}{index === lazyStructuredPreview.question.correctIndex ? " ✓" : ""}</li>)}</ol>
+                      <p className="mt-3 text-sm">{lazyStructuredPreview.question.explanation}</p>
+                      <p className="mt-2 text-xs text-[#9abc96]">Source article: {lazyStructuredPreview.question.postId}</p>
+                    </div>
                   )}
                   {lazyBankError ? <p role="alert" className="mt-4 text-[#ff9b9b]">{lazyBankError}</p> : null}
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <button type="button" disabled={isThiagoPublishing} onClick={confirmStructuredIntake} className="rounded-xl border border-[#72c16a] px-5 py-3 font-bold text-[#dce9d9] disabled:opacity-50">{isThiagoPublishing ? "Publishing…" : `Publish ${lazyStructuredPreview.kind}`}</button>
+                    <button type="button" disabled={isThiagoPublishing} onClick={confirmStructuredIntake} className="rounded-xl border border-[#72c16a] px-5 py-3 font-bold text-[#dce9d9] disabled:opacity-50">{isThiagoPublishing ? "Saving…" : lazyStructuredPreview.kind === "quiz" ? "Add to Quiz author form" : `Publish ${lazyStructuredPreview.kind}`}</button>
                     <button type="button" onClick={editLazyBankPost} className="rounded-xl border border-[#72c16a]/40 px-5 py-3">Edit pasted text</button>
                   </div>
                 </div>

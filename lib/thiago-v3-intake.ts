@@ -1,6 +1,6 @@
 import { dailyFoodCategories } from "./daily-food-categories";
 import { theoryCategories } from "./theory-categories";
-import { validateQuizDraft, type QuizDraft } from "./bay-space-quiz-format";
+import { validateQuizDraft, validateQuizQuestion, type QuizDraft, type QuizQuestion } from "./bay-space-quiz-format";
 
 type ArticleDraft = {
   kind: "article";
@@ -16,7 +16,8 @@ type ArticleDraft = {
 };
 type PollDraft = { kind: "poll"; question: string; options: string[] };
 type WeeklyQuizDraft = { kind: "quiz"; draft: QuizDraft };
-export type ThiagoIntake = ArticleDraft | PollDraft | WeeklyQuizDraft;
+type QuizQuestionDraft = { kind: "quiz-question"; question: QuizQuestion };
+export type ThiagoIntake = ArticleDraft | PollDraft | WeeklyQuizDraft | QuizQuestionDraft;
 
 function fail(message: string): never { throw new Error(message); }
 function lineValue(text: string, label: string) {
@@ -49,6 +50,9 @@ export function parseThiagoV3(input: string): ThiagoIntake | null {
     }
     if (value.type === "quiz" || ("title" in value && "weekStart" in value && "questions" in value)) {
       return { kind: "quiz", draft: validateQuizDraft(value) };
+    }
+    if (value.type === "quiz-question" || ("question" in value && "correctIndex" in value && "postId" in value)) {
+      return { kind: "quiz-question", question: validateQuizQuestion(value) };
     }
     fail("JSON route missing. Use type: poll, or a complete weekly quiz draft.");
   }
