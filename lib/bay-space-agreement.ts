@@ -1,8 +1,8 @@
 export const baySpaceAgreementVersion =
-  "BaySpace Privacy Notice and User Agreement v2026-05-21";
+  "BaySpace Privacy Notice and User Agreement v2026-11-07";
 
 export const baySpaceAgreementDocumentHref =
-  "/BaySpace_Privacy_Notice_Bluebook_Fm22.pdf?v=2026-05-22";
+  "/bay-space-privacy-and-user-agreement-2026-11-07.pdf";
 
 export const baySpaceAgreementHref = "/agreements/bay-space";
 

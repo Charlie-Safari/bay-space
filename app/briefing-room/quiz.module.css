@@ -23,6 +23,9 @@
 .review, .editor { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #72c16a30; overflow-wrap: anywhere; }
 .quiz a { color: #90d587; text-decoration: underline; text-underline-offset: 0.2em; }
 .notice { padding: 1rem; border: 1px solid #d78c7b80; border-radius: 1rem; color: #edb0a3; }
+.unsavedDialog { width: min(30rem, calc(100% - 2rem)); margin: auto; padding: 1.25rem; border: 1px solid #72c16a65; border-radius: 1rem; background: #0b170e; color: #dce9d9; }
+.unsavedDialog::backdrop { background: #020603c9; }
+.unsavedDialog .actions { flex-wrap: wrap; }
 .slots { display: grid; gap: 0.8rem; }
 .slots .card { padding: 0.8rem 1rem; }
 .slotHead { display: flex; align-items: center; gap: 0.7rem; }

@@ -124,4 +124,50 @@ const bonusClaim=await db.query('select submit_weekly_quiz($1,$2,$3,$4,$5) as re
 assert.equal(bonusClaim.rows[0].result.points,1800);
 assert.equal((await db.query('select correct_count from weekly_quiz_attempts where quiz_id=$1 and member_number=91004',[published])).rows[0].correct_count,36);
 console.log('PASS: shared author draft, direct append, edits, compacting deletion, auto publication and blank-slot bonus.');
+
+// Keep a pre-migration question and verify it cannot be claimed by either author.
+await add('append', null, currentQuestion);
+await db.exec("insert into members(member_number,gate_keys) values (91005,'[\"impossible-badge\"]')");
+await db.exec(fs.readFileSync(new URL('../supabase/migrations/202611070003_weekly_quiz_question_ownership.sql', import.meta.url), 'utf8'));
+const {rows:[{questions: legacy}]} = await db.query('select questions from weekly_quiz_drafts where week_start=quiz_active_week()+7');
+assert.ok(legacy[0].id);
+assert.equal(legacy[0].authorMember, undefined);
+const change = (author, action, id, question, week = null) => db.query(
+  'select edit_owned_weekly_quiz_draft($1,$2,$3,$4,$5) as result',
+  [author, action, id, question ? JSON.stringify(question) : null, week],
+).then(r => r.rows[0].result);
+await assert.rejects(change(91001, 'delete', legacy[0].id), /only the question author/i);
+await assert.rejects(change(91005, 'save', legacy[0].id, currentQuestion), /only the question author/i);
+const firstId = 'c0000000-0000-4000-8000-000000000001';
+const first = await change(91001, 'append', firstId, {...currentQuestion, authorMember: 91005});
+assert.equal(first.questions[1].authorMember, 91001);
+assert.equal(first.questions[1].id, firstId);
+assert.deepEqual(await change(91001, 'append', firstId, currentQuestion), first);
+await assert.rejects(change(91005, 'append', firstId, currentQuestion), /ID is already in use/);
+await assert.rejects(change(91005, 'save', firstId, currentQuestion), /only the question author/i);
+await assert.rejects(change(91005, 'delete', firstId), /only the question author/i);
+await assert.rejects(add('delete', 2, null), /reload the quiz editor/i);
+await assert.rejects(change(91002, 'append', null, currentQuestion), /authorship locked/i);
+await assert.rejects(change(91001, 'append', null, currentQuestion, '2026-01-05'), /quiz week changed/i);
+const imported = await db.query('select import_owned_weekly_quiz_draft($1,$2,$3) as result', [
+  91005, JSON.stringify([{...currentQuestion, question: 'Imported question'}]), first.weekStart,
+]).then(r => r.rows[0].result);
+const importedId = imported.questions[2].id;
+assert.equal(imported.questions[2].authorMember, 91005);
+assert.equal((await change(91001, 'delete', firstId)).questions[1].id, importedId);
+assert.equal((await change(91005, 'save', importedId, {...currentQuestion, question: 'Edited after renumbering'})).questions[1].question, 'Edited after renumbering');
+await assert.rejects(change(91001, 'delete', firstId), /no longer in the draft/i);
+
+await db.exec('set role authenticated');
+await assert.rejects(change(91001, 'append', null, currentQuestion), /permission denied/);
+await db.exec('reset role');
+await db.query('update weekly_quizzes set week_start=week_start-14 where id=$1', [published]);
+await db.query('update weekly_quiz_drafts set week_start=quiz_active_week() where week_start=quiz_active_week()+7');
+const {rows:[{id: ownedPublication}]} = await db.query('select publish_due_weekly_quiz() as id');
+const {rows:[{questions: cleanPublication}]} = await db.query('select questions from weekly_quizzes where id=$1', [ownedPublication]);
+assert.equal(cleanPublication.length, 36);
+assert.equal(cleanPublication[1].question, 'Edited after renumbering');
+assert.equal(cleanPublication[1].authorMember, undefined);
+assert.equal(cleanPublication[1].id, undefined);
+console.log('PASS: legacy read-only, automatic import attribution, owner-only edits/deletes, stable IDs, retry, cutoff and private ownership metadata.');
 await db.close();

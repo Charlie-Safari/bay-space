@@ -1,6 +1,6 @@
 import { supabaseRequest } from "./supabase/server";
 import type { BayMember } from "./bay-space-types";
-import { getQuizWeek, quizDateStart, validateQuizQuestion, type QuizQuestion, type PublishedQuizQuestion } from "./bay-space-quiz-format";
+import { getQuizWeek, quizDateStart, validateQuizQuestion, type SharedQuizQuestion, type PublishedQuizQuestion } from "./bay-space-quiz-format";
 
 export type QuizRow = { id: string; title: string; week_start: string; questions: PublishedQuizQuestion[] };
 export type QuizAttempt = { correct_count: number; question_count: number; points_awarded: number; promotion_bonus: number; answers: number[] };
@@ -28,13 +28,16 @@ export async function getQuizSources() {
 
 export async function getQuizDraft() {
   const weekStart = getQuizWeek().draftWeekStart;
-  const rows = await supabaseRequest<{ questions: QuizQuestion[] }[]>("weekly_quiz_drafts", { query: { week_start: `eq.${weekStart}`, select: "questions", limit: 1 } });
+  const rows = await supabaseRequest<{ questions: SharedQuizQuestion[] }[]>("weekly_quiz_drafts", { query: { week_start: `eq.${weekStart}`, select: "questions", limit: 1 } });
   return { weekStart, questions: rows[0]?.questions ?? [] };
 }
 
-export async function editQuizDraft(member: BayMember, action: "append" | "save" | "delete", position: number | null, question?: unknown, expectedWeek?: string) {
+export async function editQuizDraft(member: BayMember, action: "append" | "save" | "delete", questionId: string | null, question?: unknown, expectedWeek?: string) {
   const validated = action === "delete" ? null : validateQuizQuestion(question);
-  return supabaseRequest<{ weekStart: string; questions: QuizQuestion[]; position: number }>("rpc/edit_weekly_quiz_draft", { method: "POST", body: { p_member_number: Number(member.member), p_action: action, p_position: position, p_question: validated, p_expected_week: expectedWeek ?? null } });
+  return supabaseRequest<{ weekStart: string; questions: SharedQuizQuestion[]; position: number }>("rpc/edit_owned_weekly_quiz_draft", {
+    method: "POST",
+    body: { p_member_number: Number(member.member), p_action: action, p_question_id: questionId, p_question: validated, p_expected_week: expectedWeek ?? null },
+  });
 }
 
 export function gradeQuiz(questions: PublishedQuizQuestion[], answers: unknown): number {

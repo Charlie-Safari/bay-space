@@ -11,7 +11,7 @@ type AgreementViewerProps = {
   agreement: string;
   documentHref: string;
   fallbackHref: string;
-  returnTo: string;
+  returnTo: string | string[];
   title: string;
 };
 
@@ -83,14 +83,29 @@ export default function AgreementViewer({
 
   function getReturnHref() {
     const returnHref = returnTo || fallbackHref;
-    const url = new URL(returnHref, window.location.origin);
+    if (!isCryptiAgreement) {
+      if (typeof returnHref !== "string") return fallbackHref;
 
-    if (isCryptiAgreement) {
-      url.searchParams.set("agreementRead", agreement);
-
-      if (hasConfirmedAgreement) {
-        url.searchParams.set("cryptiAgreementAccepted", "true");
+      try {
+        const destination = new URL(returnHref, window.location.origin);
+        if (
+          destination.origin === window.location.origin &&
+          destination.pathname.startsWith("/") &&
+          !destination.pathname.startsWith("//")
+        ) {
+          return `${destination.pathname}${destination.search}${destination.hash}`;
+        }
+      } catch {
+        // An invalid return link uses the agreement's default destination.
       }
+      return fallbackHref;
+    }
+
+    const url = new URL(String(returnHref), window.location.origin);
+    url.searchParams.set("agreementRead", agreement);
+
+    if (hasConfirmedAgreement) {
+      url.searchParams.set("cryptiAgreementAccepted", "true");
     }
 
     return `${url.pathname}${url.search}${url.hash}`;

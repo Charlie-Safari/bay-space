@@ -2031,7 +2031,7 @@ export default function BriefingRoomGate({
           const body = await response.json() as { message?: string; position?: number };
           if (!response.ok) throw new Error(body.message ?? "Unable to add quiz question.");
           setLazyBankInput(""); setLazyBankError("");
-          setLazyResponse(`Thiago: question ${body.position} added to the shared quiz draft.`);
+          setLazyResponse(`Thiago: question ${body.position} submitted to the shared quiz draft.`);
           setLazyMode("chat"); setActivePanel("quiz");
         } catch (cause) { setLazyBankError(cause instanceof Error ? cause.message : "Unable to add quiz question."); }
         finally { setIsThiagoPublishing(false); }
@@ -2124,7 +2124,7 @@ export default function BriefingRoomGate({
       if (!response.ok) throw new Error(data.message ?? "Unable to publish draft.");
       setLazyStructuredPreview(null);
       setLazyBankInput("");
-      setLazyResponse(preview.kind === "poll" ? "Thiago: poll staged. Voting opens in two minutes." : "Thiago: questions added to the shared quiz draft.");
+      setLazyResponse(preview.kind === "poll" ? "Thiago: poll staged. Voting opens in two minutes." : "Thiago: questions submitted to the shared quiz draft.");
       setLazyMode("chat");
     } catch (error) {
       setLazyBankError(error instanceof Error ? error.message : "Unable to publish draft.");

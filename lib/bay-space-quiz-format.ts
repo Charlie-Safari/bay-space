@@ -8,6 +8,7 @@ export type QuizQuestion = {
   postId: string;
 };
 export type PublishedQuizQuestion = QuizQuestion | null;
+export type SharedQuizQuestion = QuizQuestion & { id: string; authorMember?: number };
 
 export type QuizDraft = {
   title: string;

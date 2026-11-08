@@ -10,7 +10,7 @@ type AgreementPageProps = {
     agreement: string;
   }>;
   searchParams: Promise<{
-    returnTo?: string;
+    returnTo?: string | string[];
   }>;
 };
 

@@ -16,6 +16,7 @@ import {
   participationTruthVotePointValue,
   profileVisitPointValue,
 } from "../../lib/bay-space-scoring";
+import { theoryCategories } from "../../lib/theory-categories";
 
 type GuideTopic = {
   id: string;
@@ -71,7 +72,7 @@ export const howToTopics: GuideTopic[] = [
         title: "Find something to read",
         entries: [
           { label: "Conspiracy Theories", detail: "Open Conspiracy from the top navigation or the left half of the split card in the Briefing Room. Browse by category and open a headline to see the account, sources, and discussion." },
-          { label: "Current Events", detail: "Open the top tab or the right half of the Briefing Room card. Use the date, category, and sort controls to browse the feed. Top Story has its own view." },
+          { label: "Current Events", detail: "Open the top tab or the right half of the Briefing Room card. Choose This Week, This Month, or Categories to browse. Use the sort controls inside the feed or open Top Story from its button." },
           { label: "Polls", detail: "Open the top tab to see open polls, polls that are closing, and results." },
         ],
       },
@@ -93,9 +94,9 @@ export const howToTopics: GuideTopic[] = [
       {
         title: "Main room",
         entries: [
-          { label: "Daily Spin", detail: "Open the slot machine once a day to earn 50–500 points. The spin resets by Pacific date." },
-          { label: "Create a post and Paste & Go", detail: "Both shortcuts are visible from the start. On the standard rank path, earn 1,000 lifetime points to reach Poster I. If a shortcut is locked, it shakes and shows the requirement." },
-          { label: "Circles and article feeds", detail: "Open Circles to view your circles and connections. The split card opens Conspiracy Theories and Current Events." },
+          { label: "Daily Spin", detail: "Open the slot machine once a day to earn 50–500 points. The spin resets by Pacific date, and its panel closes five seconds after showing the result." },
+          { label: "Create a post and Paste & Go", detail: "Both shortcuts are visible from the start. On the standard rank path, earn 1,000 lifetime points to reach Poster I. If a shortcut is locked, it shows the requirement for six seconds and shakes when motion is enabled." },
+          { label: "Circles and article feeds", detail: "Open Circles to view the circles and connections stored in your browser. The split card opens Conspiracy Theories and Current Events." },
           { label: "Black Light and Exchange", detail: "Open Black Light to ask Thiago. Under Exchange you’ll see Lifetime Points, available Points, Coins, and Tokens. The card below shows your rank and progress." },
         ],
       },
@@ -130,8 +131,8 @@ export const howToTopics: GuideTopic[] = [
       {
         title: "Ways to earn points",
         entries: [
-          { label: `+${articleReadPointValue} for a first article read`, detail: `A profile owner can also earn +${profileVisitPointValue} for the first visit from another signed-in member.` },
-          { label: `+${participationSharePointValue} for a first share and +${participationFavoritePointValue} for a favorite`, detail: "Use the post’s Share and diamond controls. Removing a favorite reverses its reward." },
+          { label: `+${articleReadPointValue} for a first article read`, detail: `Open the article while signed in. A profile owner can also earn +${profileVisitPointValue} for the first visit from another signed-in member.` },
+          { label: `+${participationSharePointValue} for a first share-link visit and +${participationFavoritePointValue} for a favorite`, detail: "Share a post with its Share button. Points are awarded when an eligible reader opens your share link. Use the diamond to favorite a post. Removing the favorite reverses its reward." },
           { label: `+${currentEventTruthVotePointValue} for Current Events Truth and +${participationTruthVotePointValue} for Conspiracy Truth`, detail: "Vote on another member’s eligible post. Removing the vote reverses its reward. Relevance / Importance is a separate Current Events rating." },
           { label: `+${participationTicketPointValue} for a Conspiracy ticket and +${participationCommentPointValue} for a first eligible Conspiracy comment`, detail: "A removed ticket reverses its reward. Your own posts don’t earn participation rewards." },
           { label: "Daily Spin, Quiz, and Stamps", detail: "Spin in the Briefing Room, complete a weekly quiz, or collect an eligible stamp in Exchange for more ways to earn." },
@@ -172,8 +173,8 @@ export const howToTopics: GuideTopic[] = [
         title: "On an article",
         entries: [
           { label: "Current Events ratings", detail: "Truth and Relevance / Importance are separate sliders. Choose a position and press Vote. You can have one vote on each scale. Choose Remove vote before casting a different one. Dots show where other readers voted after you vote." },
-          { label: "Conspiracy truth voting", detail: "Conspiracy uses a separate numeric truth scale. Cast a score with Vote. Voting again at the same score removes it." },
-          { label: "Comments", detail: "Conspiracy comments are free and have a two-minute removal window. Current Events comments require sign-in and cost one available point per character, including internal spaces and punctuation. Both have a 500-character limit." },
+          { label: "Conspiracy truth voting", detail: "Sign in to cast a score from 0 to 11. Select the same score and choose Undo Vote to remove it." },
+          { label: "Comments", detail: "Conspiracy comments are free, including for guests, and anyone can remove them in the first two minutes. Current Events comments require sign-in and cost one available point per character, including internal spaces and punctuation. Both have a 500-character limit." },
           { label: "Save, share, and ticket", detail: "Use the green diamond to save a post in Briefing Room → Favorites. Use Share to pass along a link. When a ticket button is available, your ID Card shows whether you have a ticket to use." },
         ],
       },
@@ -197,6 +198,7 @@ export const howToTopics: GuideTopic[] = [
         entries: [
           { label: "Conspiracy", detail: "Use it for theories, hypotheses, personal accounts, and unusual signals. Choose the category that fits, explain what you know, and distinguish evidence from speculation." },
           { label: "Current Events", detail: "Use it for factual news. Add a headline, category, and three short claims with a source for each." },
+          { label: "Top Story", detail: "When available, write a scrolling ticker up to 100 characters and a report up to 1,200 characters, then add sources and review the preview." },
           { label: "Library", detail: "Use it for longer reading, documents, and archives. Include context and any sources a reader needs." },
         ],
       },
@@ -207,6 +209,13 @@ export const howToTopics: GuideTopic[] = [
           { label: "Anon and Incog", detail: "When available, Anon hides your displayed name on a public post. Incog keeps the post out of public feeds and uses a shelf label. Bay Space still records the post and its account." },
           { label: "Manage published posts", detail: "Go to My Posts in the Briefing Room to find your work and the controls available for each post." },
         ],
+      },
+      {
+        title: "Conspiracy categories",
+        entries: theoryCategories.map((category) => ({
+          label: category.label,
+          detail: category.description,
+        })),
       },
     ],
     links: [{ label: "Open Briefing Room", href: "/briefing-room" }],
@@ -228,7 +237,7 @@ export const howToTopics: GuideTopic[] = [
         entries: [
           { label: "📝 Format", detail: "Start with a headline and body for Conspiracy, or a headline and three short claims with one URL below each claim for Current Events. Review the formatted draft and send it to Paste & Go." },
           { label: "🌀 Paste & Go 🎢", detail: "Paste a prepared draft. Press Paste & Go or Command/Control + Enter to check it. Article and poll drafts show a review before publishing. Your permissions determine which draft types you can use." },
-          { label: "Poll and Quiz drafts", detail: "IMPOSSIBLE badge holders can submit Poll and Weekly Quiz drafts. A complete quiz goes through a preview, while an eligible single quiz question is added directly to the shared draft." },
+          { label: "Poll and Quiz drafts", detail: "IMPOSSIBLE badge holders can submit Poll and Weekly Quiz drafts. A complete quiz goes through a preview. Paste & Go submits an eligible single question directly to the next open slot. In Briefing Room → Quiz → Quiz Author Form, press Submit or Enter to save a question. Other authors can read it, and only you can edit or delete it. The quiz posts Sunday at 11:59 PM Pacific." },
         ],
       },
     ],
