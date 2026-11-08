@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   BayDirectConversation,
@@ -416,9 +417,12 @@ export default function InboxPanel({
                   <p className="text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
                     chat with
                   </p>
-                  <p className="mt-2 text-xl font-black uppercase tracking-[0.14em] text-[#39ff14]">
+                  <Link
+                    href={`/profile/${selectedMember.member}`}
+                    className="mt-2 block w-fit text-xl font-black uppercase tracking-[0.14em] text-[#39ff14] underline underline-offset-4 transition hover:text-[#d7ffd0] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d7ffd0]"
+                  >
                     {selectedMember.name}
-                  </p>
+                  </Link>
                   <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-[#7f9f78]">
                     {selectedMember.refName || selectedMember.member}
                   </p>

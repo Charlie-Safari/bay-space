@@ -5372,6 +5372,14 @@ export default function BriefingRoomGate({
             </div>
           ) : activePanel === "id-card" && savedMember ? (
             <div>
+              <nav className={`${styles.exchangeCard} ${styles.feedShortcuts}`} aria-label="Article feeds">
+                <Link href="/theories?section=this-month">
+                  <span className={styles.exchangeTitle}>New<br />Conspiracies</span>
+                </Link>
+                <Link href="/facts-on-news?section=this-week">
+                  <span className={styles.exchangeTitle}>New<br />Current<br />Events</span>
+                </Link>
+              </nav>
               <button
                 type="button"
                 onClick={() => setActivePanel("circles")}
@@ -5381,14 +5389,6 @@ export default function BriefingRoomGate({
                 <span className={styles.exchangeTitle}>Circles</span>
                 <span className={styles.exchangeArrow} aria-hidden="true">→</span>
               </button>
-              <nav className={`${styles.exchangeCard} ${styles.feedShortcuts}`} aria-label="Article feeds">
-                <Link href="/theories?section=this-month">
-                  <span className={styles.exchangeTitle}>New<br />Conspiracies</span>
-                </Link>
-                <Link href="/facts-on-news?section=this-week">
-                  <span className={styles.exchangeTitle}>New<br />Current<br />Events</span>
-                </Link>
-              </nav>
               <button
                 type="button"
                 onClick={openBlackLight}
