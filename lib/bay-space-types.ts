@@ -30,6 +30,7 @@ export type BayPost = {
 
 export type BayPostComment = {
   authorActiveCards?: BayoCardId[];
+  authorRank?: BayRank;
   id: string;
   author: string;
   authorName: string;
@@ -128,6 +129,7 @@ export type BayMember = {
   cryptiRank: CryptiRank;
   dailySpinClaimedOn?: string;
   gateKeys: GateKey[];
+  graduationMilestoneAwarded?: boolean;
   lifetimePoints: number;
   lifetimeTokens: number;
   impossibleBadgeReady: boolean;

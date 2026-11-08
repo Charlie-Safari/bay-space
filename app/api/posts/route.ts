@@ -93,6 +93,7 @@ export async function POST(request: Request) {
         : {};
 
     delete meta.accountMarker;
+    delete meta._guestDeleteHash;
 
     if (body.category === "daily-food") {
       const submittedCategory =

@@ -28,7 +28,7 @@ export default async function CircleMember({ searchParams }: CircleMemberProps) 
           Member: {member} - {name}
         </h1>
         <p className="mt-8 max-w-2xl border-l-2 border-[#39ff14] pl-4 text-base leading-7 text-[#d7ffd0] sm:text-lg">
-          Welcome, explorer. Create your password and enter as Reader.
+          Welcome, explorer. Create your password and enter as Reader I.
         </p>
 
         <div className="mt-10 w-full max-w-2xl border-2 border-[#39ff14] bg-black p-4 shadow-[0_0_18px_rgba(57,255,20,0.18)]">
@@ -36,7 +36,7 @@ export default async function CircleMember({ searchParams }: CircleMemberProps) 
             Rank: {defaultMemberTitle}
           </p>
           <p className="mt-3 text-xs font-black uppercase leading-6 tracking-[0.18em] text-[#7f9f78]">
-            Reader can read Conspiracy and Current Events. Promotions unlock Library,
+            Reader I can read Conspiracy, Current Events, and Library. Promotions unlock
             posting, Graduation, and the Bayo Coin exchange.
           </p>
           <PasswordConfirmForm

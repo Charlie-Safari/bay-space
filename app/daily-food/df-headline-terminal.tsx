@@ -1,5 +1,7 @@
 "use client";
 
+import BayRankBadge from "../components/bay-rank-badge";
+
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CopyPostLinkButton from "../components/copy-post-link-button";
@@ -18,7 +20,8 @@ import {
   favoriteStoreEvent,
   getFavoritePostIds,
 } from "../components/favorite-store";
-import { recordPostVisit } from "../components/post-visit-client";
+import { recordArticleVisit } from "../components/post-visit-client";
+import ArticleReadLight from "../components/article-read-light";
 import {
   isBayoClub,
   isGhostRole,
@@ -97,6 +100,7 @@ const dailyFoodCategoryDescriptions: Record<string, string> = {
 };
 
 type SavedMember = {
+  rank?: string;
   member: string;
   name?: string;
   refName: string;
@@ -192,7 +196,9 @@ export default function DfHeadlineTerminal({
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
-  const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
+  const [activeMember, setActiveMember] = useState<SavedMember | null>();
+  const readerId = activeMember === undefined ? undefined : activeMember?.member ?? null;
+  const [readVisit, setReadVisit] = useState<{ postId: string; readBy: string | null }>();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(true);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -329,18 +335,17 @@ export default function DfHeadlineTerminal({
   }, []);
 
   useEffect(() => {
-    if (!displayedPostId) {
+    if (!displayedPostId || readerId === undefined) {
       return;
     }
 
     let isMounted = true;
 
-    recordPostVisit(displayedPostId)
-      .then((postVisits) => {
-        if (!isMounted || typeof postVisits !== "number") {
-          return;
-        }
+    recordArticleVisit(displayedPostId, { readerId })
+      .then((visit) => {
+        if (!isMounted || !visit) return;
 
+        setReadVisit({ postId: displayedPostId, readBy: visit.readBy });
         setPosts((currentPosts) =>
           currentPosts.map((post) =>
             post.id === displayedPostId
@@ -348,19 +353,18 @@ export default function DfHeadlineTerminal({
                   ...post,
                   meta: {
                     ...(post.meta ?? {}),
-                    postVisits: String(postVisits),
+                    postVisits: String(visit.postVisits),
                   },
                 }
               : post,
           ),
         );
-      })
-      .catch(() => undefined);
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [displayedPostId]);
+  }, [displayedPostId, readerId]);
 
   function getVisiblePosts() {
     if (selectedTopicTag) {
@@ -1056,6 +1060,7 @@ export default function DfHeadlineTerminal({
                     className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                   >
                     {getAuthorDisplayName(displayedPost)}
+                    <BayRankBadge rank={members.find((member) => member.member === displayedPost.author)?.rank} />
                   </Link>
                 ) : canShowBayoPlusAnonProfile(displayedPost) ? (
                   <Link
@@ -1168,6 +1173,7 @@ export default function DfHeadlineTerminal({
                 </span>
               ) : null}
             </div>
+            <ArticleReadLight read={Boolean(readerId && readVisit?.postId === displayedPost.id && readVisit.readBy === readerId)} />
             <PostEngagementPanel
               key={displayedPost.id}
               isLoggedIn={isLoggedIn}

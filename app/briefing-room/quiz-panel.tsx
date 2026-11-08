@@ -6,8 +6,15 @@ import type { QuizAttempt } from "../../lib/bay-space-quizzes";
 import styles from "./quiz.module.css";
 
 type ViewQuestion = (Omit<QuizQuestion, "correctIndex" | "explanation"> & Partial<Pick<QuizQuestion, "correctIndex" | "explanation">>) | null;
-type QuizData = { canAuthor: boolean; attempt: QuizAttempt | null; quiz: { id: string; title: string; questions: ViewQuestion[] } | null };
+type QuizData = { canAuthor: boolean; canTake: boolean; pointsPerAnswer: number; attempt: QuizAttempt | null; quiz: { id: string; title: string; questions: ViewQuestion[] } | null };
 type Result = { correct: number; total: number; points: number; promotionBonus: number; claimed: boolean; questions: (QuizQuestion | null)[] };
+
+async function fetchQuiz(signal?: AbortSignal): Promise<QuizData> {
+  const response = await fetch("/api/quiz", { cache: "no-store", signal });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.message);
+  return body;
+}
 
 export default function QuizPanel() {
   const [data, setData] = useState<QuizData | null>(null);
@@ -21,13 +28,18 @@ export default function QuizPanel() {
 
   async function load() {
     try {
-      const response = await fetch("/api/quiz", { cache: "no-store" });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message);
-      setData(body); setError("");
+      setData(await fetchQuiz()); setError("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load quiz."); }
   }
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchQuiz(controller.signal).then(setData).catch((cause) => {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : "Unable to load quiz.");
+      }
+    });
+    return () => controller.abort();
+  }, []);
 
   async function submit() {
     if (!data?.quiz || busy) return;
@@ -57,14 +69,14 @@ export default function QuizPanel() {
     {error ? <div className={styles.notice} role="alert">{error} {!data ? <button onClick={load}>Try again</button> : null}</div> : null}
     {!data && !error ? <p role="status">Loading quiz…</p> : null}
     {data ? <div className={styles.actions}>
-      <button type="button" onClick={() => setOpen(true)}>Take Quiz</button>
+      {data.canTake ? <button type="button" onClick={() => setOpen(true)}>Take Quiz</button> : <p>The weekly quiz unlocks at Poster I.</p>}
       {data.canAuthor ? <a className={styles.buttonLink} href="/briefing-room/quiz-author" target="_blank" rel="noopener noreferrer">Quiz Author Form</a> : null}
     </div> : null}
     {open && data && !quiz ? <section className={styles.card}><h3>This week’s quiz is on its way</h3><p>Explore <a href="/facts-on-news">Current Events</a> while the next quiz is prepared.</p></section> : null}
     {open && quiz && !finished ? <section className={styles.card}>
-      <h3>{quiz.title}</h3><p>{practice ? "Practice only; no additional points." : "36 slots · 50 points per correct answer · Blank slots count as correct bonuses."}</p>
+      <h3>{quiz.title}</h3><p>{practice ? "Practice only; no additional points." : `36 slots · ${data?.pointsPerAnswer ?? 50} points per correct answer · Blank slots count as correct bonuses.`}</p>
       <p className={styles.eyebrow}>Question {index + 1} / 36 · {answered} complete</p><progress aria-label="Questions complete" value={answered} max={36} />
-      {question === null ? <div className={styles.bonus}><h4>Bonus question</h4><p>This slot was left blank. You receive 50 points automatically when you finish.</p></div> : question ? <fieldset disabled={busy}>
+      {question === null ? <div className={styles.bonus}><h4>Bonus question</h4><p>This slot was left blank and counts as correct.</p></div> : question ? <fieldset disabled={busy}>
         <legend>{question.question}</legend>{question.options.map((option, optionIndex) => <label className={styles.answer} key={optionIndex}>
           <input type="radio" name={`quiz-answer-${index}`} checked={answers[index] === optionIndex} onChange={() => setAnswers(current => current.map((value, at) => at === index ? optionIndex : value))} /><span>{option}</span>
         </label>)}

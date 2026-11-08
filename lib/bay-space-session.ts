@@ -21,10 +21,10 @@ export async function getSessionToken() {
   return (await cookies()).get(baySpaceSessionCookieName)?.value ?? "";
 }
 
-export async function getCurrentMember() {
+export async function getCurrentMember(options?: { includeParticipation?: boolean }) {
   const token = await getSessionToken();
 
-  return token ? getMemberFromSessionToken(token) : null;
+  return token ? getMemberFromSessionToken(token, options) : null;
 }
 
 export async function setSessionCookie(token: string) {

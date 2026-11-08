@@ -1,0 +1,282 @@
+.panel {
+  order: 1;
+  overflow: hidden;
+  border: 1px solid #346951;
+  border-radius: 0.9rem;
+  background: #03100d;
+  box-shadow: 0 1.2rem 3rem #0005;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #315544;
+  background: #081c15;
+  color: #b5d9c5;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.header p:first-child {
+  color: #d3efdc;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.iceberg {
+  --callout-width: min(10rem, 40%);
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 100 / 91;
+  background:
+    url("/brand/conspiracy-iceberg-detail.webp") center / 100% 100% no-repeat,
+    url("/brand/conspiracy-iceberg.svg") center / 100% 100% no-repeat;
+}
+
+.iceberg::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0.7rem;
+  border: 1px solid #76d99b48;
+  content: "";
+  pointer-events: none;
+}
+
+.marker {
+  position: absolute;
+  display: grid;
+  width: clamp(1.75rem, 5.2vw, 2.75rem);
+  aspect-ratio: 1;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+}
+
+.light {
+  position: relative;
+  display: block;
+  width: clamp(0.32rem, 0.92vw, 0.54rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff 12%, #e4ffde 43%, #b1ffa5 72%, #5cf37d);
+  box-shadow: 0 0 0 1px #105333, 0 0 0.3rem #d8ffcb, 0 0 0.65rem 0.12rem #63fb74c2, 0 0 1.4rem 0.2rem #3af27456;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.light::after {
+  position: absolute;
+  inset: -0.38rem;
+  border: 1px solid #a3ffb2aa;
+  border-radius: 50%;
+  content: "";
+  opacity: 0;
+  animation: bubble-glint 6s ease-out infinite;
+  animation-delay: inherit;
+}
+
+.marker .light {
+  animation-delay: inherit;
+}
+
+.marker:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  z-index: 1;
+}
+
+.marker:is(:hover, :focus-visible, [aria-expanded="true"]) .light {
+  transform: scale(1.24);
+  box-shadow: 0 0 0.35rem #e0ffd9, 0 0 0 0.22rem #71ff8e68, 0 0 0 0.43rem #71ff8e34, 0 0 0.95rem 0.5rem #57ff809e;
+}
+
+.marker:focus-visible {
+  outline: 1px solid #caffd5;
+  outline-offset: -0.2rem;
+}
+
+.callout,
+.empty {
+  position: absolute;
+  z-index: 2;
+  color: #e0f5e6;
+  pointer-events: none;
+}
+
+.callout {
+  --leader-width: clamp(0.7rem, 4vw, 2.5rem);
+  --leader-height: clamp(0.65rem, 2.5vw, 1.5rem);
+  top: calc(var(--signal-y) - var(--leader-height));
+  left: calc(var(--signal-x) + var(--leader-width));
+  width: var(--callout-width);
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 0.5rem #67ff824f);
+}
+
+.callout[data-side="left"] {
+  left: calc(var(--signal-x) - var(--callout-width) - var(--leader-width));
+  --leader-direction: -1;
+}
+
+.callout[data-below="true"] {
+  --leader-height: 2rem;
+  top: calc(var(--signal-y) + var(--leader-height));
+  --leader-rise: -1;
+}
+
+.calloutFrame {
+  --corners: polygon(0.65rem 0, calc(100% - 0.65rem) 0, 100% 0.65rem, 100% calc(100% - 0.65rem), calc(100% - 0.65rem) 100%, 0.65rem 100%, 0 calc(100% - 0.65rem), 0 0.65rem);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  align-content: center;
+  padding: clamp(0.45rem, 2vw, 0.85rem);
+  clip-path: var(--corners);
+  background: #a9f7ad;
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.calloutFrame:is(:hover, :focus-visible)::before {
+  background: #0d2819;
+}
+
+.calloutFrame::before {
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  clip-path: var(--corners);
+  background: #020e0b;
+  box-shadow: inset 0 0 1rem #61d99329;
+  content: "";
+}
+
+.callout strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #d9f6d4;
+  font: 700 clamp(0.62rem, 1.75vw, 0.8rem)/1.35 "Courier New", monospace;
+  letter-spacing: 0.06em;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+}
+
+.leader {
+  position: absolute;
+  top: calc(50% - 1px);
+  right: 100%;
+  width: var(--leader-width);
+  height: calc(var(--leader-height) + 1px);
+  overflow: visible;
+  fill: none;
+  stroke: #b7f9b7;
+  stroke-width: 1.5;
+  transform: scale(var(--leader-direction, 1), var(--leader-rise, 1));
+}
+
+.leader path {
+  vector-effect: non-scaling-stroke;
+}
+
+.callout[data-side="left"] .leader {
+  right: auto;
+  left: 100%;
+}
+
+.callout[data-below="true"] .leader {
+  top: auto;
+  bottom: calc(50% - 1px);
+}
+
+.empty {
+  border: 1px solid #9bebb0;
+  background: #020e0be8;
+  box-shadow: 0 0 1rem #41e7773b, inset 0 0 0.8rem #61d9931f;
+}
+
+.empty {
+  inset: 44% auto auto 50%;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  transform: translateX(-50%);
+  padding: 0.75rem 1rem;
+  border-radius: 0.35rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.index {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #315544;
+  background: #081c15;
+  color: #b5d9c5;
+  font-size: 0.78rem;
+}
+
+.index summary {
+  width: fit-content;
+  color: #d3efdc;
+  cursor: pointer;
+}
+
+.index ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.index button {
+  display: grid;
+  width: 100%;
+  min-height: 2.75rem;
+  gap: 0.16rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #315544;
+  border-radius: 0.25rem;
+  color: #e0f5e6;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.index button span {
+  color: #a3dcb5;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
+.index button:is(:hover, :focus-visible) {
+  border-color: #9bebb0;
+  background: #103529;
+}
+
+@keyframes bubble-glint {
+  0%, 80%, 100% { opacity: 0; transform: scale(0.55); }
+  84% { opacity: 0.48; }
+  94% { opacity: 0; transform: scale(1.3); }
+}
+
+@media (max-width: 600px) {
+  .iceberg {
+    aspect-ratio: 100 / 128;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .light {
+    transition: none;
+  }
+
+  .light::after {
+    animation: none;
+  }
+}

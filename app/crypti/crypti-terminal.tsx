@@ -2745,7 +2745,7 @@ export default function CryptiTerminal() {
             {
               title: "how to unlock +CRYPTI",
               body: [
-                "Graduation comes first. In the Bay Space Briefing Room, open Exchange, trade available points for Bayo Coins, then buy Graduation in Badge Quest for 500 coins.",
+                "Graduation comes first. Reach Poster III, then buy Graduation for 50 tokens in the Briefing Room Exchange. This unlocks Badge Quest and the +CRYPTI purchase.",
                 "After Graduation is owned, the other gate keys unlock. Buy +CRYPTI for 250 coins to open the blue branch.",
                 "Once +CRYPTI is owned, the blue +CRYPTI logo appears in the Bay Space nav beside Conspiracy. That button opens +CRYPTI Base Camp.",
               ],

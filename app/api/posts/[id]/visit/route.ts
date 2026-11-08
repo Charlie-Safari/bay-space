@@ -11,22 +11,24 @@ type PostVisitContext = {
 
 export async function POST(request: Request, context: PostVisitContext) {
   try {
-    void request;
     const { id } = await context.params;
     const member = await getCurrentMember();
-    const result = await incrementPostVisitCount(id, member?.member);
+    const countGuestVisit = new URL(request.url).searchParams.get("countGuestVisit") !== "0";
+    const result = await incrementPostVisitCount(id, member?.member, { countGuestVisit });
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
     }
 
-    revalidatePath("/daily-food");
-    revalidatePath("/facts-on-news");
-    revalidatePath("/theories");
-    revalidatePath("/library");
-    revalidatePath("/crypti");
-    revalidatePath("/news");
-    revalidatePath("/profile/[member]", "page");
+    if (result.readReward?.earned || (!member && countGuestVisit)) {
+      revalidatePath("/daily-food");
+      revalidatePath("/facts-on-news");
+      revalidatePath("/theories");
+      revalidatePath("/library");
+      revalidatePath("/crypti");
+      revalidatePath("/news");
+      revalidatePath("/profile/[member]", "page");
+    }
 
     return Response.json({
       post: result.post,

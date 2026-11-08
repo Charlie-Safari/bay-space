@@ -1,8 +1,10 @@
 "use client";
 
+import BayRankBadge from "../components/bay-rank-badge";
+
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BayPost,
   getBayPostsByCategory,
@@ -18,7 +20,8 @@ import {
   getFavoriteAuthorIds,
 } from "../components/favorite-store";
 import type { BayPostTruthVoteSummary } from "../../lib/bay-space-types";
-import { recordPostVisit } from "../components/post-visit-client";
+import { recordArticleVisit } from "../components/post-visit-client";
+import ArticleReadLight from "../components/article-read-light";
 import {
   hasCreatorAccess,
   isBayoClub,
@@ -31,13 +34,19 @@ import {
 } from "../../lib/bay-space-scoring";
 import {
   doesTheoryCategoryMatch,
-  theoryCategories,
+  isKnowSomethingPost,
+  knowSomethingArchiveHref,
+  knowSomethingCategory,
+  theoryIcebergCategories,
 } from "../../lib/theory-categories";
 import {
   doPostTopicTagsIncludeTag,
   getPostTopicTags,
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
+import { getPacificDateKey } from "../../lib/pacific-date";
+import MonthlyIcebergMap from "./monthly-iceberg-map";
+import { getMonthlyIcebergSignals } from "./monthly-iceberg-layout";
 import styles from "./theory-experience.module.css";
 
 type SortMode = "az" | "date";
@@ -45,6 +54,7 @@ type AuthorFilter = "all" | "favorite-authors" | "ghosts" | "creators" | "anon";
 type BrowseMode = "" | "all" | "category" | "circles" | "month";
 
 type SavedMember = {
+  rank?: string;
   member: string;
   name: string;
   roles?: string;
@@ -55,21 +65,7 @@ const minimumGreenCheckVoteCount = 3;
 const onFireViewThreshold = 100;
 const conversationCommentThreshold = 10;
 const conversationAuthorThreshold = 3;
-const icebergLevelWidths = [42, 58, 67, 75, 84, 92, 98, 86, 76, 64, 50];
-
-function getCurrentMonthRange(now = new Date()) {
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-  return { end, start };
-}
-
-function isPostFromCurrentMonth(post: BayPost, now = new Date()) {
-  const { end, start } = getCurrentMonthRange(now);
-  const createdAt = new Date(post.createdAt);
-
-  return createdAt >= start && createdAt < end;
-}
+const icebergLevelWidths = [28, 56, 64, 63, 60, 57, 54, 51, 48, 44, 39, 35];
 
 function getPostTruthAverage(post: BayPost) {
   const average = Number(post.meta?.truthAverageScore);
@@ -115,15 +111,7 @@ function hasConversationBadge(post: BayPost) {
   );
 }
 
-function getPostAttentionScore(post: BayPost) {
-  return (
-    getPostVisitCount(post) +
-    getPostCommentCount(post) * 10 +
-    getPostTruthVoteCount(post) * 3
-  );
-}
-
-function claimQualifiedTheoryVisit(postId: string) {
+function claimGuestTheoryVisit(postId: string) {
   const storageKey = `bay-space-qualified-theory-view:${postId}`;
 
   try {
@@ -133,7 +121,7 @@ function claimQualifiedTheoryVisit(postId: string) {
 
     window.localStorage.setItem(storageKey, new Date().toISOString());
   } catch {
-    // Server-side member deduplication still protects signed-in view counts.
+    // The public visit can still be counted when browser storage is unavailable.
   }
 
   return storageKey;
@@ -209,9 +197,10 @@ function formatPostTimestamp(createdAt: string) {
   });
 }
 
-export default function TheoryBoard() {
+export default function TheoryBoard({ showKnowSomething = false }: { showKnowSomething?: boolean }) {
+  const screenHeading = useRef<HTMLHeadingElement>(null);
   const [browseMode, setBrowseMode] = useState<BrowseMode>(() =>
-    getPostHashId() || getTopicTagParam() ? "all" : "",
+    showKnowSomething ? "category" : getPostHashId() || getTopicTagParam() ? "all" : "",
   );
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [query, setQuery] = useState("");
@@ -224,10 +213,12 @@ export default function TheoryBoard() {
   >({});
   const [openPostId, setOpenPostId] = useState(getPostHashId);
   const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
-  const [activeMember, setActiveMember] = useState<SavedMember | null>(null);
+  const [activeMember, setActiveMember] = useState<SavedMember | null>();
+  const readerId = activeMember === undefined ? undefined : activeMember?.member ?? null;
+  const [readVisit, setReadVisit] = useState<{ postId: string; readBy: string | null }>();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(true);
-  const [selectedTheoryCategory, setSelectedTheoryCategory] = useState("");
+  const [selectedTheoryCategory, setSelectedTheoryCategory] = useState(showKnowSomething ? knowSomethingCategory : "");
 
   useEffect(() => {
     function syncPosts() {
@@ -310,7 +301,9 @@ export default function TheoryBoard() {
       setSelectedTopicTag(topicTag);
 
       if (postId) {
-        setBrowseMode("all");
+        const isDropBox = new URLSearchParams(window.location.search).get("section") === "know-something";
+        setBrowseMode(isDropBox ? "category" : "all");
+        if (isDropBox) setSelectedTheoryCategory(knowSomethingCategory);
         setOpenPostId(postId);
       }
     }
@@ -323,32 +316,26 @@ export default function TheoryBoard() {
   }, []);
 
   useEffect(() => {
-    if (!openPostId) {
-      return;
-    }
-
-    const qualifiedVisitKey = claimQualifiedTheoryVisit(openPostId);
-
-    if (!qualifiedVisitKey) {
+    if (!openPostId || readerId === undefined) {
       return;
     }
 
     let isMounted = true;
 
-    recordPostVisit(openPostId)
-      .then((postVisits) => {
-        if (typeof postVisits !== "number") {
+    const guestVisitKey = readerId === null ? claimGuestTheoryVisit(openPostId) : null;
+    recordArticleVisit(openPostId, { readerId, countGuestVisit: Boolean(guestVisitKey) })
+      .then((visit) => {
+        if (!visit && guestVisitKey) {
           try {
-            window.localStorage.removeItem(qualifiedVisitKey);
+            window.localStorage.removeItem(guestVisitKey);
           } catch {
-            // A later browser session can try the qualified visit again.
+            // The next visit can still be counted when storage is unavailable.
           }
         }
 
-        if (!isMounted || typeof postVisits !== "number") {
-          return;
-        }
+        if (!isMounted || !visit) return;
 
+        setReadVisit({ postId: openPostId, readBy: visit.readBy });
         setPosts((currentPosts) =>
           currentPosts.map((post) =>
             post.id === openPostId
@@ -356,19 +343,18 @@ export default function TheoryBoard() {
                   ...post,
                   meta: {
                     ...(post.meta ?? {}),
-                    postVisits: String(postVisits),
+                    postVisits: String(visit.postVisits),
                   },
                 }
               : post,
           ),
         );
-      })
-      .catch(() => undefined);
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [openPostId]);
+  }, [openPostId, readerId]);
 
   useEffect(() => {
     if (!openPostId) {
@@ -420,6 +406,16 @@ export default function TheoryBoard() {
       "",
       selectedTopicTag ? getTopicTagUrl(selectedTopicTag) : getUrlWithoutTopicTag(),
     );
+    if (browseMode === "month") {
+      window.requestAnimationFrame(() => screenHeading.current?.focus());
+    }
+  }
+
+  function openMonthlyStory(id: string) {
+    setOpenPostId(id);
+    window.requestAnimationFrame(() => {
+      document.getElementById(`post-title-${id}`)?.focus({ preventScroll: true });
+    });
   }
 
   function clearTopicTag() {
@@ -465,24 +461,28 @@ export default function TheoryBoard() {
     );
   }
 
+  const monthKey = getPacificDateKey().slice(0, 7);
+  const monthlyPosts = useMemo(() => posts.filter((post) => {
+    if (isKnowSomethingPost(post)) return false;
+    const createdAt = new Date(post.createdAt);
+    return Number.isFinite(createdAt.getTime()) && getPacificDateKey(createdAt).slice(0, 7) === monthKey;
+  }), [posts, monthKey]);
+  const monthlyStory = browseMode === "month" ? monthlyPosts.find((post) => post.id === openPostId) : undefined;
+  const showMonthlyMap = browseMode === "month" && !monthlyStory;
+  const monthlySignals = useMemo(
+    () => showMonthlyMap ? getMonthlyIcebergSignals(monthlyPosts) : [],
+    [monthlyPosts, showMonthlyMap],
+  );
+
   const sortedPosts = useMemo(() => {
+    if (browseMode === "month") return monthlyStory ? [monthlyStory] : [];
     if (!browseMode || (browseMode === "category" && !selectedTheoryCategory)) {
       return [];
     }
 
-    const now = new Date();
-    const { end: nextMonthStart, start: monthStart } =
-      getCurrentMonthRange(now);
-
     const scopedPosts = posts.filter((post) => {
       if (selectedTopicTag && !doPostTopicTagsIncludeTag(post, selectedTopicTag)) {
         return false;
-      }
-
-      const createdAt = new Date(post.createdAt);
-
-      if (browseMode === "month") {
-        return createdAt >= monthStart && createdAt < nextMonthStart;
       }
 
       if (browseMode === "category") {
@@ -494,7 +494,7 @@ export default function TheoryBoard() {
         return doesTheoryCategoryMatch(postCategory, selectedTheoryCategory);
       }
 
-      return true;
+      return !isKnowSomethingPost(post) || post.id === openPostId;
     });
 
     const searchWords = query
@@ -543,17 +543,6 @@ export default function TheoryBoard() {
       : authorFilteredPosts;
 
     return [...filteredPosts].sort((leftPost, rightPost) => {
-      if (browseMode === "month") {
-        return (
-          getPostAttentionScore(rightPost) - getPostAttentionScore(leftPost) ||
-          getPostCommentCount(rightPost) - getPostCommentCount(leftPost) ||
-          getPostVisitCount(rightPost) - getPostVisitCount(leftPost) ||
-          getPostTruthVoteCount(rightPost) - getPostTruthVoteCount(leftPost) ||
-          new Date(rightPost.createdAt).getTime() -
-            new Date(leftPost.createdAt).getTime()
-        );
-      }
-
       if (sortMode === "az") {
         return leftPost.title.localeCompare(rightPost.title);
       }
@@ -568,6 +557,8 @@ export default function TheoryBoard() {
     browseMode,
     favoriteAuthorIds,
     members,
+    monthlyStory,
+    openPostId,
     posts,
     query,
     selectedTheoryCategory,
@@ -576,19 +567,17 @@ export default function TheoryBoard() {
   ]);
 
   const monthlyAttentionTotals = useMemo(() => {
-    const monthlyPosts = posts.filter((post) => isPostFromCurrentMonth(post));
-
     return {
       conversations: monthlyPosts.filter(hasConversationBadge).length,
       greenChecks: monthlyPosts.filter(hasGreenCheck).length,
       newPosts: monthlyPosts.length,
       onFire: monthlyPosts.filter(isPostOnFire).length,
     };
-  }, [posts]);
+  }, [monthlyPosts]);
 
   const hasActiveFeed =
     browseMode === "all" ||
-    browseMode === "month" ||
+    Boolean(monthlyStory) ||
     (browseMode === "category" && Boolean(selectedTheoryCategory));
   const activeFeedLabel =
     browseMode === "month"
@@ -632,12 +621,17 @@ export default function TheoryBoard() {
   }
 
   function goBackOneScreen() {
+    if (monthlyStory) {
+      closePost();
+      return;
+    }
     if (browseMode === "category" && selectedTheoryCategory) {
       setSelectedTheoryCategory("");
       setOpenPostId("");
       setQuery("");
       setAuthorFilter("all");
       setSortMode("date");
+      window.history.replaceState(null, "", window.location.pathname);
       return;
     }
 
@@ -651,7 +645,7 @@ export default function TheoryBoard() {
           <p className={`${styles.breadcrumb} mb-4 text-sm uppercase text-[#bfd0bc]`}>
             {screenPath}
           </p>
-          <h1 className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
+          <h1 ref={screenHeading} tabIndex={-1} className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
             {screenTitle}
           </h1>
         </div>
@@ -661,7 +655,7 @@ export default function TheoryBoard() {
             onClick={goBackOneScreen}
             className={`${styles.backButton} bay-terminal-copy px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#bfd0bc] sm:absolute sm:right-0 sm:top-0`}
           >
-            ← back / {browseMode === "category" && selectedTheoryCategory
+            ← back / {monthlyStory ? "this month" : browseMode === "category" && selectedTheoryCategory
               ? "conspiracy categories"
               : "conspiracy > main"}
           </button>
@@ -675,7 +669,7 @@ export default function TheoryBoard() {
         >
           {[
             {
-              description: "The month's signals, ranked by attention.",
+              description: "Explore this month's stories as signals in the ice.",
               label: "THIS MONTH",
               mode: "month" as const,
             },
@@ -763,19 +757,15 @@ export default function TheoryBoard() {
         </section>
       ) : null}
 
-      {hasActiveFeed ? (
+      {showMonthlyMap ? (
+        <div className="order-1 min-w-0">
+          <MonthlyIcebergMap signals={monthlySignals} onOpenStory={openMonthlyStory} />
+        </div>
+      ) : null}
+
+      {hasActiveFeed && browseMode !== "month" ? (
         <div className={`${styles.controlBar} order-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`}>
           <div className="flex flex-wrap items-end gap-3">
-          {browseMode === "month" ? (
-            <div className="grid w-fit gap-2">
-              <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
-                organized by
-              </span>
-              <span className={`${styles.attentionMode} bay-terminal-copy px-3 py-2 text-sm`}>
-                ATTENTION
-              </span>
-            </div>
-          ) : (
             <label className="grid w-fit gap-2">
               <span className="bay-terminal-copy text-xs text-[#bfd0bc]">
                 organize by
@@ -789,7 +779,6 @@ export default function TheoryBoard() {
                 <option value="date">Date</option>
               </select>
             </label>
-          )}
           <form
             onSubmit={(event) => event.preventDefault()}
             className="flex w-fit flex-wrap items-center gap-3 border-2 border-[#1d7f12] bg-black px-3 py-2 shadow-[0_0_14px_rgba(114,193,106,0.14)]"
@@ -847,42 +836,43 @@ export default function TheoryBoard() {
       ) : null}
 
       {browseMode === "category" && !selectedTheoryCategory ? (
-        <section className={`${styles.icebergSurface} order-2 relative overflow-hidden px-4 py-6 sm:px-8 sm:py-8`}>
-          <div className={styles.icebergMatrix} aria-hidden="true" />
-          <div className={`${styles.icebergHeading} relative z-10 flex flex-wrap items-end justify-between gap-3`}>
+        <section className={`${styles.icebergSurface} order-2 relative overflow-hidden py-5 sm:py-7`}>
+          <div className={`${styles.icebergHeading} flex flex-wrap items-end justify-between gap-3`}>
             <div>
               <p className="bay-terminal-copy text-[0.62rem] text-[#8da989]">
-                CONSPIRACY DEPTH MAP / 11 LEVELS
+                CONSPIRACY DEPTH MAP / {theoryIcebergCategories.length} LEVELS
               </p>
               <h2 className="mt-2 text-2xl font-black uppercase tracking-[-0.04em] text-[#cfe1ca] sm:text-3xl">
                 Choose your depth
               </h2>
             </div>
-            <p className="bay-terminal-copy max-w-[28ch] text-[0.58rem] leading-5 text-[#718b6d]">
+            <p className="bay-terminal-copy max-w-[28ch] text-[0.65rem] leading-5 text-[#a4c2b5]">
               Every level opens its own signal archive.
             </p>
           </div>
-          <div className={`${styles.icebergStack} relative z-10 mt-8`}>
-            {theoryCategories.map((category, index) => (
+          <div className={`${styles.icebergStack} mt-3`}>
+            <span className={styles.waterlineLabel} aria-hidden="true">WATERLINE / 00</span>
+            <span className={styles.depthScale} aria-hidden="true" />
+            {theoryIcebergCategories.map((category, index) => (
               <button
                 key={category.label}
                 type="button"
+                aria-describedby={`iceberg-category-${index + 1}`}
                 onClick={() => setSelectedTheoryCategory(category.label)}
                 style={
                   {
                     "--iceberg-width": `${icebergLevelWidths[index]}%`,
                   } as CSSProperties
                 }
-                className={`${styles.icebergLevel} ${index === 0 ? styles.icebergTip : ""} ${category.label === "Rare Signals" ? styles.rareSignalLevel : ""} group focus:outline-none focus:ring-2 focus:ring-[#d8ecd2]`}
+                className={`${styles.icebergLevel} ${index === 0 ? styles.icebergTip : ""}`}
               >
                 <span className={styles.icebergMeta}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
                   <span>{category.zone}</span>
                 </span>
-                <span className={styles.icebergCopy}>
-                  <strong>{category.label}</strong>
-                  <small>{category.description}</small>
-                </span>
+                <span className={styles.icebergSignal} aria-hidden="true" />
+                <strong className={styles.icebergCopy}>{category.label}</strong>
+                <span id={`iceberg-category-${index + 1}`} className="sr-only">{category.description}</span>
                 <span className={styles.icebergArrow} aria-hidden="true">→</span>
               </button>
             ))}
@@ -911,6 +901,8 @@ export default function TheoryBoard() {
             </div>
           ) : null}
           {sortedPosts.map((post) => {
+            const isGuestNote = isKnowSomethingPost(post);
+            const articlePath = `${isGuestNote ? knowSomethingArchiveHref : "/theories"}#post-${post.id}`;
             const postScore = formatPointTenths(
               getBaySpacePostPointTenths(post, favoritePostCounts),
             );
@@ -964,15 +956,18 @@ export default function TheoryBoard() {
                     onClick={closePost}
                     className="bay-terminal-copy border border-[#1d7f12] px-3 py-2 text-xs text-[#72c16a] transition hover:border-[#72c16a] hover:bg-[#72c16a] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]"
                   >
-                    back
+                    {monthlyStory ? "back to map" : "back"}
                   </button>
-                  {!post.anonymous && getAuthorName(post) ? (
+                  {isGuestNote ? (
+                    <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">Anonymous guest note</p>
+                  ) : !post.anonymous && getAuthorName(post) ? (
                     <p className="bay-terminal-copy mt-5 text-xs text-[#7f9f78]">
                       <Link
                         href={`/profile/${post.author}`}
                         className="underline decoration-[#72c16a] underline-offset-4 transition hover:text-[#72c16a]"
                       >
                         {getAuthorDisplayName(post)}
+                        <BayRankBadge rank={members.find((member) => member.member === post.author)?.rank} />
                       </Link>
                     </p>
                   ) : post.anonymous ? (
@@ -999,10 +994,14 @@ export default function TheoryBoard() {
                   <p className="bay-terminal-copy mt-3 text-xs text-[#7f9f78]">
                     {formatPostTimestamp(post.createdAt)}
                   </p>
-                  <h2 className="bay-terminal-copy mt-3 text-2xl text-[#72c16a]">
+                  <h2
+                    id={`post-title-${post.id}`}
+                    tabIndex={monthlyStory ? -1 : undefined}
+                    className="bay-terminal-copy mt-3 text-2xl text-[#72c16a]"
+                  >
                     {post.title}
                   </h2>
-                  <p className="bay-terminal-field mt-4 whitespace-pre-wrap text-base leading-7 text-[#bfd0bc]">
+                  <p className="bay-terminal-field mt-4 whitespace-pre-wrap text-base leading-7 text-[#bfd0bc] [overflow-wrap:anywhere]">
                     {post.body || "no theory filed"}
                   </p>
                   {getPostSources(post).length ? (
@@ -1046,9 +1045,10 @@ export default function TheoryBoard() {
                     </section>
                   ) : null}
                   <div className="mt-5">
-                    <CopyPostLinkButton path={`/theories#post-${post.id}`} />
-                    <div className="mt-3"><BlackLightLink articlePath={`/theories#post-${post.id}`} /></div>
+                    <CopyPostLinkButton path={articlePath} />
+                    <div className="mt-3"><BlackLightLink articlePath={articlePath} /></div>
                   </div>
+                  <ArticleReadLight read={Boolean(readerId && readVisit?.postId === post.id && readVisit.readBy === readerId)} />
                   <PostEngagementPanel
                     isLoggedIn={isLoggedIn}
                     onCommentSaved={() => {

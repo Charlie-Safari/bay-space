@@ -5,10 +5,16 @@ import {
   bayoTokenExchangeRate,
   defaultStampPointReward,
   graduationTokenCost,
+  graduationMilestonePoints,
+  getBayRankConfig,
+  posterIICoinBonus,
 } from "../../lib/bay-space-ranks";
+import { getParticipationChecklist } from "../../lib/bay-space-promotion";
 import {
   articleReadPointValue,
   currentEventTruthVotePointValue,
+  dailySpinLifetimePointsPerCoin,
+  dailySpinMaxCoins,
   participationCommentPointValue,
   participationFavoritePointValue,
   participationSharePointValue,
@@ -16,7 +22,7 @@ import {
   participationTruthVotePointValue,
   profileVisitPointValue,
 } from "../../lib/bay-space-scoring";
-import { theoryCategories } from "../../lib/theory-categories";
+import { theoryIcebergCategories } from "../../lib/theory-categories";
 
 type GuideTopic = {
   id: string;
@@ -31,12 +37,12 @@ type GuideTopic = {
 
 const count = (value: number) => value.toLocaleString("en-US");
 const rankAccess = {
-  reader: "Browse the public feeds and participate as a member.",
-  "reader-ii": "Unlock Library submissions for reading.",
-  poster: "Unlock Conspiracy posting.",
-  "poster-ii": "Unlock Library posting alongside Conspiracy.",
-  "poster-iii": "Keep Conspiracy and Library posting and unlock the Incog control.",
-  graduation: "Unlock Cards and the next Badge Quest purchases.",
+  reader: "Read every Bay Space feed, including Library, and participate as a member.",
+  "reader-ii": "Unlock optional wagers on polls.",
+  poster: "Post in Conspiracy and Library, leave comments, vote on polls, and take the weekly quiz.",
+  "poster-ii": `Earn an author badge and a one-time ${posterIICoinBonus}-coin promotion bonus. Unlock anonymous posting.`,
+  "poster-iii": "Upgrade your author badge and display it on comments. Earn double point rewards at this rank. Daily Spin pays its regular rate.",
+  graduation: "Unlock Badge Quest, Cards, and the +CRYPTI purchase.",
 };
 
 export const howToTopics: GuideTopic[] = [
@@ -49,7 +55,8 @@ export const howToTopics: GuideTopic[] = [
         title: "On the welcome page",
         entries: [
           { label: "Conspiracies", detail: "Browse theories, strange signals, original accounts, and the evidence people share." },
-          { label: "Know Something", detail: "Open Current Events for sourced news and Top Story." },
+          { label: "Current Events", detail: "Open Current Events for sourced news and Top Story." },
+          { label: "Know Something", detail: "While signed out, leave an anonymous note in Level 06 of the Conspiracy iceberg. You can delete your note from the confirmation window for two minutes." },
           { label: "Join the Circle", detail: "Create an account when you’re ready to participate. Choose a name, set and confirm your password, and review the User Agreement during signup. Email is optional." },
         ],
       },
@@ -94,8 +101,8 @@ export const howToTopics: GuideTopic[] = [
       {
         title: "Main room",
         entries: [
-          { label: "Daily Spin", detail: "Open the slot machine once a day to earn 50–500 points. The spin resets by Pacific date, and its panel closes five seconds after showing the result." },
-          { label: "Create a post and Paste & Go", detail: "Both shortcuts are visible from the start. On the standard rank path, earn 1,000 lifetime points to reach Poster I. If a shortcut is locked, it shows the requirement for six seconds and shakes when motion is enabled." },
+          { label: "Daily Spin", detail: `Open the slot machine once a day to win 0–${dailySpinMaxCoins} Bayo Coins and ${dailySpinLifetimePointsPerCoin} lifetime points per coin. The spin resets by Pacific date, and its panel closes five seconds after showing the result.` },
+          { label: "Create a post and Paste & Go", detail: `Both shortcuts are visible from the start. Reach Poster I by earning ${count(getBayRankConfig("poster").minLifetimePoints)} lifetime points and completing the participation checklist in your ID Card. If a shortcut is locked, it shows the requirement for six seconds and shakes when motion is enabled.` },
           { label: "Circles and article feeds", detail: "Open Circles to view the circles and connections stored in your browser. The split card opens Conspiracy Theories and Current Events." },
           { label: "Black Light and Exchange", detail: "Open Black Light to ask Thiago. Under Exchange you’ll see Lifetime Points, available Points, Coins, and Tokens. The card below shows your rank and progress." },
         ],
@@ -105,7 +112,8 @@ export const howToTopics: GuideTopic[] = [
         entries: [
           { label: "Inbox and Quiz", detail: "Open your conversations in Inbox. Choose Quiz and then Take Quiz for this week’s Current Events questions." },
           { label: "Favorites, Stats, and My Posts", detail: "Find saved posts, check activity, and manage your published work." },
-          { label: "ID Card and Profile", detail: "Expand ID Card to see your Explorer number, code name, rank, lifetime points, and vote tickets. Profile opens your public page." },
+          { label: "ID Card and Profile", detail: "Expand ID Card to see your Explorer number, code name, rank, lifetime points, participation checklist, and vote tickets. Profile opens your public page." },
+          { label: "Rank", detail: "Open Rank under Options to compare your activity totals with the targets for your current rank and see what is left for your next promotion." },
           { label: "Settings and Sign Out", detail: "Open Settings for password, profile links, and account controls. Use Back or the Bay Space logo to return to the main Briefing Room." },
         ],
       },
@@ -115,15 +123,28 @@ export const howToTopics: GuideTopic[] = [
   {
     id: "points",
     label: "Ranks & points",
-    intro: "Lifetime points track rank. Available points are your spendable balance. A post’s public score is separate from both.",
+    intro: "Rank promotions require both lifetime points and participation. Available points are your spendable balance. A post’s public score is separate from both.",
     groups: [
       {
         title: "The standard rank path",
         entries: [
-          ...bayRanks.map((rank) => ({
-            label: `${rank.id === "poster" ? "Poster I" : rank.label} · ${rank.id === "graduation" ? `${graduationTokenCost} tokens` : `${count(rank.minLifetimePoints)} lifetime points`}`,
-            detail: rankAccess[rank.id],
-          })),
+          ...bayRanks.map((rank) => {
+            const checklist = getParticipationChecklist(rank.id)
+              .map(({ label, required }) => `${count(required)} ${label.toLowerCase()}`)
+              .join(", ");
+            const requirement = rank.id === "reader"
+              ? "Starting rank"
+              : rank.id === "graduation"
+                ? `${graduationTokenCost} tokens at Poster III`
+                : `${count(rank.minLifetimePoints)} lifetime points`;
+            return {
+              label: `${rank.label} · ${requirement}`,
+              detail: [rankAccess[rank.id], checklist ? `Participation totals required: ${checklist}.` : ""]
+                .filter(Boolean).join(" "),
+            };
+          }),
+          { label: "Participation totals", detail: "Activity carries forward between ranks. Repeat opens and shares of the same article count once, and each rated post, poll, and weekly quiz counts once. Either Current Events slider counts toward rating that post." },
+          { label: "Graduation milestone", detail: `Reach ${count(graduationMilestonePoints)} lifetime points to receive ${graduationTokenCost} tokens once. After reaching Poster III, use those tokens or your existing tokens to purchase Graduation in Badge Quest.` },
           { label: "Publishing permissions", detail: "Current Events and Top Story are available only to accounts with the relevant publishing permission. Your composer shows the routes you can use." },
           { label: "Promotion bonuses", detail: "Reaching a new rank can award additional points. For example, Reader II awards 100, Poster I awards 350, and Poster II awards 1,000." },
         ],
@@ -135,7 +156,7 @@ export const howToTopics: GuideTopic[] = [
           { label: `+${participationSharePointValue} for a first share-link visit and +${participationFavoritePointValue} for a favorite`, detail: "Share a post with its Share button. Points are awarded when an eligible reader opens your share link. Use the diamond to favorite a post. Removing the favorite reverses its reward." },
           { label: `+${currentEventTruthVotePointValue} for Current Events Truth and +${participationTruthVotePointValue} for Conspiracy Truth`, detail: "Vote on another member’s eligible post. Removing the vote reverses its reward. Relevance / Importance is a separate Current Events rating." },
           { label: `+${participationTicketPointValue} for a Conspiracy ticket and +${participationCommentPointValue} for a first eligible Conspiracy comment`, detail: "A removed ticket reverses its reward. Your own posts don’t earn participation rewards." },
-          { label: "Daily Spin, Quiz, and Stamps", detail: "Spin in the Briefing Room, complete a weekly quiz, or collect an eligible stamp in Exchange for more ways to earn." },
+          { label: "Daily Spin, Quiz, and Stamps", detail: "Spin in the Briefing Room for coins and lifetime points. Complete a weekly quiz or collect an eligible stamp in Exchange for more ways to earn." },
         ],
       },
     ],
@@ -158,7 +179,7 @@ export const howToTopics: GuideTopic[] = [
           { label: "Stamps", detail: `See each stamp’s coin or token price and its reward before buying. A first purchase usually gives ${count(defaultStampPointReward)} points. Some stamps are free or have different rewards, and owned stamps appear in your Trophy Case.` },
           { label: "Birthday stamp", detail: "Save your birthday month and day in Settings. The free Birthday stamp appears on your birthday in Pacific time." },
           { label: "Cards", detail: "After Graduation, spend coins on eligible cards. Open Cards to see what each one does and manage active cards." },
-          { label: "Badge Quest", detail: `Graduation costs ${graduationTokenCost} tokens. Badge Quest shows each badge’s requirements and price. The IMPOSSIBLE badge grants Poll and Weekly Quiz author access.` },
+          { label: "Badge Quest", detail: `Graduation requires Poster III and costs ${graduationTokenCost} tokens. Badge Quest shows each badge’s requirements and price. The IMPOSSIBLE badge grants Poll and Weekly Quiz author access.` },
         ],
       },
     ],
@@ -174,15 +195,15 @@ export const howToTopics: GuideTopic[] = [
         entries: [
           { label: "Current Events ratings", detail: "Truth and Relevance / Importance are separate sliders. Choose a position and press Vote. You can have one vote on each scale. Choose Remove vote before casting a different one. Dots show where other readers voted after you vote." },
           { label: "Conspiracy truth voting", detail: "Sign in to cast a score from 0 to 11. Select the same score and choose Undo Vote to remove it." },
-          { label: "Comments", detail: "Conspiracy comments are free, including for guests, and anyone can remove them in the first two minutes. Current Events comments require sign-in and cost one available point per character, including internal spaces and punctuation. Both have a 500-character limit." },
+          { label: "Comments", detail: "Commenting unlocks at Poster I. Conspiracy and Library comments are free. Conspiracy comments can be removed during the first two minutes. Current Events comments cost one available point per character, including spaces and punctuation. The limit is 500 characters." },
           { label: "Save, share, and ticket", detail: "Use the green diamond to save a post in Briefing Room → Favorites. Use Share to pass along a link. When a ticket button is available, your ID Card shows whether you have a ticket to use." },
         ],
       },
       {
         title: "Polls and Weekly Quiz",
         entries: [
-          { label: "Polls", detail: "Sign in to cast one locked vote on an open poll. Voting costs one Bayo Coin. The poll shows any optional wager before you submit." },
-          { label: "Weekly Quiz", detail: "Open Briefing Room → Quiz → Take Quiz. A finished quiz has 36 slots worth 50 points each. Blank slots count as bonus answers. Your first submission earns points, and you can review answers or try again for practice." },
+          { label: "Polls", detail: "At Poster I, cast one locked vote on an open poll for one Bayo Coin. Optional wagers unlock at Reader II." },
+          { label: "Weekly Quiz", detail: "At Poster I, open Briefing Room → Quiz → Take Quiz. Each of the 36 slots is worth 50 points, or 100 at Poster III. Blank slots count as correct. Your first submission earns points, and you can review answers or try again for practice." },
         ],
       },
     ],
@@ -212,7 +233,7 @@ export const howToTopics: GuideTopic[] = [
       },
       {
         title: "Conspiracy categories",
-        entries: theoryCategories.map((category) => ({
+        entries: theoryIcebergCategories.map((category) => ({
           label: category.label,
           detail: category.description,
         })),

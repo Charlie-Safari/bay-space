@@ -13,6 +13,8 @@ export const participationSharePointValue = 2;
 export const participationTicketPointValue = 5;
 export const participationTruthVotePointValue = 2;
 export const currentEventTruthVotePointValue = 25;
+export const dailySpinMaxCoins = 500;
+export const dailySpinLifetimePointsPerCoin = 100;
 
 export const baySpaceProfilePostPointValues = {
   "daily-food": 10,

@@ -15,8 +15,16 @@ const welcomePaths = [
     featured: true,
   },
   {
-    eyebrow: "02 / look outside",
-    title: "Know Something",
+    eyebrow: "02 / anonymous drop",
+    title: "Do you know something?",
+    description: "Drop some knowledge anonymously. No account needed. Two minutes to take it back.",
+    href: "/know-something",
+    callToAction: "drop what you know",
+    featured: false,
+  },
+  {
+    eyebrow: "03 / look outside",
+    title: "Current Events",
     description:
       "A small commitment to understanding the world beyond your own.",
     href: "/facts-on-news",
@@ -24,7 +32,7 @@ const welcomePaths = [
     featured: false,
   },
   {
-    eyebrow: "03 / take part",
+    eyebrow: "04 / join in",
     title: "Join the Circle",
     description:
       "Reading is open. Join when you are ready to comment, contribute, and earn.",
@@ -90,7 +98,7 @@ export default async function Home() {
 
         <footer className={styles.note}>
           <span>NO PAYWALL TO LOOK.</span>
-          <span>MEMBERSHIP BEGINS WHEN YOU PARTICIPATE.</span>
+          <span>GUEST NOTES ARE ANONYMOUS.</span>
         </footer>
       </section>
     </main>

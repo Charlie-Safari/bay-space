@@ -5,6 +5,7 @@ import CirclesPanel from "./circles-panel";
 import InboxPanel from "./inbox-panel";
 import StatsPanel from "./stats-panel";
 import QuizPanel from "./quiz-panel";
+import RankPanel from "./rank-panel";
 import { ThiagoArticleTools, ThiagoFormatter } from "./thiago-tools";
 import ExchangeConversion, { roundExchangeAmount } from "./exchange-conversion";
 import styles from "./briefing-room.module.css";
@@ -45,13 +46,20 @@ import {
   bayoTokenExchangeRate,
   defaultStampPointReward,
   gateKeys,
+  getBayRankConfig,
   getBayoCardActiveSlotCount,
   getBayRankLabel,
   getBayRankLevel,
   getCryptiRankLabel,
   getNextPromotionProgress,
+  getNextBayPointRank,
+  graduationMilestonePoints,
   graduationTokenCost,
 } from "../../lib/bay-space-ranks";
+import {
+  getParticipationChecklist,
+  type RankParticipation,
+} from "../../lib/bay-space-promotion";
 import type {
   BayRank,
   BayoCardId,
@@ -73,6 +81,10 @@ import {
   cryptiAgreementVersion,
 } from "../../lib/bay-space-agreement";
 import { getPostTopicTags } from "../../lib/bay-space-tags";
+import {
+  dailySpinLifetimePointsPerCoin,
+  dailySpinMaxCoins,
+} from "../../lib/bay-space-scoring";
 import { getPacificDateKey, isBirthdayOn } from "../../lib/pacific-date";
 import TicketVoteCounter from "../components/ticket-vote-counter";
 import { openExternalBrowser } from "../components/open-external-browser";
@@ -95,12 +107,14 @@ type SavedMember = {
   cryptiRank?: CryptiRank;
   dailySpinClaimedOn?: string;
   gateKeys?: GateKey[];
+  graduationMilestoneAwarded?: boolean;
   lifetimePoints?: number;
   impossibleBadgeReady?: boolean;
   member: string;
   name: string;
   purchasedTitles?: BayoTitleId[];
   rank?: BayRank;
+  rankParticipation?: RankParticipation;
   refName: string;
   roles: string;
   title: string;
@@ -164,6 +178,7 @@ type BriefingPanel =
   | "id-card"
   | "post"
   | "stats"
+  | "rank"
   | "my-posts"
   | "favorites"
   | "inbox"
@@ -312,6 +327,7 @@ const optionRoomPanels: BriefingPanel[] = [
   "exchange",
   "circles",
   "stats",
+  "rank",
   "my-posts",
   "favorites",
   "inbox",
@@ -987,6 +1003,11 @@ export default function BriefingRoomGate({
   const promotionProgress = savedMember
     ? getNextPromotionProgress(savedMember.lifetimePoints ?? 0, savedMember)
     : null;
+  const nextBayRank = savedMember ? getNextBayPointRank(savedMember.rank) : null;
+  const participationChecklist = nextBayRank && savedMember?.rankParticipation
+    ? getParticipationChecklist(nextBayRank.id, savedMember.rankParticipation)
+    : null;
+  const remainingGraduationTokens = Math.max(0, graduationTokenCost - (savedMember?.bayoTokens ?? 0));
   const openDrafts = [
     ...minimizedDrafts,
     ...(isPostOpen && activeDraftId
@@ -1223,7 +1244,7 @@ export default function BriefingRoomGate({
       setIsCheckingSession(true);
 
       try {
-        const response = await fetch("/api/me", { cache: "no-store" });
+        const response = await fetch("/api/me?promotion=1", { cache: "no-store" });
         const data = response.ok
           ? ((await response.json()) as { member?: SavedMember | null })
           : { member: null };
@@ -2496,8 +2517,9 @@ export default function BriefingRoomGate({
       });
       const data = (await response.json()) as {
         dailySpin?: {
-          alreadyClaimed?: boolean;
-          points?: number;
+          alreadyClaimed: boolean;
+          coins: number | null;
+          lifetimePoints: number;
         };
         member?: SavedMember;
         message?: string;
@@ -2508,14 +2530,14 @@ export default function BriefingRoomGate({
         return;
       }
 
-      const points = Math.max(0, Math.floor(data.dailySpin.points ?? 0));
+      const { alreadyClaimed, coins, lifetimePoints } = data.dailySpin;
 
       setSavedMember(data.member);
       applySettingsFields(data.member);
       setDailySpinMessage(
-        data.dailySpin.alreadyClaimed
-          ? `today's spin was +${formatPointCount(points)} points`
-          : `you won +${formatPointCount(points)} points`,
+        coins == null
+          ? "today's spin has already been used"
+          : `${alreadyClaimed ? "today's spin" : "you won"}: ${formatPointCount(coins)} ${coins === 1 ? "coin" : "coins"} and +${formatPointCount(lifetimePoints)} lifetime points`,
       );
       setHasDailySpinResult(true);
       window.dispatchEvent(new Event("bay-space-auth"));
@@ -2922,7 +2944,7 @@ export default function BriefingRoomGate({
             (lockedShortcut === "bank" && !canUseThiago) ? (
               <div className={styles.postingLock}>
                 <p role="status">
-                  Earn 1,000 lifetime points to rank up to Poster I. Earn points by participating.
+                  Earn {formatPointCount(getBayRankConfig("poster").minLifetimePoints)} lifetime points and finish the Poster I participation checklist in your ID Card.
                 </p>
               </div>
             ) : null}
@@ -2935,7 +2957,8 @@ export default function BriefingRoomGate({
             <p className={styles.dailySpinEyebrow}>once every day</p>
             <p className={styles.dailySpinTitle}>Daily Spin</p>
             <p className={styles.dailySpinRange}>
-              Win 50–500 points
+              Win 0–{dailySpinMaxCoins} coins. Each coin adds{" "}
+              {dailySpinLifetimePointsPerCoin} lifetime points.
             </p>
           </div>
           <button
@@ -3041,6 +3064,15 @@ export default function BriefingRoomGate({
             >
               stats
             </button>
+            {savedMember ? (
+              <button
+                type="button"
+                onClick={() => setActivePanel("rank")}
+                className="border border-[#1d7f12] px-3 py-2 text-left text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_12px_rgba(57,255,20,0.35)]"
+              >
+                Rank
+              </button>
+            ) : null}
             <button
               onClick={() => {
                 setActivePanel("my-posts");
@@ -3132,11 +3164,36 @@ export default function BriefingRoomGate({
                       POINTS UNTIL {promotionProgress.label}:{" "}
                       <span className="text-[#39ff14]">{formatPointCount(promotionProgress.pointsUntil)}</span>
                     </p>
+                  ) : savedMember.rank === "poster-iii" ? (
+                    <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      TOKENS UNTIL GRADUATION: <span className="text-[#39ff14]">{formatPointCount(remainingGraduationTokens)}</span>
+                    </p>
                   ) : (
                     <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                       POINTS UNTIL NEXT PROMOTION: <span className="text-[#39ff14]">0</span>
                     </p>
                   )}
+                  {nextBayRank ? (
+                    <div className="mt-4 rounded-lg border border-[#31512b] p-3">
+                      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+                        {nextBayRank.label} participation
+                      </p>
+                      {participationChecklist ? (
+                        <ul className="mt-3 grid gap-2 text-sm text-[#b6ccb2]">
+                          {participationChecklist.map(({ label, current, required }) => (
+                            <li key={label} className="flex justify-between gap-3">
+                              <span>{label}</span>
+                              <span className={current >= required ? "shrink-0 text-[#39ff14]" : "shrink-0"}>
+                                {formatPointCount(Math.min(current, required))} / {formatPointCount(required)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-sm text-[#b6ccb2]">Participation progress is unavailable right now.</p>
+                      )}
+                    </div>
+                  ) : null}
                   <p className="mt-4 text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                     NAME: {savedMember.name}
                     {isOracleMember ? " 🔮" : isBayoClubMember ? " 🦉" : ""}
@@ -3945,6 +4002,8 @@ export default function BriefingRoomGate({
                 name: savedMember.name,
               }}
             />
+          ) : activePanel === "rank" && savedMember ? (
+            <RankPanel member={savedMember} oracleEligible={isOracleEligible} />
           ) : activePanel === "my-posts" ? (
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[#d7ffd0]">
@@ -4672,7 +4731,7 @@ export default function BriefingRoomGate({
                 </details>
 
                 <details className={styles.exchangeSection}>
-                  <summary>Badge Quest</summary>
+                  <summary>{savedMember.rank === "graduation" ? "Badge Quest" : "Graduation"}</summary>
                   <div className="mt-4 grid gap-3">
                     {(() => {
                       const isGraduated = savedMember.rank === "graduation";
@@ -4684,9 +4743,15 @@ export default function BriefingRoomGate({
                               Graduation
                             </p>
                             <p className="mt-2 text-xs font-bold uppercase leading-5 tracking-[0.12em] text-[#7f9f78]">
-                              must buy or earn this badge before any other
-                              badges or cards in Badge Quest.
+                              Reach Poster III and spend {graduationTokenCost} tokens to unlock Badge Quest and the +CRYPTI purchase.
                             </p>
+                            {!isGraduated ? (
+                              <p className="mt-2 text-xs leading-5 text-[#b6ccb2]">
+                                {savedMember.graduationMilestoneAwarded
+                                  ? `Milestone reached. Your one-time ${graduationTokenCost}-token award was added.`
+                                  : `Reach ${formatPointCount(graduationMilestonePoints)} lifetime points to receive ${graduationTokenCost} tokens once.`}
+                              </p>
+                            ) : null}
                           </div>
                           <button
                             type="button"
@@ -4694,6 +4759,7 @@ export default function BriefingRoomGate({
                             disabled={
                               isExchangeLoading ||
                               isGraduated ||
+                              savedMember.rank !== "poster-iii" ||
                               (savedMember.bayoTokens ?? 0) < graduationTokenCost
                             }
                             className="w-fit border border-[#39ff14] px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent"
@@ -4705,7 +4771,7 @@ export default function BriefingRoomGate({
                         </div>
                       );
                     })()}
-                    {badgeQuestGateKeys.map((gateKey) => {
+                    {savedMember.rank === "graduation" ? badgeQuestGateKeys.map((gateKey) => {
                       const isGraduated = savedMember.rank === "graduation";
                       const isOwned = savedMember.gateKeys?.includes(gateKey.id);
                       const isCryptiGate = gateKey.id === "crypti-plus";
@@ -4778,7 +4844,7 @@ export default function BriefingRoomGate({
                           </button>
                         </div>
                       );
-                    })}
+                    }) : null}
                   </div>
                 </details>
 
@@ -5326,8 +5392,8 @@ export default function BriefingRoomGate({
                   <strong>{isOracleMember ? "Oracle" : getCryptiRankLabel(savedMember.cryptiRank) || getBayRankLabel(savedMember.rank)}</strong>
                 </span>
                 <span>
-                  <small>Points till next rank</small>
-                  <strong>{isOracleEligible ? "Oracle Badge required" : formatPointCount(promotionProgress?.pointsUntil ?? 0)}</strong>
+                  <small>{savedMember.rank === "poster-iii" ? "Tokens till Graduation" : "Points till next rank"}</small>
+                  <strong>{isOracleEligible ? "Oracle Badge required" : formatPointCount(savedMember.rank === "poster-iii" ? remainingGraduationTokens : promotionProgress?.pointsUntil ?? 0)}</strong>
                 </span>
               </div>
             </div>

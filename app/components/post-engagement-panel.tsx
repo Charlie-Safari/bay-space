@@ -6,16 +6,20 @@ import type {
   BayPostCategory,
   BayPostComment,
   BayPostTruthVoteSummary,
+  BayMember,
 } from "../../lib/bay-space-types";
 import type { BayoCardId } from "../../lib/bay-space-ranks";
 import CurrentEventRatingScale from "./current-event-rating-scale";
+import BayRankBadge from "./bay-rank-badge";
+import { canUsePosterParticipation } from "../../lib/bay-space-roles";
 
 type PostEngagementPanelProps = {
-  isLoggedIn: boolean;
+  isLoggedIn?: boolean;
   onCommentSaved?: (comment: BayPostComment) => void;
   onTruthSummaryChange?: (summary: BayPostTruthVoteSummary) => void;
   postCategory?: BayPostCategory;
   postId: string;
+  showRating?: boolean;
 };
 
 type CommentsResponse = {
@@ -61,10 +65,13 @@ export default function PostEngagementPanel({
   onTruthSummaryChange,
   postCategory,
   postId,
+  showRating = true,
 }: PostEngagementPanelProps) {
   const [comments, setComments] = useState<BayPostComment[]>([]);
   const [commentBody, setCommentBody] = useState("");
   const [availablePoints, setAvailablePoints] = useState<number | null>(null);
+  const [canComment, setCanComment] = useState(false);
+  const [hasCommentSession, setHasCommentSession] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [voteError, setVoteError] = useState("");
   const [isCommentSaving, setIsCommentSaving] = useState(false);
@@ -96,20 +103,20 @@ export default function PostEngagementPanel({
         fetch(`/api/posts/${encodeURIComponent(postId)}/comments`, {
           cache: "no-store",
         }),
-        fetch(`/api/posts/${encodeURIComponent(postId)}/truth-vote`, {
+        showRating ? fetch(`/api/posts/${encodeURIComponent(postId)}/truth-vote`, {
           cache: "no-store",
-        }),
-        isLoggedIn && isCurrentEvents
+        }) : Promise.resolve(null),
+        isLoggedIn !== false
           ? fetch("/api/me", { cache: "no-store" })
           : Promise.resolve(null),
       ]);
       const commentsData =
         (await commentsResponse.json()) as CommentsResponse;
       const truthVoteData =
-        (await truthVoteResponse.json()) as TruthVoteResponse;
+        (await truthVoteResponse?.json()) as TruthVoteResponse | undefined;
       const memberData = memberResponse?.ok
         ? ((await memberResponse.json()) as {
-            member?: { availablePoints?: number } | null;
+            member?: Pick<BayMember, "availablePoints" | "rank" | "roles"> | null;
           })
         : null;
 
@@ -118,13 +125,15 @@ export default function PostEngagementPanel({
       }
 
       setComments(commentsData.comments ?? []);
+      setHasCommentSession(Boolean(memberData?.member));
+      setCanComment(canUsePosterParticipation(memberData?.member));
       setAvailablePoints(
         typeof memberData?.member?.availablePoints === "number"
           ? memberData.member.availablePoints
           : null,
       );
 
-      if (truthVoteData.summary) {
+      if (truthVoteData?.summary) {
         setTruthSummary(truthVoteData.summary);
         setTruthScore(truthVoteData.summary.userScore ?? (isCurrentEvents ? 0 : defaultTruthScore));
         setRelevanceScore(truthVoteData.summary.relevance?.userScore ?? 0);
@@ -143,7 +152,7 @@ export default function PostEngagementPanel({
     return () => {
       isMounted = false;
     };
-  }, [isCurrentEvents, isLoggedIn, postId]);
+  }, [isCurrentEvents, isLoggedIn, postId, showRating]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -156,7 +165,7 @@ export default function PostEngagementPanel({
 
     const nextCommentBody = commentBody.trim();
 
-    if (!nextCommentBody || isCommentSaving) {
+    if (!nextCommentBody || isCommentSaving || !canComment) {
       return;
     }
 
@@ -292,7 +301,7 @@ export default function PostEngagementPanel({
   const voteButtonLabel =
     truthSummary.userScore === truthScore ? "undo vote" : "vote";
   const commentCharacterCount = getCharacterCount(commentBody);
-  const commentRequiresLogin = isCurrentEvents && !isLoggedIn;
+  const commentLocked = isLoading || !canComment;
   const lacksCommentPoints =
     isCurrentEvents &&
     availablePoints !== null &&
@@ -300,7 +309,7 @@ export default function PostEngagementPanel({
 
   return (
     <section className="mt-6 grid min-w-0 grid-cols-1 gap-5 border-t border-[#1d7f12] pt-5 [overflow-wrap:anywhere]">
-      {isCurrentEvents ? (
+      {!showRating ? null : isCurrentEvents ? (
         <div className="grid min-w-0 grid-cols-1 gap-6">
           <CurrentEventRatingScale
             title="truth vote"
@@ -402,7 +411,8 @@ export default function PostEngagementPanel({
                   {comment.authorName ||
                     (comment.author === "anonymous"
                       ? "anonymous user"
-                      : `member ${comment.author}`)} /{" "}
+                      : `member ${comment.author}`)}
+                  <BayRankBadge rank={comment.authorRank} comment /> /{" "}
                   {hasActiveCard(comment, "hero-card") ? (
                     <span className="text-[#ffd84a]">★★★★★ / </span>
                   ) : null}
@@ -435,14 +445,10 @@ export default function PostEngagementPanel({
             value={commentBody}
             onChange={(event) => setCommentBody(limitCharacters(event.target.value))}
             rows={3}
-            disabled={commentRequiresLogin}
+            disabled={commentLocked}
             className="bay-terminal-field min-h-24 w-full min-w-0 resize-y border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm leading-6 text-[#39ff14] outline-none placeholder:text-[#7f9f78] focus:ring-2 focus:ring-[#39ff14]"
             placeholder={
-              commentRequiresLogin
-                ? "sign in to comment on Current Events"
-                : isLoggedIn
-                  ? "comment"
-                  : "comment anonymously"
+              canComment ? "comment" : "commenting unlocks at Poster I"
             }
             aria-label="Comment"
           />
@@ -459,14 +465,14 @@ export default function PostEngagementPanel({
               </p>
             ) : (
               <p className="bay-terminal-copy text-[0.68rem] text-[#7f9f78]">
-                free / two-minute public delete window
+                {postCategory === "theory" ? "free / two-minute public delete window" : "free"}
               </p>
             )}
           </div>
           <button
             type="submit"
             disabled={
-              isCommentSaving || !commentBody.trim() || commentRequiresLogin
+              isCommentSaving || !commentBody.trim() || commentLocked
               || lacksCommentPoints
             }
             className="bay-terminal-copy w-fit border border-[#39ff14] px-3 py-2 text-xs text-[#39ff14] transition hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0] disabled:cursor-not-allowed disabled:border-[#1d7f12] disabled:text-[#7f9f78] disabled:hover:bg-transparent disabled:hover:text-[#7f9f78]"
@@ -483,27 +489,11 @@ export default function PostEngagementPanel({
             shorten the comment or earn more points before posting
           </p>
         ) : null}
-        {commentRequiresLogin ? (
+        {!isLoading && !canComment ? (
           <p className="bay-terminal-copy text-xs text-[#7f9f78]">
-            Current Events comments require a member account because each
-            character spends one available point. {" "}
-            <Link
-              href="/join-the-circle"
-              className="text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
-            >
-              join the circle
-            </Link>
-          </p>
-        ) : !isLoggedIn ? (
-          <p className="bay-terminal-copy text-xs text-[#7f9f78]">
-            posting as anonymous user /{" "}
-            <Link
-              href="/join-the-circle"
-              className="text-[#39ff14] underline decoration-[#39ff14] underline-offset-4"
-            >
-              make an account
-            </Link>{" "}
-            to attach your name and vote
+            {hasCommentSession ? "Commenting unlocks at Poster I." : (
+              <><Link href="/login" className="text-[#39ff14] underline">Sign in</Link> with a Poster I account to comment.</>
+            )}
           </p>
         ) : null}
 

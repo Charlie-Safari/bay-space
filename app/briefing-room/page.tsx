@@ -15,7 +15,7 @@ export default async function BriefingRoom({ searchParams }: BriefingRoomProps) 
   const shouldOpenInbox = panel === "inbox" || Boolean(inboxMember.trim());
   const initialPanel = shouldOpenInbox
     ? "inbox"
-    : panel === "quiz" || panel === "exchange" || panel === "settings"
+    : panel === "quiz" || panel === "exchange" || panel === "settings" || panel === "rank"
       ? panel
       : "id-card";
 

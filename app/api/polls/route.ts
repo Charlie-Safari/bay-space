@@ -6,6 +6,7 @@ import {
   listPolls,
 } from "../../../lib/bay-space-polls";
 import { getCurrentMember } from "../../../lib/bay-space-session";
+import { canUsePosterParticipation, canWagerOnPolls } from "../../../lib/bay-space-roles";
 
 function pollError(error: unknown, fallback: string) {
   const message = getStorageErrorMessage(error) ?? fallback;
@@ -25,6 +26,8 @@ export async function GET() {
       activeCount,
       availableSlots: Math.max(0, 16 - activeCount),
       canAuthor: canAuthorPolls(member),
+      canVote: canUsePosterParticipation(member),
+      canWager: canWagerOnPolls(member),
       isSignedIn: Boolean(member),
       polls,
       viewer: member

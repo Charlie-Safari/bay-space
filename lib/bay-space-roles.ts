@@ -6,6 +6,7 @@ import {
   getBayRankConfig,
   getBayRankLabel,
   normalizeBayRank,
+  publicReadCategories,
   type BayRank,
   type CryptiRank,
   type GateKey,
@@ -53,10 +54,10 @@ export const baySpaceRoles: BaySpaceRole[] = [
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
-    description: "Read and reveal posts.",
+    description: "Read Conspiracy, Current Events, and Library posts.",
     id: "reader",
-    label: "Reader",
-    title: "Reader",
+    label: "Reader I",
+    title: "Reader I",
   },
   {
     allowedCategories: [],
@@ -71,19 +72,19 @@ export const baySpaceRoles: BaySpaceRole[] = [
     allowedCategories: [],
     canUseAnonymous: false,
     canUseIncognito: false,
-    description: "Can read Library in addition to Conspiracy and Current Events.",
+    description: "Can wager on polls and retains Poster I access.",
     id: "reader-ii",
     label: "Reader II",
     title: "Reader II",
   },
   {
-    allowedCategories: ["theory"],
-    canUseAnonymous: true,
+    allowedCategories: ["theory", "library-submission"],
+    canUseAnonymous: false,
     canUseIncognito: false,
-    description: "Can post in conspiracies.",
+    description: "Can post in Conspiracy and Library, comment, vote on polls, and take the quiz.",
     id: "poster",
-    label: "Poster",
-    title: "Poster",
+    label: "Poster I",
+    title: "Poster I",
   },
   {
     allowedCategories: ["theory", "library-submission"],
@@ -261,6 +262,7 @@ export function getRoleAcronym(subject: PermissionSubject) {
 }
 
 export function getAllowedReadCategories(subject: PermissionSubject) {
+  if (!subject) return publicReadCategories;
   if (isAdmin(subject)) {
     return [
       "top-story",
@@ -323,7 +325,21 @@ export function canUseAnonymousPosting(subject: PermissionSubject) {
   return (
     isAdmin(subject) ||
     getPrimaryRoleConfig(getRolesText(subject))?.canUseAnonymous ||
-    getBayRankConfig(getPermissionRank(subject)).level >= 3
+    getBayRankConfig(getPermissionRank(subject)).level >= getBayRankConfig("poster-ii").level
+  );
+}
+
+export function canUsePosterParticipation(subject: PermissionSubject) {
+  return Boolean(subject) && (
+    isAdmin(subject) ||
+    getBayRankConfig(getPermissionRank(subject)).level >= getBayRankConfig("poster").level
+  );
+}
+
+export function canWagerOnPolls(subject: PermissionSubject) {
+  return Boolean(subject) && (
+    isAdmin(subject) ||
+    getBayRankConfig(getPermissionRank(subject)).level >= getBayRankConfig("reader-ii").level
   );
 }
 

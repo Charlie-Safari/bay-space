@@ -80,6 +80,7 @@ type BayRankConfig = {
   label: string;
   level: number;
   minLifetimePoints: number;
+  promotionBonus: number;
 };
 
 type CryptiRankConfig = {
@@ -127,20 +128,22 @@ export type PromotionProgress = {
   track: PromotionTrack;
 };
 
-const publicReadCategories: BayPostCategory[] = [
+export const publicReadCategories: BayPostCategory[] = [
   "top-story",
   "daily-food",
   "theory",
 ];
+const memberReadCategories: BayPostCategory[] = [...publicReadCategories, "library-submission"];
 
 export const defaultBayRank: BayRank = "reader";
-export const defaultBayRankLabel = "Reader";
+export const defaultBayRankLabel = "Reader I";
 export const defaultMemberRole = "reader";
-export const defaultMemberTitle = "Reader";
+export const defaultMemberTitle = "Reader I";
 export const bayoCoinExchangeRate = 100;
 export const bayoTokenExchangeRate = 5;
 export const defaultStampPointReward = 1_000;
-export const graduationTokenCost = 100;
+export const graduationTokenCost = 50;
+export const graduationMilestonePoints = 500_000;
 export const oracleBadgeTokenCost = 1000;
 export const impossibleBadgePointCost = 1_000_000_000_000;
 export const doublayCardId: BayoCardId = "doublay-card";
@@ -158,29 +161,32 @@ export const bayRanks: BayRankConfig[] = [
   {
     allowedPostCategories: [],
     canExchangePoints: false,
-    canReadCategories: publicReadCategories,
+    canReadCategories: memberReadCategories,
     id: "reader",
-    label: "Reader",
+    label: defaultBayRankLabel,
     level: 1,
     minLifetimePoints: 0,
+    promotionBonus: 0,
   },
   {
-    allowedPostCategories: [],
+    allowedPostCategories: ["theory", "library-submission"],
+    canExchangePoints: false,
+    canReadCategories: [...publicReadCategories, "library-submission"],
+    id: "poster",
+    label: "Poster I",
+    level: 2,
+    minLifetimePoints: 10_000,
+    promotionBonus: 350,
+  },
+  {
+    allowedPostCategories: ["theory", "library-submission"],
     canExchangePoints: false,
     canReadCategories: [...publicReadCategories, "library-submission"],
     id: "reader-ii",
     label: "Reader II",
-    level: 2,
-    minLifetimePoints: 250,
-  },
-  {
-    allowedPostCategories: ["theory"],
-    canExchangePoints: false,
-    canReadCategories: [...publicReadCategories, "library-submission"],
-    id: "poster",
-    label: "Poster",
     level: 3,
-    minLifetimePoints: 1000,
+    minLifetimePoints: 100_000,
+    promotionBonus: 100,
   },
   {
     allowedPostCategories: ["theory", "library-submission"],
@@ -189,7 +195,8 @@ export const bayRanks: BayRankConfig[] = [
     id: "poster-ii",
     label: "Poster II",
     level: 4,
-    minLifetimePoints: 3500,
+    minLifetimePoints: 200_000,
+    promotionBonus: 1_000,
   },
   {
     allowedPostCategories: ["theory", "library-submission"],
@@ -198,7 +205,8 @@ export const bayRanks: BayRankConfig[] = [
     id: "poster-iii",
     label: "Poster III",
     level: 5,
-    minLifetimePoints: 10000,
+    minLifetimePoints: 250_000,
+    promotionBonus: 5_000,
   },
   {
     allowedPostCategories: ["theory", "library-submission"],
@@ -207,9 +215,15 @@ export const bayRanks: BayRankConfig[] = [
     id: "graduation",
     label: "Graduation",
     level: 6,
-    minLifetimePoints: 50000,
+    minLifetimePoints: 0,
+    promotionBonus: 10_000,
   },
 ];
+
+export const posterIICoinBonus = Math.floor(
+  (getBayRankConfig("poster-ii").minLifetimePoints - getBayRankConfig("reader-ii").minLifetimePoints)
+    / bayoCoinExchangeRate / 10,
+);
 
 export const gateKeys: GateKeyConfig[] = [
   {
@@ -553,14 +567,7 @@ export function getPromotionBonusPoints(
     .filter(
       (rank) => rank.level > previousBayLevel && rank.level <= nextBayLevel,
     )
-    .reduce((total, rank) => {
-      const nextPromotion =
-        rank.id === "graduation"
-          ? cryptiRanks.find((candidate) => candidate.id === "reader-iii")
-          : bayRanks.find((candidate) => candidate.level === rank.level + 1);
-
-      return total + Math.floor((nextPromotion?.minLifetimePoints ?? 0) * 0.1);
-    }, 0);
+    .reduce((total, rank) => total + rank.promotionBonus, 0);
   const previousCryptiLevel = getCryptiRankConfig(previous?.cryptiRank)?.level ?? 0;
   const nextCryptiLevel = getCryptiRankConfig(next?.cryptiRank)?.level ?? 0;
   const cryptiBonus = cryptiRanks
@@ -609,6 +616,10 @@ export function getBayRankLevel(rank: string | null | undefined) {
   return getBayRankConfig(rank).level;
 }
 
+export function getBayPointMultiplier(rank: string | null | undefined) {
+  return rank === "poster-iii" ? 2 : 1;
+}
+
 export function getCryptiRankConfig(rank: string | null | undefined) {
   return cryptiRanks.find((candidate) => candidate.id === rank) ?? null;
 }
@@ -625,35 +636,11 @@ export function canRankExchangePoints(rank: string | null | undefined) {
   return getBayRankConfig(rank).canExchangePoints;
 }
 
-export function getRankForLifetimePoints(points: number) {
-  const normalizedPoints = Number.isFinite(points) ? Math.max(0, points) : 0;
-
-  return bayRanks
-    .filter((candidate) => candidate.id !== "graduation")
-    .reduce(
-      (earnedRank, candidate) =>
-        normalizedPoints >= candidate.minLifetimePoints
-          ? candidate
-          : earnedRank,
-      bayRanks[0],
-    ).id;
-}
-
-export function getPromotedBayRankForLifetimePoints(
-  points: number,
-  currentRank: string | null | undefined,
-) {
-  const normalizedCurrentRank = normalizeBayRank(currentRank);
-
-  if (normalizedCurrentRank === "graduation") {
-    return "graduation";
-  }
-
-  const earnedRank = getRankForLifetimePoints(points);
-
-  return getBayRankLevel(earnedRank) >= getBayRankLevel(normalizedCurrentRank)
-    ? earnedRank
-    : normalizedCurrentRank;
+export function getNextBayPointRank(rank: string | null | undefined) {
+  const level = getBayRankLevel(rank);
+  return bayRanks.find(
+    (candidate) => candidate.id !== "graduation" && candidate.level > level,
+  );
 }
 
 export function getCryptiRankForLifetimePoints(
@@ -729,10 +716,7 @@ export function getNextPromotionProgress(
     return null;
   }
 
-  const currentBayRankLevel = getBayRankLevel(currentBayRank);
-  const nextRank = bayRanks
-    .filter((candidate) => candidate.id !== "graduation")
-    .find((candidate) => candidate.level > currentBayRankLevel);
+  const nextRank = getNextBayPointRank(currentBayRank);
 
   return nextRank
     ? {

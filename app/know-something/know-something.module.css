@@ -1,0 +1,68 @@
+.logoLink {
+  position: relative;
+  isolation: isolate;
+  justify-self: center;
+  width: 6rem;
+  padding-bottom: 0.75rem;
+  border-radius: 50%;
+}
+
+.logoLink:focus-visible {
+  outline: 2px solid #a2d59b;
+  outline-offset: 5px;
+}
+
+.logoLink::before,
+.logoLink::after {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+}
+
+.logoLink::before {
+  inset: -16% -22% 0;
+  background: radial-gradient(ellipse, #79ed7438, transparent 68%);
+}
+
+.logoLink::after {
+  inset: auto 15% 0;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #79ed7460;
+  filter: blur(5px);
+}
+
+.hologram {
+  display: block;
+  filter: drop-shadow(0 0 9px #79ed7460);
+}
+
+.logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  clip-path: ellipse(49% 49% at 50% 50.5%);
+}
+
+@media (min-width: 640px) {
+  .logoLink {
+    width: 8rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hologram {
+    animation: float 5s ease-in-out infinite;
+    transition: filter 200ms ease;
+  }
+
+  .logoLink:is(:hover, :focus-visible) .hologram {
+    filter: drop-shadow(0 0 14px #79ed74a0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}

@@ -5,6 +5,7 @@ import {
   votePoll,
 } from "../../../../../lib/bay-space-polls";
 import { getCurrentMember } from "../../../../../lib/bay-space-session";
+import { canUsePosterParticipation, canWagerOnPolls } from "../../../../../lib/bay-space-roles";
 
 type PollVoteContext = { params: Promise<{ id: string }> };
 
@@ -29,6 +30,12 @@ export async function POST(request: Request, context: PollVoteContext) {
       ? (body.wagerCurrency as BayPollWagerCurrency)
       : "none";
     const wagerAmount = Math.floor(Number(body.wagerAmount) || 0);
+    if (!canUsePosterParticipation(member)) {
+      return Response.json({ message: "Poll voting unlocks at Poster I." }, { status: 403 });
+    }
+    if (wagerCurrency !== "none" && !canWagerOnPolls(member)) {
+      return Response.json({ message: "Poll wagers unlock at Reader II." }, { status: 403 });
+    }
 
     if (!optionId) {
       return Response.json({ message: "Choose an answer" }, { status: 400 });

@@ -7,6 +7,7 @@ import {
   listPostComments,
 } from "../../../../../lib/bay-space-db";
 import { getCurrentMember } from "../../../../../lib/bay-space-session";
+import { canUsePosterParticipation } from "../../../../../lib/bay-space-roles";
 
 type PostCommentsContext = {
   params: Promise<{ id: string }>;
@@ -46,6 +47,10 @@ export async function POST(request: Request, context: PostCommentsContext) {
   try {
     const { id } = await context.params;
     const member = await getCurrentMember();
+    if (!member) return Response.json({ message: "Sign in to comment." }, { status: 401 });
+    if (!canUsePosterParticipation(member)) {
+      return Response.json({ message: "Commenting unlocks at Poster I." }, { status: 403 });
+    }
 
     const body = (await request.json()) as { body?: string };
     const commentBody = (body.body ?? "").trim();
@@ -54,7 +59,7 @@ export async function POST(request: Request, context: PostCommentsContext) {
       return Response.json({ message: "Comment required" }, { status: 400 });
     }
 
-    const result = await createPostComment(id, member?.member, commentBody);
+    const result = await createPostComment(id, member.member, commentBody);
 
     if (!result) {
       return Response.json({ message: "Post not found" }, { status: 404 });
@@ -65,6 +70,7 @@ export async function POST(request: Request, context: PostCommentsContext) {
     revalidatePath("/news");
     revalidatePath("/news/post");
     revalidatePath("/theories");
+    revalidatePath("/library");
 
     return Response.json(result, { status: 201 });
   } catch (error) {

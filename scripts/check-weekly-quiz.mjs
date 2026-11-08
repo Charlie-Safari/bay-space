@@ -82,9 +82,16 @@ assert.throws(() => quizHelpers.gradeQuiz(questions, Array(36).fill(4)), /every 
 assert.equal(quizHelpers.gradeQuiz([questions[0], ...Array(35).fill(null)], [1, ...Array(35).fill(-1)]), 36);
 let viewer = null;
 let attempt = null;
+const ranks = loadTs('../lib/bay-space-ranks.ts');
+const roles = loadTs('../lib/bay-space-roles.ts', {
+  './bay-space-ranks': ranks,
+  './bay-space-agreement': {},
+});
 const route = loadTs('../app/api/quiz/route.ts', {
   '../../../lib/bay-space-session': {getCurrentMember: async () => viewer},
   '../../../lib/bay-space-quiz-format': format,
+  '../../../lib/bay-space-ranks': ranks,
+  '../../../lib/bay-space-roles': roles,
   '../../../lib/bay-space-quizzes': {
     canAuthorQuizzes: member => Boolean(member?.gateKeys.includes('impossible-badge')),
     getWeeklyQuiz: async () => ({id: quiz, title:'Quiz',week_start:week,questions}),
@@ -92,8 +99,16 @@ const route = loadTs('../app/api/quiz/route.ts', {
   },
 });
 assert.equal((await route.GET()).status,401);
-viewer = {member:'91002',gateKeys:[]};
+viewer = {member:'91002',gateKeys:[],rank:'reader'};
+const lockedQuiz = await (await route.GET()).json();
+assert.equal(lockedQuiz.canTake,false);
+assert.equal(lockedQuiz.quiz,null);
+viewer.rank = 'poster';
 const publicQuiz = await (await route.GET()).json();
+assert.equal(publicQuiz.canTake,true);
+assert.equal(publicQuiz.pointsPerAnswer,50);
+viewer.rank = 'poster-iii';
+assert.equal((await (await route.GET()).json()).pointsPerAnswer,100);
 assert.equal(publicQuiz.quiz.questions[0].correctIndex,undefined);
 assert.equal(publicQuiz.quiz.questions[0].explanation,undefined);
 attempt = {correct_count:36};

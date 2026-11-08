@@ -1,5 +1,8 @@
 "use client";
 
+import PostEngagementPanel from "../components/post-engagement-panel";
+import BayRankBadge from "../components/bay-rank-badge";
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -29,6 +32,7 @@ import {
 } from "../../lib/bay-space-tags";
 
 type SavedMember = {
+  rank?: string;
   member: string;
   name: string;
   roles?: string;
@@ -382,6 +386,7 @@ export default function LibraryBoard() {
                         className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
                       >
                         {getAuthorDisplayName(post)}
+                        <BayRankBadge rank={members.find((member) => member.member === post.author)?.rank} />
                       </Link>
                     </p>
                   ) : post.anonymous ? (
@@ -432,6 +437,7 @@ export default function LibraryBoard() {
                       </div>
                     </section>
                   ) : null}
+                  <PostEngagementPanel postId={post.id} postCategory={post.category} showRating={false} />
                 </>
               ) : null}
             </article>

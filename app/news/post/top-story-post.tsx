@@ -1,5 +1,7 @@
 "use client";
 
+import BayRankBadge from "../../components/bay-rank-badge";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BayPost, getBayPostsByCategory } from "../../components/post-store";
@@ -15,9 +17,11 @@ import {
   getPostShareLinkClickCount,
 } from "../../../lib/bay-space-scoring";
 import { countFavoritePosts } from "../../components/favorite-store";
-import { claimPostVisit } from "../../components/post-visit-client";
+import { recordArticleVisit } from "../../components/post-visit-client";
+import ArticleReadLight from "../../components/article-read-light";
 
 type SavedMember = {
+  rank?: string;
   member: string;
   name: string;
   roles?: string;
@@ -33,7 +37,8 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
   const [favoritePostCounts, setFavoritePostCounts] = useState<
     Record<string, number>
   >({});
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [readerId, setReaderId] = useState<string | null>();
+  const [readVisit, setReadVisit] = useState<{ postId: string; readBy: string | null }>();
 
   useEffect(() => {
     function syncPosts() {
@@ -48,64 +53,68 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
       .then((data: { members?: SavedMember[] }) => {
         setMembers(data.members ?? []);
       });
-    fetch("/api/me", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { member: null }))
-      .then((data: { member?: SavedMember | null }) => {
-        setIsLoggedIn(Boolean(data.member));
-      });
+    function syncReader() {
+      fetch("/api/me", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : { member: null }))
+        .then((data: { member?: SavedMember | null }) => {
+          setReaderId(data.member?.member ?? null);
+        })
+        .catch(() => setReaderId(null));
+    }
+    syncReader();
     window.addEventListener("storage", syncPosts);
     window.addEventListener("bay-space-posts", syncPosts);
+    window.addEventListener("storage", syncReader);
+    window.addEventListener("bay-space-auth", syncReader);
 
     return () => {
       window.removeEventListener("storage", syncPosts);
       window.removeEventListener("bay-space-posts", syncPosts);
+      window.removeEventListener("storage", syncReader);
+      window.removeEventListener("bay-space-auth", syncReader);
     };
   }, []);
 
-  useEffect(() => {
-    if (!postId) {
-      return;
-    }
+  const post =
+    posts.find((savedPost) => savedPost.id === postId) ?? posts[0] ?? null;
+  const displayedPostId = post?.id;
 
-    if (!claimPostVisit(postId)) {
+  useEffect(() => {
+    if (!displayedPostId || readerId === undefined) {
       return;
     }
 
     let isMounted = true;
-    fetch(`/api/posts/${encodeURIComponent(postId)}/visit`, { method: "POST" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: { postVisits?: number } | null) => {
-        if (!isMounted || typeof data?.postVisits !== "number") {
-          return;
-        }
+    recordArticleVisit(displayedPostId, { readerId })
+      .then((visit) => {
+        if (!isMounted || !visit) return;
+
+        setReadVisit({ postId: displayedPostId, readBy: visit.readBy });
 
         setPosts((currentPosts) =>
           currentPosts.map((currentPost) =>
-            currentPost.id === postId
+            currentPost.id === displayedPostId
               ? {
                   ...currentPost,
                   meta: {
                     ...(currentPost.meta ?? {}),
-                    postVisits: String(data.postVisits),
+                    postVisits: String(visit.postVisits),
                   },
                 }
               : currentPost,
           ),
         );
-      })
-      .catch(() => undefined);
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [postId]);
+  }, [displayedPostId, readerId]);
 
   useEffect(() => {
     countFavoritePosts(posts.map((post) => post.id)).then(setFavoritePostCounts);
   }, [posts]);
 
-  const post =
-    posts.find((savedPost) => savedPost.id === postId) ?? posts[0] ?? null;
   const author = members.find((member) => member.member === post?.author);
   const authorName = author?.name.trim() ?? "";
   const authorDisplayName =
@@ -163,6 +172,7 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
             className="underline decoration-[#39ff14] underline-offset-4 transition hover:text-[#39ff14]"
           >
             {authorDisplayName}
+            <BayRankBadge rank={author?.rank} />
           </Link>
         </p>
       ) : post.anonymous ? (
@@ -216,9 +226,10 @@ export default function TopStoryPost({ postId = "" }: TopStoryPostProps) {
         />
         <div className="mt-3"><BlackLightLink articlePath={`/news/post?id=${post.id}`} /></div>
       </div>
+      <ArticleReadLight read={Boolean(readerId && readVisit?.postId === post.id && readVisit.readBy === readerId)} />
       <PostEngagementPanel
         key={post.id}
-        isLoggedIn={isLoggedIn}
+        isLoggedIn={Boolean(readerId)}
         onTruthSummaryChange={syncPostTruthSummary}
         postCategory={post.category}
         postId={post.id}

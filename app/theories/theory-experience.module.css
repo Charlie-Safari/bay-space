@@ -299,13 +299,6 @@
   padding: 1rem;
 }
 
-.attentionMode {
-  border: 1px solid rgba(245, 231, 121, 0.4);
-  background: rgba(245, 231, 121, 0.06);
-  color: #e7df97;
-  box-shadow: inset 0 0 1rem rgba(245, 231, 121, 0.04);
-}
-
 .monthBadges {
   display: inline-flex;
   align-items: center;
@@ -316,270 +309,178 @@
 }
 
 .icebergSurface {
-  min-height: 52rem;
-  border: 1px solid rgba(114, 193, 106, 0.34);
-  border-radius: 1.25rem;
+  isolation: isolate;
+  border: 1px solid #275a47;
+  border-radius: 0.9rem;
   background:
-    radial-gradient(circle at 50% 18%, rgba(181, 234, 170, 0.13), transparent 22rem),
-    radial-gradient(circle at 50% 72%, rgba(46, 139, 66, 0.12), transparent 30rem),
-    linear-gradient(180deg, rgba(7, 19, 9, 0.96), rgba(1, 7, 3, 0.98));
-  box-shadow:
-    inset 0 1px rgba(224, 245, 219, 0.05),
-    0 1.5rem 4rem rgba(0, 0, 0, 0.25),
-    0 0 2.5rem rgba(88, 193, 78, 0.06);
+    linear-gradient(#54c59f12 1px, transparent 1px),
+    linear-gradient(90deg, #54c59f12 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 23%, #10372a, #03100d 70%);
+  background-size: 1.7rem 1.7rem, 1.7rem 1.7rem, 100% 100%;
+  box-shadow: inset 0 0 3rem #0009, 0 1.2rem 3rem #0005;
 }
 
-.icebergSurface::after {
+.icebergSurface::before {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    rgba(185, 230, 177, 0.018) 4px
-  );
+  z-index: -1;
+  inset: 0.65rem;
+  border: 1px solid #8ddbb13b;
   content: "";
-  pointer-events: none;
-}
-
-.icebergMatrix {
-  position: absolute;
-  inset: 0;
-  opacity: 0.18;
-  background-image:
-    linear-gradient(rgba(110, 194, 101, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(110, 194, 101, 0.07) 1px, transparent 1px),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 4.5rem,
-      rgba(114, 193, 106, 0.05) 4.55rem 4.62rem
-    );
-  background-size: 3.5rem 3.5rem, 3.5rem 3.5rem, 100% 100%;
-  mask-image: linear-gradient(to bottom, transparent, black 18%, black 88%, transparent);
-  animation: iceberg-matrix-drift 18s linear infinite;
   pointer-events: none;
 }
 
 .icebergHeading {
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(114, 193, 106, 0.18);
+  padding-inline: clamp(0.8rem, 3vw, 2rem);
 }
 
 .icebergStack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  filter: drop-shadow(0 0 1.35rem rgba(91, 204, 81, 0.12));
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-width: 0;
+  height: clamp(46rem, 105vw, 55rem);
+  grid-template-rows: minmax(0, 162fr) repeat(11, minmax(0, 54fr)) minmax(0, 144fr);
+  justify-items: center;
+  background:
+    url("/brand/conspiracy-iceberg-detail.webp") center / 100% 100% no-repeat,
+    url("/brand/conspiracy-iceberg.svg") center / 100% 100% no-repeat;
 }
 
-.icebergStack::before {
+.waterlineLabel {
   position: absolute;
-  z-index: 4;
-  top: 7.85rem;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(167, 222, 158, 0.45) 8%,
-    #b9e6b1 50%,
-    rgba(167, 222, 158, 0.45) 92%,
-    transparent
-  );
-  box-shadow:
-    0 0 0.7rem rgba(137, 218, 126, 0.65),
-    0 0 2rem rgba(94, 188, 84, 0.24);
-  content: "";
+  top: calc(18% - 1.55rem);
+  right: 2.6%;
+  padding: 0.22rem 0.4rem;
+  border-top: 1px solid #9df2c79c;
+  background: #02120e;
+  color: #bcdecf;
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
   pointer-events: none;
 }
 
-.icebergStack::after {
+.depthScale {
   position: absolute;
-  z-index: 5;
-  top: 7rem;
-  right: 1rem;
-  padding: 0.15rem 0.35rem;
-  background: rgba(1, 7, 3, 0.88);
-  color: #a7cba1;
-  content: "WATERLINE / 00";
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.48rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  inset: 20% 3.4% 17% auto;
+  width: 0.75rem;
+  border-right: 1px solid #83deb26b;
+  background: repeating-linear-gradient(to bottom, #83deb26b 0 1px, transparent 1px 0.65rem) right / 0.35rem 100% no-repeat;
   pointer-events: none;
 }
 
 .icebergLevel {
-  --level-green: 114, 193, 106;
   position: relative;
+  z-index: 1;
   display: grid;
   width: var(--iceberg-width);
-  min-height: 3.65rem;
-  grid-template-columns: 5.25rem minmax(0, 1fr) 1.5rem;
+  min-width: 0;
+  grid-template-columns: clamp(2.65rem, 8vw, 4.5rem) auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: -1px;
-  padding: 0.55rem 2.75rem;
-  border: 1px solid rgba(var(--level-green), 0.35);
-  background:
-    linear-gradient(90deg, rgba(var(--level-green), 0.08), rgba(var(--level-green), 0.2), rgba(var(--level-green), 0.06)),
-    rgba(2, 12, 4, 0.92);
-  clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%);
-  color: #b9d2b4;
+  gap: clamp(0.25rem, 1vw, 0.65rem);
+  padding: 0.25rem clamp(0.45rem, 1.4vw, 1rem);
+  border: 0;
+  background: radial-gradient(ellipse at 45% 50%, #02140e99 13%, #02140e45 56%, transparent 78%);
+  color: #dbf4e7;
   text-align: left;
-  transition:
-    width 220ms ease,
-    background 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    filter 180ms ease,
-    transform 180ms ease;
+  text-shadow: 0 1px 0.3rem #00120b, 0 0 0.9rem #00120b;
+  transition: color 180ms ease;
 }
 
-.icebergLevel:nth-child(3n + 2) {
-  background:
-    linear-gradient(90deg, rgba(114, 193, 106, 0.05), rgba(96, 187, 88, 0.16), rgba(114, 193, 106, 0.04)),
-    rgba(1, 10, 3, 0.94);
+.icebergLevel:is(:hover, :focus-visible) {
+  z-index: 2;
+  background: radial-gradient(ellipse at 45% 50%, #124735ed 12%, #0a3425ae 57%, transparent 80%);
+  color: #f1fff5;
 }
 
-.icebergLevel:hover {
-  z-index: 6;
-  border-color: rgba(185, 230, 177, 0.84);
-  background:
-    linear-gradient(90deg, rgba(156, 222, 146, 0.16), rgba(120, 211, 107, 0.34), rgba(156, 222, 146, 0.12)),
-    rgba(4, 20, 6, 0.98);
-  color: #eff7ed;
-  filter: drop-shadow(0 0 0.8rem rgba(111, 224, 96, 0.34));
-  transform: scale(1.025);
+.icebergLevel:focus-visible {
+  outline: 2px solid #d7ffdf;
+  outline-offset: -2px;
+}
+
+.icebergSignal {
+  width: 0.45rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #d7ffe0;
+  box-shadow: 0 0 0 0.18rem #5fefa93b, 0 0 0.72rem 0.18rem #64f49dbd;
+  transition: box-shadow 180ms ease;
+}
+
+.icebergLevel:is(:hover, :focus-visible) .icebergSignal {
+  box-shadow: 0 0 0 0.24rem #77ffad54, 0 0 0.9rem 0.24rem #77ffadc7;
 }
 
 .icebergTip {
-  min-height: 7.9rem;
-  grid-template-columns: minmax(0, 1fr);
-  margin-bottom: 0.9rem;
-  padding: 3.6rem 18% 0.65rem;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
-  background:
-    linear-gradient(130deg, rgba(202, 239, 195, 0.07), rgba(114, 193, 106, 0.3), rgba(202, 239, 195, 0.05)),
-    rgba(4, 17, 6, 0.96);
+  align-self: center;
+  justify-self: start;
+  width: min(28%, 12rem);
+  margin-left: 6%;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.4rem;
+  row-gap: 0.25rem;
+  padding: 0.55rem;
+  background: linear-gradient(90deg, #02140e85, #02140e45 62%, transparent);
 }
 
-.icebergTip .icebergMeta,
+.icebergTip .icebergMeta {
+  grid-column: 1 / -1;
+}
+
+.icebergTip .icebergCopy {
+  max-width: 10ch;
+  font-size: clamp(0.9rem, 2.65vw, 1.85rem);
+  line-height: 0.99;
+}
+
 .icebergTip .icebergArrow {
   display: none;
 }
 
-.icebergTip .icebergCopy {
-  text-align: center;
-}
-
-.icebergTip .icebergCopy strong {
-  text-overflow: clip;
-  white-space: normal;
-}
-
 .icebergMeta {
   display: grid;
-  gap: 0.2rem;
-  color: #6f946a;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.48rem;
+  gap: 0.15rem;
+  color: #a7d3be;
+  font-size: clamp(0.46rem, 0.87vw, 0.63rem);
   font-weight: 700;
-  letter-spacing: 0.12em;
-  line-height: 1.2;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
 }
 
 .icebergMeta span:first-child {
-  color: #b7d2b2;
-  font-size: 0.62rem;
+  color: #e5f9eb;
+  font-size: 0.8rem;
 }
 
 .icebergCopy {
-  display: grid;
   min-width: 0;
-  gap: 0.18rem;
-}
-
-.icebergCopy strong {
-  overflow: hidden;
-  color: inherit;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: clamp(0.72rem, 1.5vw, 0.98rem);
-  font-weight: 900;
-  letter-spacing: -0.015em;
+  font-size: clamp(0.78rem, 1.8vw, 1.27rem);
+  font-weight: 800;
+  letter-spacing: 0.005em;
   line-height: 1.05;
-  text-overflow: ellipsis;
+  text-wrap: balance;
   text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.icebergCopy small {
-  overflow: hidden;
-  color: #789574;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.51rem;
-  font-weight: 700;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.icebergLevel:hover .icebergCopy small {
-  color: #b5ccb0;
 }
 
 .icebergArrow {
-  color: #72c16a;
-  font-size: 0.95rem;
-  transition: transform 160ms ease;
+  color: #9bed7e;
+  font-size: clamp(1rem, 2.6vw, 1.5rem);
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
 
-.icebergLevel:hover .icebergArrow {
-  transform: translateX(0.2rem);
-}
-
-.rareSignalLevel {
-  margin-top: 0.45rem;
-  margin-bottom: 0.45rem;
-  clip-path: polygon(0 14%, 7% 0, 92% 5%, 100% 82%, 94% 100%, 5% 94%);
-  transform: translateX(7%);
-}
-
-.rareSignalLevel:hover {
-  transform: translateX(7%) scale(1.025) rotate(-0.35deg);
-}
-
-.rareSignalLevel::after {
-  position: absolute;
-  top: -15%;
-  left: 19%;
-  width: 1px;
-  height: 140%;
-  background: rgba(191, 225, 185, 0.32);
-  box-shadow: 0 0 0.55rem rgba(114, 193, 106, 0.55);
-  content: "";
-  transform: rotate(13deg);
+.icebergLevel:is(:hover, :focus-visible) .icebergArrow {
+  opacity: 1;
 }
 
 .icebergFootnote {
-  color: #587253;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 0.5rem;
+  padding-inline: 1rem;
+  color: #a4c2b5;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-@keyframes iceberg-matrix-drift {
-  from {
-    background-position: 0 0, 0 0, 0 0;
-  }
-
-  to {
-    background-position: 0 3.5rem, 3.5rem 0, 0 7rem;
-  }
 }
 
 .articleCard {
@@ -762,61 +663,23 @@
     letter-spacing: -0.035em;
   }
 
-  .icebergSurface {
-    min-height: 46rem;
+  .icebergStack {
+    background-size: 135% 100%;
   }
 
-  .icebergHeading {
-    padding-bottom: 1rem;
-  }
-
-  .icebergStack::before {
-    top: 7.35rem;
-  }
-
-  .icebergStack::after {
-    top: 6.5rem;
-    right: 0;
-  }
-
-  .icebergLevel {
-    width: min(100%, calc(var(--iceberg-width) + 22%));
-    min-height: 3.25rem;
-    grid-template-columns: 3.3rem minmax(0, 1fr) 0.8rem;
-    gap: 0.45rem;
-    padding: 0.45rem 1.15rem;
+  .icebergLevel:not(.icebergTip) {
+    width: min(96%, calc(48% + var(--iceberg-width) * 0.62));
   }
 
   .icebergTip {
-    min-height: 7.4rem;
-    grid-template-columns: minmax(0, 1fr);
-    padding: 3.3rem 16% 0.55rem;
+    width: max(32%, 7rem);
+    margin-left: 4%;
   }
 
-  .icebergTip .icebergCopy strong {
-    font-size: 0.72rem;
-  }
-
-  .icebergCopy strong {
-    font-size: 0.69rem;
-  }
-
-  .icebergCopy small {
+  .depthScale {
     display: none;
   }
 
-  .icebergMeta {
-    font-size: 0.4rem;
-    letter-spacing: 0.06em;
-  }
-
-  .rareSignalLevel {
-    transform: translateX(3%);
-  }
-
-  .rareSignalLevel:hover {
-    transform: translateX(3%) scale(1.015);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -824,6 +687,7 @@
   .entryCard::before,
   .entryArrow,
   .icebergLevel,
+  .icebergSignal,
   .icebergArrow,
   .articleCard,
   .backButton {
@@ -835,7 +699,4 @@
     opacity: 0.85;
   }
 
-  .icebergMatrix {
-    animation: none;
-  }
 }

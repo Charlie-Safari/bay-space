@@ -1,3 +1,17 @@
+import type { BayPost } from "./bay-space-types";
+
+export const knowSomethingCategory = "KNOW SOMETHING";
+export const knowSomethingArchiveHref = "/theories?section=know-something";
+export const knowSomethingDeleteWindowMs = 2 * 60 * 1000;
+
+export function isKnowSomethingCategory(value: unknown) {
+  return typeof value === "string" && value.trim().toUpperCase() === knowSomethingCategory;
+}
+
+export function isKnowSomethingPost(post: Pick<BayPost, "category" | "meta">) {
+  return post.category === "theory" && isKnowSomethingCategory(post.meta?.theoryCategory);
+}
+
 export const theoryCategories = [
   {
     label: "The Main Stream",
@@ -77,6 +91,18 @@ export const theoryCategories = [
     legacyLabels: ["OCCULT"],
   },
 ] as const;
+
+// The regular category list also serves the composer and Paste & Go.
+export const theoryIcebergCategories = [
+  ...theoryCategories.slice(0, 5),
+  {
+    label: knowSomethingCategory,
+    zone: "GUEST DROP BOX",
+    description: "anonymous notes left by visitors",
+    legacyLabels: [],
+  },
+  ...theoryCategories.slice(5),
+];
 
 export function doesTheoryCategoryMatch(
   storedCategory: string,

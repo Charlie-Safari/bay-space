@@ -46,6 +46,7 @@ import { defaultMemberRole } from "../../../../lib/bay-space-roles";
 import { isValidBirthday } from "../../../../lib/pacific-date";
 import {
   gateKeys,
+  graduationTokenCost,
   isBayoCardId,
   isBayoStampId,
   type GateKey,
@@ -117,6 +118,7 @@ function privateMember(member: ApiMember) {
     cryptiRank: member.cryptiRank,
     dailySpinClaimedOn: member.dailySpinClaimedOn,
     gateKeys: member.gateKeys,
+    graduationMilestoneAwarded: member.graduationMilestoneAwarded,
     lifetimePoints: member.lifetimePoints,
     lifetimeTokens: member.lifetimeTokens,
     impossibleBadgeReady: member.impossibleBadgeReady,
@@ -378,7 +380,8 @@ export async function PATCH(request: Request, context: MemberContext) {
       return Response.json({
         dailySpin: {
           alreadyClaimed: result.alreadyClaimed,
-          points: result.points,
+          coins: result.coins,
+          lifetimePoints: result.lifetimePoints,
         },
         member: result.member,
       });
@@ -415,7 +418,7 @@ export async function PATCH(request: Request, context: MemberContext) {
 
       if (!member) {
         return Response.json(
-          { message: "not enough tokens for graduation" },
+          { message: `Graduation requires Poster III and ${graduationTokenCost} tokens.` },
           { status: 400 },
         );
       }

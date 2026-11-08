@@ -11,6 +11,8 @@ type PollResponse = {
   activeCount: number;
   availableSlots: number;
   canAuthor: boolean;
+  canVote: boolean;
+  canWager: boolean;
   isSignedIn: boolean;
   polls: BayPoll[];
   viewer: {
@@ -26,6 +28,8 @@ const emptyResponse: PollResponse = {
   activeCount: 0,
   availableSlots: 16,
   canAuthor: false,
+  canVote: false,
+  canWager: false,
   isSignedIn: false,
   polls: [],
   viewer: null,
@@ -254,7 +258,7 @@ function PollCard({ poll, data, now, refresh }: { poll: BayPoll; data: PollRespo
             <button
               key={option.id}
               type="button"
-              disabled={!isOpen || hasVoted || !data.isSignedIn}
+              disabled={!isOpen || hasVoted || !data.canVote}
               onClick={() => setSelectedOption(option.id)}
               className={`relative overflow-hidden rounded-2xl border px-4 py-3 text-left transition ${isWinner ? "border-[#9bd594]/70" : isSelected ? "border-[#90d587]/70" : "border-[#72c16a]/25"} disabled:cursor-default`}
             >
@@ -268,19 +272,20 @@ function PollCard({ poll, data, now, refresh }: { poll: BayPoll; data: PollRespo
         })}
       </div> : null}
 
-      {!editing && isOpen && data.isSignedIn && !hasVoted ? (
+      {!editing && isOpen && data.canVote && !hasVoted ? (
         <div className="mt-5 rounded-2xl border border-[#72c16a]/20 bg-black/30 p-3">
-          <p className="text-[0.62rem] font-black uppercase tracking-[0.15em] text-[#92ad8e]">1 coin to vote · optional wager</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <p className="text-[0.62rem] font-black uppercase tracking-[0.15em] text-[#92ad8e]">1 coin to vote · {data.canWager ? "optional wager" : "wagers unlock at Reader II"}</p>
+          {data.canWager ? <div className="mt-3 flex flex-wrap gap-2">
             <button onClick={() => { setWagerCurrency("none"); setWagerAmount(0); }} className={`rounded-full border px-3 py-2 text-[0.65rem] font-black uppercase ${wagerCurrency === "none" ? "border-[#90d587] text-[#dce9d9]" : "border-[#72c16a]/25 text-[#8bae87]"}`}>no wager</button>
             {[1, 2, 3, 4, 5].map((coins) => <button key={coins} onClick={() => { setWagerCurrency("coins"); setWagerAmount(coins); }} className={`rounded-full border px-3 py-2 text-[0.65rem] font-black uppercase ${wagerCurrency === "coins" && wagerAmount === coins ? "border-[#90d587] text-[#dce9d9]" : "border-[#72c16a]/25 text-[#8bae87]"}`}>{coins}c</button>)}
             <button onClick={() => { setWagerCurrency("token"); setWagerAmount(1); }} className={`rounded-full border px-3 py-2 text-[0.65rem] font-black uppercase ${wagerCurrency === "token" ? "border-[#90d587] text-[#dce9d9]" : "border-[#72c16a]/25 text-[#8bae87]"}`}>1 token</button>
-          </div>
+          </div> : null}
           <button disabled={pending || !selectedOption} onClick={sendVote} className="mt-3 w-full rounded-full border border-[#90d587]/60 bg-[#72c16a]/14 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#dce9d9] disabled:opacity-40">{pending ? "locking" : "lock vote"}</button>
         </div>
       ) : null}
 
       {!data.isSignedIn && isOpen ? <Link href="/login" className="mt-5 rounded-full border border-[#90d587]/50 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.18em] text-[#cce2c9] hover:bg-[#72c16a]/12">sign in to vote</Link> : null}
+      {data.isSignedIn && isOpen && !data.canVote && !hasVoted ? <p className="mt-5 text-xs text-[#a9cda5]">Poll voting unlocks at Poster I.</p> : null}
 
       <div className="mt-auto pt-5">
         <div className="flex items-end justify-between gap-3 text-[0.62rem] font-black uppercase tracking-[0.13em] text-[#789274]">

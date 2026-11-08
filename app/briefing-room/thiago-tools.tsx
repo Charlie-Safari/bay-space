@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { BayPost } from "../../lib/bay-space-types";
 import { formatThiagoDraft, type ThiagoArticleRoute } from "../../lib/thiago-format";
 import { answerThiagoHelp, type ThiagoMemberStats } from "../../lib/thiago-help";
+import { isKnowSomethingPost } from "../../lib/theory-categories";
 import styles from "./briefing-room.module.css";
 
 const actionClass = "w-fit border border-[#39ff14] px-3 py-2 text-sm font-bold text-[#d7ffd0] disabled:opacity-50";
@@ -103,6 +104,9 @@ export function ThiagoArticleTools({
     }
 
     const words = new Set([...wordsIn(prompt)].filter((word) => word.length > 2 && !ignoredWords.has(word)));
+    const dropBoxMatch = /\bknow something\b/i.test(prompt)
+      ? searchPosts.find(isKnowSomethingPost)
+      : undefined;
     const titleMatch = isInvestigating && article ? undefined : searchPosts
       .map((post) => ({ post, matches: countMatches(post.title, words) }))
       .filter(({ matches }) => matches > 0)
@@ -111,7 +115,7 @@ export function ThiagoArticleTools({
       .map((post) => ({ post, matches: countMatches(post.body, words) }))
       .filter(({ matches }) => matches > 0)
       .sort((left, right) => right.matches - left.matches)[0]?.post : undefined;
-    const context = titleMatch ?? article ?? topicMatch;
+    const context = titleMatch ?? article ?? topicMatch ?? dropBoxMatch;
     if (!context) {
       respond(isInvestigating
         ? "I couldn't find that topic. Try another phrase or choose an article below."
@@ -134,7 +138,8 @@ export function ThiagoArticleTools({
       : excerpts.length
         ? "From the article:\n" + excerpts.join("\n\n")
         : "I couldn't find a matching passage. Try a name or phrase from the article, or ask for an overview.";
-    respond(`${context.title}\n\n${answer}`);
+    const label = isKnowSomethingPost(context) ? "\nAnonymous guest note · Know Something" : "";
+    respond(`${context.title}${label}\n\n${answer}`);
   }
 
   return (
