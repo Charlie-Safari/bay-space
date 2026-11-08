@@ -1,0 +1,248 @@
+.map {
+  position: relative;
+  order: 1;
+  isolation: isolate;
+  container-type: inline-size;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid #346951;
+  border-radius: 0.9rem;
+  background: #03100d;
+  box-shadow: 0 1.2rem 3rem #0005;
+}
+
+.mountain {
+  position: relative;
+  aspect-ratio: 3 / 1;
+}
+
+.caption {
+  position: absolute;
+  top: 4.5%;
+  left: 2%;
+  border-bottom: 1px solid #66ffb0;
+  padding: 0 0 0.4em;
+  color: #e0fff0;
+  font: 800 clamp(0.6rem, 1.4cqi, 1.1rem) / 1.1 system-ui, sans-serif;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  text-shadow: 0 0 0.5em #57ffa47a;
+}
+
+.connectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: #a4ffd1;
+  stroke-width: 1.4;
+  filter: drop-shadow(0 0 2px #62ff9a);
+}
+
+.beacon {
+  position: absolute;
+  display: grid;
+  width: clamp(0.32rem, 0.8cqi, 0.56rem);
+  aspect-ratio: 1;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #d9ffeb;
+  box-shadow: 0 0 0.36rem 0.08rem #7fffab, 0 0 0.72rem #18ff6d;
+  cursor: pointer;
+}
+
+.beacon::before {
+  position: absolute;
+  inset: -0.22rem;
+  border-radius: 50%;
+  content: "";
+}
+
+.beacon:is(:focus-visible, [aria-expanded="true"]) {
+  outline: 1px solid #b0ffd0;
+  outline-offset: 3px;
+}
+
+.preview {
+  --preview-width: min(9rem, calc(100% - 1rem));
+  position: absolute;
+  z-index: 2;
+  left: clamp(0.5rem, calc(var(--anchor-x) - var(--preview-width) / 2), calc(100% - var(--preview-width) - 0.5rem));
+  width: var(--preview-width);
+  transform: translateY(calc(-100% - 0.75rem));
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #8affbb;
+  border-radius: 0.35rem;
+  background: #052018;
+  color: #e1ffe9;
+  box-shadow: 0 0 0.7rem #24ff7955;
+  font: 800 0.7rem / 1.2 system-ui, sans-serif;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.preview[data-below] {
+  transform: translateY(0.75rem);
+}
+
+.preview:is(:hover, :focus-visible) {
+  background: #0a3526;
+  outline: 1px solid #b0ffd0;
+}
+
+.beacon > span,
+.index {
+  display: none;
+}
+
+.tabs {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.tabs li {
+  position: absolute;
+  top: var(--tab-y);
+  left: var(--tab-x);
+  width: var(--tab-width);
+  transform: translate(-50%, -50%);
+}
+
+.tab {
+  --tab-shape: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 100%;
+  min-height: 2.8cqi;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.52cqi;
+  padding: 0.23cqi 1.05cqi;
+  border: 0;
+  color: #f0fff5;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 0 0.22rem #4cff9180);
+}
+
+.tab::before,
+.tab::after {
+  position: absolute;
+  z-index: -1;
+  clip-path: var(--tab-shape);
+  content: "";
+}
+
+.tab::before {
+  inset: 0;
+  background: #81d7a6;
+}
+
+.tab::after {
+  inset: 1.4px;
+  background: linear-gradient(170deg, #073023, #031411 54%, #062119);
+}
+
+.tab:is(:hover, :focus-visible) {
+  outline: none;
+  filter: drop-shadow(0 0 0.24rem #84ffb8) drop-shadow(0 0 0.55rem #30ff80);
+}
+
+.tab:is(:hover, :focus-visible)::before {
+  background: #d9ffec;
+}
+
+.tab:is(:hover, :focus-visible)::after {
+  inset: 2px;
+  background: #082d20;
+}
+
+.icon {
+  width: 2.1cqi;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.label {
+  font: 800 clamp(0.53rem, 1.02cqi, 0.95rem) / 1.03 system-ui, sans-serif;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+@container (max-width: 47rem) {
+  .mountain {
+    aspect-ratio: 2.2 / 1;
+  }
+
+  .caption {
+    font-size: clamp(0.52rem, 1.8cqi, 0.8rem);
+  }
+
+  .connectors {
+    display: none;
+  }
+
+  .beacon {
+    width: clamp(0.72rem, 2.9cqi, 1rem);
+    background: #073223;
+    color: #e1ffe9;
+    box-shadow: 0 0 0 1px #80ffa7, 0 0 0.45rem #4aff8c;
+    font: 800 clamp(0.43rem, 1.75cqi, 0.62rem) / 1 system-ui, sans-serif;
+  }
+
+  .beacon > span,
+  .index {
+    display: inline;
+  }
+
+  .tabs {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.65rem;
+  }
+
+  .tabs li {
+    position: static;
+    width: auto;
+    transform: none;
+  }
+
+  .tab {
+    min-height: 2.8rem;
+    height: 100%;
+    gap: 0.35rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .icon {
+    display: none;
+  }
+
+  .index {
+    min-width: 1.15em;
+    color: #8af6b1;
+    font: 800 0.66rem / 1 system-ui, sans-serif;
+    text-align: right;
+  }
+
+  .label {
+    font-size: clamp(0.58rem, 2.1cqi, 0.76rem);
+    overflow-wrap: anywhere;
+  }
+}

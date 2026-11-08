@@ -69,6 +69,11 @@ import type {
   GateKey,
 } from "../../lib/bay-space-ranks";
 import {
+  currentEventsAntithesisLimit,
+  currentEventsAntithesisPrefix,
+  currentEventsBlackLightLimit,
+  currentEventsBlackLightPrefix,
+  currentEventsDetailLimit,
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
@@ -205,6 +210,7 @@ type PostDraft = {
   dailyFoodTag3: string;
   dailyFoodSource3: string;
   dailyFoodSourceOpen3: boolean;
+  dailyFoodBlackLight: string;
   dailyFoodSkepticDebunkEvidence: string;
   dailyFoodSkepticDebunkSource: string;
   dailyFoodSkepticDebunkSourceOpen: boolean;
@@ -254,6 +260,7 @@ function createBlankPostDraft(id: number, postCategory: PostCategory): PostDraft
     dailyFoodTag3: "",
     dailyFoodSource3: "",
     dailyFoodSourceOpen3: false,
+    dailyFoodBlackLight: "",
     dailyFoodSkepticDebunkEvidence: "",
     dailyFoodSkepticDebunkSource: "",
     dailyFoodSkepticDebunkSourceOpen: false,
@@ -316,6 +323,7 @@ const postCategories: { id: PostCategory; label: string }[] = [
 
 const activeMemberStorageKey = "bay-space-active-member";
 const openPostDraftsStorageKey = "bay-space-open-post-drafts";
+const dailyFoodBlackLightTextLimit = currentEventsBlackLightLimit - currentEventsBlackLightPrefix.length - 1;
 const baySpaceLazyEngineLabel = "Thiago";
 const defaultTheoryCategory = "Rare Signals";
 const supportEmail = "bayoadmin@protonmail.com";
@@ -934,6 +942,7 @@ export default function BriefingRoomGate({
   const [dailyFoodTag3, setDailyFoodTag3] = useState("");
   const [dailyFoodSource3, setDailyFoodSource3] = useState("");
   const [dailyFoodSourceOpen3, setDailyFoodSourceOpen3] = useState(false);
+  const [dailyFoodBlackLight, setDailyFoodBlackLight] = useState("");
   const [
     dailyFoodSkepticDebunkEvidence,
     setDailyFoodSkepticDebunkEvidence,
@@ -1030,6 +1039,7 @@ export default function BriefingRoomGate({
             dailyFoodTag3,
             dailyFoodSource3,
             dailyFoodSourceOpen3,
+            dailyFoodBlackLight,
             dailyFoodSkepticDebunkEvidence,
             dailyFoodSkepticDebunkSource,
             dailyFoodSkepticDebunkSourceOpen,
@@ -1080,6 +1090,7 @@ export default function BriefingRoomGate({
       dailyFoodTag3,
       dailyFoodSource3,
       dailyFoodSourceOpen3,
+      dailyFoodBlackLight,
       dailyFoodSkepticDebunkEvidence,
       dailyFoodSkepticDebunkSource,
       dailyFoodSkepticDebunkSourceOpen,
@@ -1117,6 +1128,7 @@ export default function BriefingRoomGate({
     setDailyFoodTag3(draft.dailyFoodTag3);
     setDailyFoodSource3(draft.dailyFoodSource3);
     setDailyFoodSourceOpen3(draft.dailyFoodSourceOpen3);
+    setDailyFoodBlackLight(draft.dailyFoodBlackLight ?? "");
     setDailyFoodSkepticDebunkEvidence(
       draft.dailyFoodSkepticDebunkEvidence ?? "",
     );
@@ -1816,10 +1828,17 @@ export default function BriefingRoomGate({
       const dailyFoodEntries = [
         { source: dailyFoodSource1, text: dailyFoodTag1 },
         { source: dailyFoodSource2, text: dailyFoodTag2 },
-        { source: dailyFoodSource3, text: dailyFoodTag3 },
+        {
+          source: dailyFoodSource3,
+          text: dailyFoodTag3.trim() ? `${currentEventsAntithesisPrefix} ${dailyFoodTag3.trim()}` : "",
+        },
         {
           source: dailyFoodSkepticDebunkSource,
           text: dailyFoodSkepticDebunkEvidence,
+        },
+        {
+          source: "",
+          text: dailyFoodBlackLight.trim() ? `${currentEventsBlackLightPrefix} ${dailyFoodBlackLight.trim()}` : "",
         },
       ]
         .map((entry) => ({
@@ -1834,7 +1853,7 @@ export default function BriefingRoomGate({
       return {
         category: activePostCategory,
         title: dailyFoodHeadline || "untitled facts post",
-        body: dailyFoodEntries.map((entry) => entry.text).join("\n"),
+        body: dailyFoodEntries.map((entry) => entry.text).join("\n\n"),
         anonymous: canPostAnon,
         incognito: canPostIncognito,
         author,
@@ -2225,6 +2244,7 @@ export default function BriefingRoomGate({
     setDailyFoodSource3("");
     setDailyFoodSourceOpen3(false);
     setDailyFoodSkepticDebunkEvidence("");
+    setDailyFoodBlackLight("");
     setDailyFoodSkepticDebunkSource("");
     setDailyFoodSkepticDebunkSourceOpen(false);
     setDailyFoodCategory(defaultDailyFoodCategory);
@@ -3606,7 +3626,8 @@ export default function BriefingRoomGate({
 
                   {[
                     {
-                      label: "Supporting summary 1",
+                      label: "Supporting detail 1",
+                      limit: currentEventsDetailLimit,
                       value: dailyFoodTag1,
                       setValue: setDailyFoodTag1,
                       source: dailyFoodSource1,
@@ -3615,7 +3636,8 @@ export default function BriefingRoomGate({
                       setSourceOpen: setDailyFoodSourceOpen1,
                     },
                     {
-                      label: "Supporting summary 2",
+                      label: "Supporting detail 2",
+                      limit: currentEventsDetailLimit,
                       value: dailyFoodTag2,
                       setValue: setDailyFoodTag2,
                       source: dailyFoodSource2,
@@ -3624,7 +3646,8 @@ export default function BriefingRoomGate({
                       setSourceOpen: setDailyFoodSourceOpen2,
                     },
                     {
-                      label: "Supporting summary 3",
+                      label: "Antithesis",
+                      limit: currentEventsAntithesisLimit,
                       value: dailyFoodTag3,
                       setValue: setDailyFoodTag3,
                       source: dailyFoodSource3,
@@ -3638,13 +3661,13 @@ export default function BriefingRoomGate({
                         <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                           {tag.label}{" "}
                           <span className="text-xs text-[#7f9f78]">
-                            ({150 - tag.value.length})
+                            ({tag.limit - tag.value.length})
                           </span>
                         </span>
                         <textarea
                           value={tag.value}
                           onChange={(event) =>
-                            tag.setValue(event.target.value.slice(0, 150))
+                            tag.setValue(event.target.value.slice(0, tag.limit))
                           }
                           onInput={(event) => expandTextarea(event.currentTarget)}
                           rows={1}
@@ -3675,7 +3698,7 @@ export default function BriefingRoomGate({
                       )}
                     </div>
                   ))}
-                  <div className="grid gap-3">
+                  {dailyFoodSkepticDebunkEvidence || dailyFoodSkepticDebunkSource || dailyFoodSkepticDebunkSourceOpen ? <div className="grid gap-3">
                     <label className="grid gap-2">
                       <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                         SKEPTIC, DEBUNK, ANTI-THESIS [optional]{" "}
@@ -3717,7 +3740,25 @@ export default function BriefingRoomGate({
                         ADD SOURCE
                       </button>
                     )}
-                  </div>
+                  </div> : null}
+                  <label className="grid gap-2">
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
+                      {currentEventsBlackLightPrefix}{" "}
+                      <span className="text-xs text-[#7f9f78]">
+                        ({dailyFoodBlackLightTextLimit - dailyFoodBlackLight.length})
+                      </span>
+                    </span>
+                    <textarea
+                      value={dailyFoodBlackLight}
+                      onChange={(event) => setDailyFoodBlackLight(
+                        event.target.value.replace(/^\s*THE BLACK LIGHT:\s*/i, "").slice(0, dailyFoodBlackLightTextLimit),
+                      )}
+                      onInput={(event) => expandTextarea(event.currentTarget)}
+                      rows={1}
+                      placeholder="What does the evidence reveal beneath the headline?"
+                      className="min-h-[3rem] w-full resize-none overflow-hidden border border-[#1d7f12] bg-[#001100] px-3 py-3 text-sm font-bold leading-6 text-[#39ff14] outline-none focus:ring-2 focus:ring-[#39ff14]"
+                    />
+                  </label>
                   <label className="grid gap-2">
                     <span className="text-sm font-black uppercase tracking-[0.2em] text-[#d7ffd0]">
                       category
@@ -4349,11 +4390,11 @@ export default function BriefingRoomGate({
                     <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-[#d7ffd0]">
                       {lazyPostPreview.body || "no body entered"}
                     </p>
-                    {lazyPostPreview.category === "daily-food" && Array.isArray(lazyPostPreview.meta?.tags) ? (
+                    {lazyPostPreview.category === "daily-food" && Array.isArray(lazyPostPreview.meta?.tagSources) ? (
                       <div className="mt-4 space-y-2 text-xs text-[#9abc96]">
-                        {lazyPostPreview.meta.tags.map((tag, index) => <p key={index}>
-                          Tag {index + 1}: {tag}<br />Source: {Array.isArray(lazyPostPreview.meta?.tagSources) ? lazyPostPreview.meta.tagSources[index] : ""}
-                        </p>)}
+                        {lazyPostPreview.meta.tagSources.map((source, index) => source ? (
+                          <p key={index} className="break-all">Paragraph {index + 1} source: {source}</p>
+                        ) : null)}
                       </div>
                     ) : null}
                     {getPostSources(lazyPostPreview).length ? (
@@ -5341,11 +5382,11 @@ export default function BriefingRoomGate({
                 <span className={styles.exchangeArrow} aria-hidden="true">→</span>
               </button>
               <nav className={`${styles.exchangeCard} ${styles.feedShortcuts}`} aria-label="Article feeds">
-                <Link href="/theories">
-                  <span className={styles.exchangeTitle}>Conspiracy<br />Theories</span>
+                <Link href="/theories?section=this-month">
+                  <span className={styles.exchangeTitle}>New<br />Conspiracies</span>
                 </Link>
-                <Link href="/facts-on-news">
-                  <span className={styles.exchangeTitle}>Current<br />Events</span>
+                <Link href="/facts-on-news?section=this-week">
+                  <span className={styles.exchangeTitle}>New<br />Current<br />Events</span>
                 </Link>
               </nav>
               <button

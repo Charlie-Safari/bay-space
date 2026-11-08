@@ -338,6 +338,11 @@ button.exchangeCard:hover {
   white-space: nowrap;
 }
 
+.feedShortcuts a:first-child .exchangeTitle {
+  font-size: clamp(0.8rem, 5cqi, 2rem);
+  white-space: normal;
+}
+
 .postingLock {
   max-width: 28rem;
   padding: 0.7rem;

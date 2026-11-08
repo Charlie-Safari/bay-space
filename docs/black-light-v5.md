@@ -85,18 +85,21 @@ For news discovery, look for substantive developments within the last 168 hours 
 
 Categories in order: Survival Status, Extinction Proximity, Nuclear Posture, Climate Stability, Biosphere Health, Resource Burn Rate, Conflict Intensity, Governance Coherence, Technology Leap Risk, AI Emergence, Space Capability, Signal Output, Psychological Volatility, Containment Risk, Contact Readiness, Observation Priority, Misc.
 
-Use a headline of 1–75 characters. Include exactly three factual tags of 1–150 characters each, including spaces and punctuation. Each needs a real supporting URL on the line immediately below it. Prefer independent evidence and primary records. Reuse a URL when it actually supports multiple claims. Attribute disputed claims. If the evidence supports fewer than three tags, explain what is missing.
+Use a headline of 1–75 characters and four paragraphs in the order below. Supporting Detail 1 and Supporting Detail 2 each allow up to 250 characters. Antithesis is the strongest credible counterpoint, alternative explanation, or evidence gap and allows up to 150 characters. Each of these three fields needs a real supporting URL on the next line. Prefer independent evidence and primary records, and attribute disputed claims.
+
+End with **THE BLACK LIGHT:** and keep that entire paragraph within 400 characters, counting the prefix, spaces, and punctuation. Treat the black light as a forensic metaphor for making hard-to-see evidence visible. Pull the supporting details and antithesis together into Bay Space’s full take. Surface a telling omission, connection, or assumption beneath the headline and explain why it matters. Distinguish documented facts from inference and say what remains unresolved when it matters. Never invent a hidden motive, claim, or source. If the evidence needed for any field is missing, explain the gap outside the draft. Keep each field on a single line.
 
 ```text
 Route: Current Events
 Category: [exact category]
 Headline: [headline]
-Tag 1: [supported fact]
+Supporting Detail 1: [sourced detail]
 Source link: [supporting URL]
-Tag 2: [supported fact]
+Supporting Detail 2: [sourced detail]
 Source link: [supporting URL]
-Tag 3: [supported fact]
+Antithesis: [credible counterpoint or evidence gap]
 Source link: [supporting URL]
+THE BLACK LIGHT: [Bay Space’s evidence-grounded synthesis]
 Topic Tags: [comma-separated topics]
 ```
 

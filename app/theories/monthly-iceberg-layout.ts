@@ -34,6 +34,15 @@ const rareSignalsLayer = theoryIcebergCategories.findIndex(
   ({ label }) => label === "Rare Signals",
 );
 
+function getLayerCenter(layer: number) {
+  return layer === 0 ? 12.375 : 21 + (layer - 1) * 6;
+}
+
+export const monthlyIcebergCategoryBands = theoryIcebergCategories.map(({ label }, layer) => {
+  const [left, right] = layerXBounds[layer];
+  return { label, x: (left + right) / 2, y: getLayerCenter(layer), width: right - left };
+});
+
 function getLayer(post: BayPost) {
   const category = post.meta?.theoryCategory;
   const layer = typeof category === "string"
@@ -55,7 +64,8 @@ function createRandom(seed: string) {
 
 function placeSignal(layer: number, random: () => number, nearby: Point[]): Point {
   const [left, right] = layerXBounds[layer];
-  const center = 21 + (layer - 1) * 6;
+  const center = getLayerCenter(layer);
+  const bandHeight = layer === 0 ? 5.75 : layer === 1 ? 3.2 : 4.4;
   let best: Point | undefined;
   let bestClearance = -1;
 
@@ -65,7 +75,7 @@ function placeSignal(layer: number, random: () => number, nearby: Point[]): Poin
     const inset = layer === 0 ? (1 - depth) * 9 : 0;
     const point = {
       x: left + inset + random() * (right - left - inset * 2),
-      y: layer === 0 ? 9.5 + depth * 5.75 : center + (depth - 0.5) * (layer === 1 ? 3.2 : 4.4),
+      y: center + (depth - 0.5) * bandHeight,
     };
     const clearance = nearby.reduce((nearest, placed) => Math.min(
       nearest,

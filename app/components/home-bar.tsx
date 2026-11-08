@@ -174,18 +174,15 @@ export default function HomeBar({ guestMode = false }: HomeBarProps) {
       return;
     }
 
-    if (targetRoute !== currentRoute) {
-      setPendingRouteLabel(label);
+    const isFeedHome = href === "/theories" || href === "/facts-on-news";
+    if (isFeedHome && targetUrl.pathname === window.location.pathname) {
+      event.preventDefault();
+      window.dispatchEvent(new Event("bay-space-return-to-feed-home"));
       return;
     }
 
-    if (label === "basecamp") {
-      event.preventDefault();
-      returnToBriefingRoomHome();
-      setIsBasecampLogoShaking(false);
-      window.requestAnimationFrame(() => {
-        setIsBasecampLogoShaking(true);
-      });
+    if (targetRoute !== currentRoute) {
+      setPendingRouteLabel(label);
     }
   }
 

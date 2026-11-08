@@ -1,4 +1,11 @@
-import { dailyFoodCategories } from "./daily-food-categories";
+import {
+  currentEventsAntithesisLimit,
+  currentEventsAntithesisPrefix,
+  currentEventsBlackLightLimit,
+  currentEventsBlackLightPrefix,
+  currentEventsDetailLimit,
+  dailyFoodCategories,
+} from "./daily-food-categories";
 import { theoryCategories } from "./theory-categories";
 import { validateQuizDraft, validateQuizQuestion, type QuizDraft, type QuizQuestion } from "./bay-space-quiz-format";
 
@@ -70,17 +77,36 @@ export function parseThiagoV3(input: string): ThiagoIntake | null {
   const topicTags = lineValue(text, "Topic Tags");
   const lines = text.split("\n");
   if (category === "daily-food") {
-    const tags: string[] = []; const tagSources: string[] = [];
-    for (let i = 1; i <= 3; i++) {
-      const tagAt = lines.findIndex(line => new RegExp(`^\\s*Tag ${i}:`, "i").test(line));
-      if (tagAt < 0) fail(`Tag ${i} is missing.`);
-      const tag = lines[tagAt].replace(/^\s*Tag \d+:\s*/i, "").trim();
-      if (!tag || tag.length > 150) fail(`Tag ${i} must be 1–150 characters.`);
+    const expanded = lines.some(line => /^\s*(?:Supporting Detail [12]|Antithesis|The Black Light):/i.test(line));
+    const labels = expanded
+      ? ["Supporting Detail 1", "Supporting Detail 2", "Antithesis"]
+      : ["Tag 1", "Tag 2", "Tag 3"];
+    const tags: string[] = [];
+    const tagSources: string[] = [];
+    for (const [index, label] of labels.entries()) {
+      const fieldPrefix = `${label.toLowerCase()}:`;
+      const tagAt = lines.findIndex(line => line.trimStart().toLowerCase().startsWith(fieldPrefix));
+      if (tagAt < 0) fail(`${label} is missing.`);
+      const tag = lines[tagAt].trimStart().slice(fieldPrefix.length).trim();
+      const limit = index < 2 ? currentEventsDetailLimit : currentEventsAntithesisLimit;
+      if (!tag || tag.length > limit) fail(`${label} must be 1–${limit} characters.`);
       const next = lines[tagAt + 1]?.match(/^\s*Source link:\s*(.+)\s*$/i)?.[1]?.trim() ?? "";
-      if (!validUrl(next)) fail(`Tag ${i} needs a valid Source link immediately below it.`);
-      tags.push(tag); tagSources.push(next);
+      if (!validUrl(next)) fail(`${label} needs a valid Source link immediately below it.`);
+      tags.push(expanded && index === 2 ? `${currentEventsAntithesisPrefix} ${tag}` : tag);
+      tagSources.push(next);
     }
-    return { kind: "article", category, title, section, body: tags.join("\n"), tags, tagSources, sources: [...new Set(tagSources)], topicTags, skepticDebunkEvidence: "" };
+    if (expanded) {
+      const analysis = lineValue(text, "THE BLACK LIGHT");
+      if (!analysis) fail("THE BLACK LIGHT paragraph is missing.");
+      const paragraph = `${currentEventsBlackLightPrefix} ${analysis}`;
+      if (paragraph.length > currentEventsBlackLightLimit) {
+        fail(`THE BLACK LIGHT paragraph must be at most ${currentEventsBlackLightLimit} characters, including its prefix.`);
+      }
+      tags.push(paragraph);
+      tagSources.push("");
+    }
+    const sources = [...new Set(tagSources.filter(Boolean))];
+    return { kind: "article", category, title, section, body: tags.join(expanded ? "\n\n" : "\n"), tags, tagSources, sources, topicTags, skepticDebunkEvidence: "" };
   }
   const bodyStart = lines.findIndex(line => /^\s*Body:\s*$/i.test(line));
   if (bodyStart < 0) fail("Conspiracy Body section is missing.");

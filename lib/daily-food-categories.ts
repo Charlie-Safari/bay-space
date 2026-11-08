@@ -19,3 +19,9 @@ export const dailyFoodCategories = [
 ];
 
 export const defaultDailyFoodCategory = "Misc";
+
+export const currentEventsDetailLimit = 250;
+export const currentEventsAntithesisLimit = 150;
+export const currentEventsBlackLightLimit = 400;
+export const currentEventsAntithesisPrefix = "Antithesis:";
+export const currentEventsBlackLightPrefix = "THE BLACK LIGHT:";

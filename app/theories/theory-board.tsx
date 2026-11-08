@@ -4,7 +4,7 @@ import BayRankBadge from "../components/bay-rank-badge";
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import {
   BayPost,
   getBayPostsByCategory,
@@ -197,10 +197,13 @@ function formatPostTimestamp(createdAt: string) {
   });
 }
 
-export default function TheoryBoard({ showKnowSomething = false }: { showKnowSomething?: boolean }) {
+export default function TheoryBoard({ showKnowSomething = false, showThisMonth = false }: {
+  showKnowSomething?: boolean;
+  showThisMonth?: boolean;
+}) {
   const screenHeading = useRef<HTMLHeadingElement>(null);
   const [browseMode, setBrowseMode] = useState<BrowseMode>(() =>
-    showKnowSomething ? "category" : getPostHashId() || getTopicTagParam() ? "all" : "",
+    showKnowSomething ? "category" : getPostHashId() || getTopicTagParam() ? "all" : showThisMonth ? "month" : "",
   );
   const [sortMode, setSortMode] = useState<SortMode>("date");
   const [query, setQuery] = useState("");
@@ -620,6 +623,15 @@ export default function TheoryBoard({ showKnowSomething = false }: { showKnowSom
     window.history.replaceState(null, "", window.location.pathname);
   }
 
+  const resetFromHeader = useEffectEvent(returnToMainScreen);
+  useEffect(() => {
+    function reset() {
+      resetFromHeader();
+    }
+    window.addEventListener("bay-space-return-to-feed-home", reset);
+    return () => window.removeEventListener("bay-space-return-to-feed-home", reset);
+  }, []);
+
   function goBackOneScreen() {
     if (monthlyStory) {
       closePost();
@@ -759,7 +771,12 @@ export default function TheoryBoard({ showKnowSomething = false }: { showKnowSom
 
       {showMonthlyMap ? (
         <div className="order-1 min-w-0">
-          <MonthlyIcebergMap signals={monthlySignals} onOpenStory={openMonthlyStory} />
+          <MonthlyIcebergMap
+            key={readerId ?? (readerId === null ? "guest" : "loading")}
+            signals={monthlySignals}
+            readerId={readerId}
+            onOpenStory={openMonthlyStory}
+          />
         </div>
       ) : null}
 

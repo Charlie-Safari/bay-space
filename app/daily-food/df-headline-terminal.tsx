@@ -3,7 +3,8 @@
 import BayRankBadge from "../components/bay-rank-badge";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import CopyPostLinkButton from "../components/copy-post-link-button";
 import BlackLightLink from "../components/black-light-link";
 import FavoriteButton from "../components/favorite-button";
@@ -33,6 +34,8 @@ import {
   getBaySpacePostTicketCount,
 } from "../../lib/bay-space-scoring";
 import {
+  currentEventsAntithesisPrefix,
+  currentEventsBlackLightPrefix,
   dailyFoodCategories,
   defaultDailyFoodCategory,
 } from "../../lib/daily-food-categories";
@@ -42,6 +45,10 @@ import {
   getPostTopicTagSearchText,
 } from "../../lib/bay-space-tags";
 import styles from "../theories/theory-experience.module.css";
+import MonthlyIcebergMap from "../theories/monthly-iceberg-map";
+import icebergStyles from "../theories/monthly-iceberg-map.module.css";
+import { getCrestSignals } from "./crest-layout";
+import CurrentEventsCategoryMap from "./current-events-category-map";
 
 type SortMode = "attention" | "top-story" | "date" | "category";
 type BrowseMode = "" | "all" | "week" | "month" | "category" | "circles";
@@ -78,27 +85,6 @@ type DailyFoodTag = {
   text: string;
 };
 
-const dailyFoodCategoryDescriptions: Record<string, string> = {
-  "Survival Status": "Are humans still functioning as a species?",
-  "Extinction Proximity": "How close Earth is to collapse.",
-  "Nuclear Posture": "Who has nukes, who's threatening, who's unstable.",
-  "Climate Stability": "Is the planet becoming less livable?",
-  "Biosphere Health": "Are animals, plants, oceans, forests surviving?",
-  "Resource Burn Rate": "How fast humans are using up essentials.",
-  "Conflict Intensity": "War, terrorism, riots, mass violence.",
-  "Governance Coherence": "Can governments still make sane decisions?",
-  "Technology Leap Risk": "Dangerous tech advancing faster than wisdom.",
-  "AI Emergence": "Machine intelligence becoming powerful or uncontrolled.",
-  "Space Capability": "Can humans leave Earth or defend orbit?",
-  "Signal Output": "How loud Earth is in space.",
-  "Psychological Volatility":
-    "How scared, angry, tribal, or irrational humans are.",
-  "Containment Risk": "Chance humans spread danger beyond Earth.",
-  "Contact Readiness":
-    "Could humans handle alien contact without losing it?",
-  "Observation Priority": "How closely aliens should watch Earth.",
-};
-
 type SavedMember = {
   rank?: string;
   member: string;
@@ -114,7 +100,8 @@ function getMetaString(post: BayPost, key: string) {
 }
 
 function getPostDailyFoodCategory(post: BayPost) {
-  return getMetaString(post, "dailyFoodCategory") || defaultDailyFoodCategory;
+  const category = getMetaString(post, "dailyFoodCategory").trim().toLowerCase();
+  return dailyFoodCategories.find((name) => name.toLowerCase() === category) ?? defaultDailyFoodCategory;
 }
 
 function getDailyFoodCategoryLabel(post: BayPost) {
@@ -182,9 +169,13 @@ export default function DfHeadlineTerminal({
 }: DfHeadlineTerminalProps) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const listRef = useRef<HTMLDivElement>(null);
-  const [browseMode, setBrowseMode] = useState<BrowseMode>(() =>
-    unlockedReference || getPostHashId() || getTopicTagParam() ? "all" : "",
-  );
+  const articleHeading = useRef<HTMLHeadingElement>(null);
+  const screenHeading = useRef<HTMLHeadingElement>(null);
+  const searchParams = useSearchParams();
+  const [browseMode, setBrowseMode] = useState<BrowseMode>(() => {
+    if (unlockedReference || getPostHashId() || getTopicTagParam()) return "all";
+    return searchParams.get("section") === "this-week" ? "week" : "";
+  });
   const [posts, setPosts] = useState<BayPost[]>([]);
   const [hasSyncedPosts, setHasSyncedPosts] = useState(false);
   const [members, setMembers] = useState<SavedMember[]>([]);
@@ -192,7 +183,7 @@ export default function DfHeadlineTerminal({
   const [favoritePostCounts, setFavoritePostCounts] = useState<
     Record<string, number>
   >({});
-  const [sortMode, setSortMode] = useState<SortMode>("attention");
+  const [sortMode, setSortMode] = useState<SortMode>(browseMode === "week" ? "date" : "attention");
   const [expandedPostId, setExpandedPostId] = useState("");
   const [hashPostId, setHashPostId] = useState(getPostHashId);
   const [selectedTopicTag, setSelectedTopicTag] = useState(getTopicTagParam);
@@ -202,7 +193,6 @@ export default function DfHeadlineTerminal({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [revealAll, setRevealAll] = useState(true);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isCategoryListLayout, setIsCategoryListLayout] = useState(false);
   const [selectedDailyFoodCategory, setSelectedDailyFoodCategory] =
     useState("");
   const normalizedReferenceQuery = unlockedReference
@@ -231,6 +221,8 @@ export default function DfHeadlineTerminal({
     posts.find((post) => post.id === hashPostId && !post.incognito) ?? null;
   const displayedPost = matchedReferencePost ?? hashPost ?? expandedPost;
   const displayedPostId = displayedPost?.id ?? "";
+  const isPeriodView = browseMode === "week" || browseMode === "month";
+  const showCrestMap = isPeriodView && hasSyncedPosts && !displayedPost && !isReferenceMode && !selectedTopicTag;
   const displayedPostScore = displayedPost
     ? formatPointTenths(
         getBaySpacePostPointTenths(displayedPost, favoritePostCounts),
@@ -705,12 +697,26 @@ export default function DfHeadlineTerminal({
     window.history.replaceState(null, "", window.location.pathname);
   }
 
+  const resetFromHeader = useEffectEvent(returnToMainScreen);
+  useEffect(() => {
+    function reset() {
+      resetFromHeader();
+    }
+    window.addEventListener("bay-space-return-to-feed-home", reset);
+    return () => window.removeEventListener("bay-space-return-to-feed-home", reset);
+  }, []);
+
   function goBackOneScreen() {
+    if (isPeriodView && displayedPost) {
+      setExpandedPostId("");
+      return;
+    }
     if (browseMode === "category" && selectedDailyFoodCategory) {
       setSelectedDailyFoodCategory("");
       setExpandedPostId("");
       setHashPostId("");
       setIsCategoriesOpen(true);
+      window.history.replaceState(null, "", getUrlWithoutTopicTag());
       return;
     }
 
@@ -725,6 +731,11 @@ export default function DfHeadlineTerminal({
     Boolean(selectedTopicTag) ||
     (browseMode === "category" && Boolean(selectedDailyFoodCategory));
 
+  function openCrestStory(postId: string) {
+    setExpandedPostId(postId);
+    window.requestAnimationFrame(() => articleHeading.current?.focus());
+  }
+
   return (
     <div className={`${styles.board} ${styles.currentEventsBoard} grid w-full min-w-0 max-w-5xl grid-cols-1 gap-8`}>
       <header className={`${styles.screenHeader} relative flex flex-wrap items-start justify-between gap-5`}>
@@ -732,7 +743,7 @@ export default function DfHeadlineTerminal({
           <p className={`${styles.breadcrumb} mb-4 text-sm uppercase text-[#bfd0bc]`}>
             {screenPath}
           </p>
-          <h1 className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
+          <h1 ref={screenHeading} tabIndex={-1} className={`${styles.screenTitle} max-w-[18ch] text-4xl font-black uppercase text-[#72c16a] sm:text-6xl`}>
             {screenTitle}
           </h1>
         </div>
@@ -742,7 +753,7 @@ export default function DfHeadlineTerminal({
             onClick={goBackOneScreen}
             className={`${styles.backButton} bay-terminal-copy px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#bfd0bc] sm:absolute sm:right-0 sm:top-0`}
           >
-            ← back / {browseMode === "category" && selectedDailyFoodCategory
+            ← back / {isPeriodView && displayedPost ? "story map" : browseMode === "category" && selectedDailyFoodCategory
               ? "current events categories"
               : "current events > main"}
           </button>
@@ -750,45 +761,67 @@ export default function DfHeadlineTerminal({
       </header>
 
       {isMainScreen ? (
-        <section
-          className={`${styles.entryGrid} order-1 grid gap-4 sm:grid-cols-2`}
-          aria-label="Choose Current Events view"
-        >
-          {[
-            {
-              description: "The stories and signals published since Monday.",
-              label: "THIS WEEK",
-              mode: "week" as const,
-            },
-            {
-              description: "A wider look across the current calendar month.",
-              label: "THIS MONTH",
-              mode: "month" as const,
-            },
-            {
-              description: "Follow current events by subject and signal type.",
-              label: "CATEGORIES",
-              mode: "category" as const,
-            },
-            {
-              description: "Gather around an event and follow it together.",
-              label: "CIRCLES",
-              mode: "circles" as const,
-            },
-          ].map((option, index) => (
-            <button
-              key={option.mode}
-              type="button"
-              onClick={() => openBrowseMode(option.mode)}
-              className={`${styles.entryCard} text-left focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
-            >
-              <span className={styles.entryNumber}>0{index + 1}</span>
-              <span className={styles.entryLabel}>{option.label}</span>
-              <span className={styles.entryDescription}>{option.description}</span>
-              <span className={styles.entryArrow} aria-hidden="true">→</span>
-            </button>
-          ))}
-        </section>
+        <>
+          <figure className={`${icebergStyles.crestArt} ${icebergStyles.crestHero}`}>
+            <figcaption>Above the waterline</figcaption>
+          </figure>
+          <section
+            className={`${styles.entryGrid} order-1 grid gap-4 sm:grid-cols-2`}
+            aria-label="Choose Current Events view"
+          >
+            {[
+              {
+                description: "The stories and signals published since Monday.",
+                label: "THIS WEEK",
+                mode: "week" as const,
+              },
+              {
+                description: "A wider look across the current calendar month.",
+                label: "THIS MONTH",
+                mode: "month" as const,
+              },
+              {
+                description: "Follow current events by subject and signal type.",
+                label: "CATEGORIES",
+                mode: "category" as const,
+              },
+              {
+                description: "Gather around an event and follow it together.",
+                label: "CIRCLES",
+                mode: "circles" as const,
+              },
+            ].map((option, index) => (
+              <button
+                key={option.mode}
+                type="button"
+                onClick={() => openBrowseMode(option.mode)}
+                className={`${styles.entryCard} text-left focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
+              >
+                <span className={styles.entryNumber}>0{index + 1}</span>
+                <span className={styles.entryLabel}>{option.label}</span>
+                <span className={styles.entryDescription}>{option.description}</span>
+                <span className={styles.entryArrow} aria-hidden="true">→</span>
+              </button>
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      {showCrestMap ? (
+        <MonthlyIcebergMap
+          key={readerId ?? (readerId === null ? "guest" : "loading")}
+          variant="crest"
+          signals={getCrestSignals(activePosts, getPostDailyFoodCategory)}
+          readerId={readerId}
+          onOpenStory={openCrestStory}
+        />
+      ) : null}
+
+      {browseMode === "category" && isCategoriesOpen && !selectedDailyFoodCategory ? (
+        <CurrentEventsCategoryMap onSelectCategory={(category) => {
+          setSelectedDailyFoodCategory(category);
+          window.requestAnimationFrame(() => screenHeading.current?.focus());
+        }} />
       ) : null}
 
       {browseMode === "circles" ? (
@@ -859,7 +892,7 @@ export default function DfHeadlineTerminal({
             <option value="category">Category</option>
           </select>
         </label>
-        <label className={`${styles.currentEventsToggle} flex min-h-12 w-fit items-center gap-3 border px-4 py-2 text-xs font-black uppercase tracking-[0.18em]`}>
+        {!isPeriodView ? <label className={`${styles.currentEventsToggle} flex min-h-12 w-fit items-center gap-3 border px-4 py-2 text-xs font-black uppercase tracking-[0.18em]`}>
           <span>reveal posts</span>
           <input
             type="checkbox"
@@ -868,129 +901,39 @@ export default function DfHeadlineTerminal({
             className="peer sr-only"
           />
           <span className="relative h-5 w-10 rounded-full border border-[#4f8f49] bg-[#071008] transition peer-checked:border-[#72c16a] peer-checked:bg-[#72c16a] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#72c16a] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-[#071008]" />
-        </label>
+        </label> : null}
       </div>
       ) : null}
 
-      {hasActiveFeed || browseMode === "category" ? (
+      {!showCrestMap && hasActiveFeed ? (
       <div
-        className={`${styles.surface} ${styles.currentEventsFeed} relative order-1 w-full overflow-hidden px-5 py-8 ${
-          isCategoriesOpen ? "min-h-[42rem] lg:min-h-[38rem]" : "min-h-40"
-        }`}
+        className={`${styles.surface} ${styles.currentEventsFeed} relative order-1 min-h-40 w-full overflow-hidden px-5 py-8`}
       >
-        {isCategoriesOpen ? (
-          <div className="daily-food-categories-overlay absolute inset-0 z-20 flex items-start justify-center overflow-y-auto bg-black/95 px-5 py-8">
-            <div className="daily-food-categories-grid" aria-hidden="true" />
-            <div className="relative z-10 grid w-full max-w-4xl gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#d7ffd0]">
-                    {selectedDailyFoodCategory || "Categories"}
-                  </p>
-                  {selectedDailyFoodCategory &&
-                  dailyFoodCategoryDescriptions[selectedDailyFoodCategory] ? (
-                    <p className="max-w-2xl text-xs font-bold normal-case leading-5 tracking-[0.02em] text-[#9fcb98]">
-                      {dailyFoodCategoryDescriptions[selectedDailyFoodCategory]}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  {!selectedDailyFoodCategory ? (
-                    <label className="flex w-fit cursor-pointer items-center gap-3 border border-[#1d7f12] bg-black/80 px-3 py-2 text-[#39ff14] transition hover:border-[#39ff14] focus-within:ring-2 focus-within:ring-[#d7ffd0]">
-                      <span aria-hidden="true">🔑</span>
-                      <input
-                        type="checkbox"
-                        checked={isCategoryListLayout}
-                        onChange={(event) =>
-                          setIsCategoryListLayout(event.target.checked)
-                        }
-                        className="peer sr-only"
-                        aria-label="Toggle Current Events category list layout"
-                      />
-                      <span className="relative h-5 w-10 rounded-full border border-[#1d7f12] bg-[#001100] transition peer-checked:border-[#39ff14] peer-checked:bg-[#39ff14] after:absolute after:left-1 after:top-1/2 after:h-3 after:w-3 after:-translate-y-1/2 after:rounded-full after:bg-[#39ff14] after:transition peer-checked:after:translate-x-5 peer-checked:after:bg-black" />
-                    </label>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={returnToMainScreen}
-                    className="border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    aria-label="Close Current Events categories"
-                  >
-                    close
-                  </button>
-                </div>
-              </div>
-              {selectedDailyFoodCategory ? (
-                <div className="grid gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDailyFoodCategory("")}
-                    className="w-fit border border-[#1d7f12] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#39ff14] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                  >
-                    back
-                  </button>
-                  {categoryPosts.length ? (
-                    <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-2">
-                      {categoryPosts.map((post) => (
-                        <button
-                          key={post.id}
-                          type="button"
-                          onClick={() => openCategoryPost(post)}
-                          className="daily-food-category-button border border-[#39ff14]/45 bg-black/80 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.1)] transition hover:border-[#39ff14] hover:bg-[#031403] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                        >
-                          <span className="block text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#7f9f78]">
-                            {formatTimestamp(post.createdAt)}
-                          </span>
-                          <span className="mt-2 block text-sm font-black uppercase tracking-[0.14em]">
-                            {post.title}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
-                      no posts filed in this category
-                    </p>
-                  )}
-                </div>
-              ) : isCategoryListLayout ? (
-                <div className="grid max-h-[30rem] gap-3 overflow-y-auto pr-2">
-                  {dailyFoodCategories.map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setSelectedDailyFoodCategory(category)}
-                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-dashed hover:border-[#39ff14] hover:bg-black/75 hover:text-[#d7ffd0] hover:shadow-[0_0_18px_rgba(57,255,20,0.3)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    >
-                      <span className="block text-sm font-black uppercase tracking-[0.14em]">
-                        {category}
-                      </span>
-                      {dailyFoodCategoryDescriptions[category] ? (
-                        <span className="mt-2 block text-xs font-bold normal-case leading-5 tracking-[0.02em] text-[#9fcb98]">
-                          {dailyFoodCategoryDescriptions[category]}
-                        </span>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {dailyFoodCategories.map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setSelectedDailyFoodCategory(category)}
-                      className="daily-food-category-button border border-[#39ff14]/50 bg-black/75 px-3 py-3 text-left text-xs font-black uppercase tracking-[0.14em] text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.12)] transition hover:border-[#39ff14] hover:bg-[#39ff14] hover:text-black hover:shadow-[0_0_18px_rgba(57,255,20,0.5)] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
-                    >
-                      {category}
-                    </button>
-                  ))}
-                </div>
-              )}
+        {isCategoriesOpen && selectedDailyFoodCategory ? (
+          categoryPosts.length ? (
+            <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-2">
+              {categoryPosts.map((post) => (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => openCategoryPost(post)}
+                  className="daily-food-category-button border border-[#39ff14]/45 bg-black/80 px-4 py-4 text-left text-[#d7ffd0] shadow-[0_0_10px_rgba(57,255,20,0.1)] transition hover:border-[#39ff14] hover:bg-[#031403] hover:text-[#39ff14] focus:outline-none focus:ring-2 focus:ring-[#d7ffd0]"
+                >
+                  <span className="block text-[0.65rem] font-black uppercase tracking-[0.18em] text-[#7f9f78]">
+                    {formatTimestamp(post.createdAt)}
+                  </span>
+                  <span className="mt-2 block text-sm font-black uppercase tracking-[0.14em]">
+                    {post.title}
+                  </span>
+                </button>
+              ))}
             </div>
-          </div>
-        ) : null}
-        {!hasSyncedPosts ? (
+          ) : (
+            <p className="border-l-2 border-[#39ff14] pl-4 text-sm font-black uppercase tracking-[0.16em] text-[#d7ffd0]">
+              no posts filed in this category
+            </p>
+          )
+        ) : !hasSyncedPosts ? (
           <TerminalLoadingShell
             label="c:\\bay-space\\facts-on-news> syncing-feed"
             title="current events"
@@ -1036,6 +979,7 @@ export default function DfHeadlineTerminal({
                 setExpandedPostId("");
                 if (hashPost) {
                   setHashPostId("");
+                  if (browseMode === "category" && selectedDailyFoodCategory) setIsCategoriesOpen(true);
                   window.history.replaceState(
                     null,
                     "",
@@ -1048,7 +992,7 @@ export default function DfHeadlineTerminal({
               }}
               className={`${styles.currentEventsAction} border px-3 py-2 text-xs font-black uppercase tracking-[0.18em] transition focus:outline-none focus:ring-2 focus:ring-[#bfd0bc]`}
             >
-              back
+              {isPeriodView ? "back to map" : "back"}
             </button>
             {!displayedPost.incognito &&
             (shouldClassifyAuthor(displayedPost) ||
@@ -1087,7 +1031,7 @@ export default function DfHeadlineTerminal({
             <p className="mt-3 text-xs font-black uppercase tracking-[0.16em] text-[#7f9f78]">
               {formatTimestamp(displayedPost.createdAt)}
             </p>
-            <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.08em] text-[#72c16a] sm:text-3xl">
+            <h2 ref={articleHeading} tabIndex={isPeriodView ? -1 : undefined} className="mt-3 text-2xl font-black uppercase tracking-[0.08em] text-[#72c16a] sm:text-3xl">
               {displayedPost.title}
             </h2>
             {getDailyFoodTags(displayedPost).length ? (
@@ -1097,11 +1041,14 @@ export default function DfHeadlineTerminal({
                     key={`${tag.text}-${tag.source}-${index}`}
                     className="flex items-start gap-3"
                   >
-                    <span
-                      className={`${styles.currentEventBullet} mt-2 h-2 w-2 shrink-0`}
-                      aria-hidden="true"
-                    />
-                    <p>
+                    {!tag.text.startsWith(currentEventsAntithesisPrefix) &&
+                    !tag.text.startsWith(currentEventsBlackLightPrefix) ? (
+                      <span
+                        className={`${styles.currentEventBullet} mt-2 h-2 w-2 shrink-0`}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <p className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
                       <span>{tag.text}</span>
                       {tag.source ? (
                         <>

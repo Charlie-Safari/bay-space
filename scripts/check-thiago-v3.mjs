@@ -33,6 +33,27 @@ assert.equal(event.section,'AI Emergence');
 assert.equal(event.tagSources.length,3);
 assert.deepEqual([...event.tagSources],[sameUrl,sameUrl,sameUrl]);
 assert.equal(event.sources.length,1);
+const expandedEvents = [
+  'Route: Current Events',
+  'Category: AI Emergence',
+  'Headline: Evidence and its limits',
+  `Supporting Detail 1: ${'a'.repeat(250)}`,
+  `Source link: ${sameUrl}`,
+  `Supporting Detail 2: ${'b'.repeat(250)}`,
+  'Source link: https://example.org/second',
+  'Antithesis: The report does not establish causation.',
+  `Source link: ${sameUrl}`,
+  `THE BLACK LIGHT: ${'c'.repeat(400 - 'THE BLACK LIGHT: '.length)}`,
+  'Topic Tags: research, evidence',
+].join('\n');
+const expandedEvent = parse(formatThiagoDraft(expandedEvents, 'daily-food'));
+assert.equal(expandedEvent.body.split('\n\n').length, 4);
+assert.equal(expandedEvent.tags[3].length, 400);
+assert.match(expandedEvent.tags[2], /^Antithesis: /);
+assert.deepEqual([...expandedEvent.tagSources], [sameUrl, 'https://example.org/second', sameUrl, '']);
+assert.throws(() => parse(expandedEvents.replace('a'.repeat(250), 'a'.repeat(251))), /250 characters/);
+assert.throws(() => parse(expandedEvents.replace(/(THE BLACK LIGHT: .+)/, '$1c')), /400 characters/);
+assert.throws(() => parse(expandedEvents.replace(/^THE BLACK LIGHT: .*\n/m, '')), /paragraph is missing/);
 const longBody = `A dream about facts and current events.\n\n${'Original detail. '.repeat(900)}`;
 const conspiracy = parse(`Route: Conspiracy\nCategory: Rare Signals\nHeadline: Original account\nBody:\n${longBody}\nTopic Tags: dreams\nSources:\n${sameUrl}`);
 assert.equal(conspiracy.category,'theory');

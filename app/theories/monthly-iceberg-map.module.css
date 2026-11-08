@@ -36,6 +36,39 @@
     url("/brand/conspiracy-iceberg.svg") center / 100% 100% no-repeat;
 }
 
+.crestArt {
+  background:
+    linear-gradient(#03120f 2.35%, transparent 4.25% 88%, #03120f 93%),
+    #03120f url("/brand/current-events-mountain.png") center -33.333% / 100% 94% no-repeat;
+}
+
+.iceberg.crestMap {
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  min-height: 17rem;
+}
+
+.crestHero {
+  display: grid;
+  align-items: end;
+  width: 100%;
+  aspect-ratio: 4 / 1;
+  min-height: 8rem;
+  overflow: hidden;
+  border: 1px solid #346951;
+  border-radius: 0.9rem;
+}
+
+.crestHero figcaption {
+  padding: 0.6rem 1rem;
+  background: linear-gradient(transparent, #03120fef);
+  color: #d3efdc;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .iceberg::before {
   position: absolute;
   z-index: -1;
@@ -43,6 +76,28 @@
   border: 1px solid #76d99b48;
   content: "";
   pointer-events: none;
+}
+
+.categoryOverlay {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.categoryOverlay li {
+  position: absolute;
+  width: max(8rem, var(--band-width));
+  transform: translate(-50%, -50%);
+  padding: 0.14em 0.25em;
+  color: #5fffc0;
+  font-size: clamp(0.6rem, 1.55vw, 0.9rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .marker {
@@ -62,10 +117,18 @@
   display: block;
   width: clamp(0.32rem, 0.92vw, 0.54rem);
   aspect-ratio: 1;
+  transition: transform 180ms ease;
+  animation-delay: inherit;
+}
+
+.light::before {
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
   background: radial-gradient(circle at 40% 35%, #fff 12%, #e4ffde 43%, #b1ffa5 72%, #5cf37d);
   box-shadow: 0 0 0 1px #105333, 0 0 0.3rem #d8ffcb, 0 0 0.65rem 0.12rem #63fb74c2, 0 0 1.4rem 0.2rem #3af27456;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  content: "";
+  animation-delay: inherit;
 }
 
 .light::after {
@@ -75,12 +138,19 @@
   border-radius: 50%;
   content: "";
   opacity: 0;
-  animation: bubble-glint 6s ease-out infinite;
   animation-delay: inherit;
 }
 
-.marker .light {
-  animation-delay: inherit;
+@media (prefers-reduced-motion: no-preference) {
+  .marker[data-signal-state="unread"] .light::before {
+    animation: signal-twinkle 6s linear infinite;
+    animation-delay: inherit;
+  }
+
+  .marker[data-signal-state="unread"] .light::after {
+    animation: bubble-glint 6s ease-out infinite;
+    animation-delay: inherit;
+  }
 }
 
 .marker:is(:hover, :focus-visible, [aria-expanded="true"]) {
@@ -89,7 +159,12 @@
 
 .marker:is(:hover, :focus-visible, [aria-expanded="true"]) .light {
   transform: scale(1.24);
+}
+
+.marker:is(:hover, :focus-visible, [aria-expanded="true"]) .light::before {
   box-shadow: 0 0 0.35rem #e0ffd9, 0 0 0 0.22rem #71ff8e68, 0 0 0 0.43rem #71ff8e34, 0 0 0.95rem 0.5rem #57ff809e;
+  opacity: 1;
+  animation-name: none;
 }
 
 .marker:focus-visible {
@@ -124,6 +199,10 @@
   --leader-height: 2rem;
   top: calc(var(--signal-y) + var(--leader-height));
   --leader-rise: -1;
+}
+
+.crestMap .callout[data-near-base="true"] {
+  --leader-height: clamp(2.65rem, 5vw, 3rem);
 }
 
 .calloutFrame {
@@ -212,12 +291,70 @@
   text-align: center;
 }
 
-.index {
+.footer {
+  position: relative;
   padding: 0.75rem 1rem;
   border-top: 1px solid #315544;
   background: #081c15;
   color: #b5d9c5;
   font-size: 0.78rem;
+}
+
+.footer[data-category-switch] {
+  min-height: 2.7rem;
+}
+
+.footer[data-category-switch] summary {
+  max-width: calc(100% - 10rem);
+}
+
+.categorySwitch {
+  position: absolute;
+  top: 0.48rem;
+  right: 1rem;
+  display: flex;
+  min-height: 1.75rem;
+  align-items: center;
+  gap: 0.45rem;
+  color: #d3efdc;
+  cursor: pointer;
+}
+
+.categorySwitch span {
+  position: relative;
+  width: 1.9rem;
+  height: 1.1rem;
+  border: 1px solid #578d69;
+  border-radius: 1rem;
+  background: #03100d;
+}
+
+.categorySwitch span::after {
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 0.65rem;
+  aspect-ratio: 1;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #94baa2;
+  content: "";
+}
+
+.categorySwitch[aria-checked="true"] span {
+  border-color: #a9f7ad;
+  background: #275741;
+}
+
+.categorySwitch[aria-checked="true"] span::after {
+  right: 0.15rem;
+  left: auto;
+  background: #d9ffdb;
+}
+
+.categorySwitch:focus-visible {
+  outline: 2px solid #a9f7ad;
+  outline-offset: 3px;
 }
 
 .index summary {
@@ -258,6 +395,13 @@
   background: #103529;
 }
 
+@keyframes signal-twinkle {
+  0%, 23%, 51%, 74%, 100% { opacity: 0; }
+  29%, 44% { opacity: 0.75; }
+  80%, 88% { opacity: 1; }
+  92%, 96% { opacity: 0.35; }
+}
+
 @keyframes bubble-glint {
   0%, 80%, 100% { opacity: 0; transform: scale(0.55); }
   84% { opacity: 0.48; }
@@ -274,9 +418,5 @@
 @media (prefers-reduced-motion: reduce) {
   .light {
     transition: none;
-  }
-
-  .light::after {
-    animation: none;
   }
 }

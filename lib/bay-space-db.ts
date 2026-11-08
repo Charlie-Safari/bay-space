@@ -3012,6 +3012,88 @@ async function syncPostTruthVoteMeta(post: PostRow, userMemberId?: string) {
   return { post: publicPost(updatedPosts[0]), summary };
 }
 
+type LibraryCardActivity = {
+  id?: string;
+  body?: string;
+  created_at: string;
+  post: Pick<PostRow, "id" | "category" | "title" | "meta">;
+};
+
+export async function listRecentArticleReadIds(memberNumber: string, category: "theory" | "daily-food") {
+  const member = await getMemberRowByNumber(memberNumber);
+  if (!member) return [];
+
+  // Include the previous month because the current week can straddle a month boundary.
+  const [year, month] = getPacificDateKey().split("-").map(Number);
+  const rangeStart = new Date(Date.UTC(year, month - 2, 1)).toISOString();
+  const pageSize = 500;
+  const ids: string[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const rows = await supabaseRequest<Pick<MemberArticleReadRow, "post_id">[]>("member_article_reads", {
+      query: {
+        member_id: `eq.${member.id}`,
+        "post.category": `eq.${category}`,
+        "post.created_at": `gte.${rangeStart}`,
+        select: "post_id,post:posts!inner()",
+        order: "post_id.asc",
+        limit: pageSize,
+        offset,
+      },
+    });
+    ids.push(...rows.map(({ post_id }) => post_id));
+    if (rows.length < pageSize) return ids;
+  }
+}
+
+export async function listLibraryCardActivity(
+  memberNumber: string,
+  view: "articles" | "comments",
+) {
+  const member = await getMemberRowByNumber(memberNumber);
+  if (!member) return [];
+
+  const comments = view === "comments";
+  const pageSize = 500;
+  const activity = [];
+
+  for (let offset = 0; ; offset += pageSize) {
+    const rows = await supabaseRequest<LibraryCardActivity[]>(
+      comments ? "post_comments" : "member_article_reads",
+      {
+        query: {
+          ...(comments
+            ? {
+                author_member_id: `eq.${member.id}`,
+                deleted_at: "is.null",
+                moderation_status: "eq.active",
+              }
+            : { member_id: `eq.${member.id}` }),
+          "post.category": "in.(theory,daily-food,top-story)",
+          "post.deleted_at": "is.null",
+          "post.moderation_status": "eq.active",
+          order: comments ? "created_at.desc,id.desc" : "created_at.desc,post_id.desc",
+          select: `${comments ? "id,body," : ""}created_at,post:posts!inner(id,category,title,meta)`,
+          limit: pageSize,
+          offset,
+        },
+      },
+    );
+
+    for (const { id, body, created_at, post } of rows) {
+      if (isCryptiPost(post)) continue;
+      activity.push({
+        id: id ?? post.id,
+        postId: post.id,
+        category: post.category,
+        title: post.title,
+        body,
+        date: created_at,
+      });
+    }
+    if (rows.length < pageSize) return activity;
+  }
+}
+
 export async function listPostComments(postId: string) {
   const post = await getCommentablePostRow(postId);
 

@@ -14,7 +14,7 @@ export default async function Theories({ searchParams }: {
       <HomeBar guestMode={!member} />
 
       <section className={`${styles.content} mx-auto flex min-h-[calc(100vh-89px)] w-full max-w-6xl flex-col justify-center px-4 py-16`}>
-        <TheoryBoard showKnowSomething={section === "know-something"} />
+        <TheoryBoard key={section} showKnowSomething={section === "know-something"} showThisMonth={section === "this-month"} />
       </section>
     </main>
   );
