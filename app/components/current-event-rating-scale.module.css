@@ -85,7 +85,7 @@
 
 .legend {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) minmax(0, 4fr);
+  grid-template-columns: minmax(max-content, 3fr) minmax(0, 4fr) minmax(0, 4fr);
   gap: 0.5rem;
   color: #d7ffd0;
   font-family: "Courier New", Courier, monospace;
@@ -94,5 +94,6 @@
   overflow-wrap: anywhere;
 }
 
+.legend > :first-child { white-space: nowrap; }
 .legend > :nth-child(2) { text-align: center; }
 .legend > :last-child { text-align: right; }
